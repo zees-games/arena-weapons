@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 154
+const CHECKS := 158
 
 var _entered := 0
 var _finished := 0
@@ -38,7 +38,12 @@ func _models() -> void:
 
 		var node := scene.instantiate() as Node3D
 		var box := _aabb(node, Transform3D.IDENTITY)
+		var rear_top := _rear_top(node, Transform3D.IDENTITY, float(row["muzzle"]), -INF, Vector3.ZERO)
 		node.free()
+		if row["tier"] == "sidearm":
+			var aim_in: Vector3 = (row["view"] as Dictionary).get("aim", Vector3.ZERO)
+			var low := rad_to_deg(atan2(rear_top.y + aim_in.y, -(aim_in.z + rear_top.z)))
+			_check("%s: the rear sight sits %.2f degrees off the crosshair, under 0.25" % [role, low], absf(low) < 0.25)
 		_check("%s: the barrel end is %.3f m ahead of the grip, as the table says" % [role, row["muzzle"]], absf(-box.position.z - float(row["muzzle"])) < 0.02)
 		_check("%s: a gun, not a tiny prop (%.2f m long)" % [role, box.size.z], box.size.z > 0.08 and box.size.z < 1.6)
 		var aim: Vector3 = (row["view"] as Dictionary).get("aim", Vector3.ZERO)
@@ -200,6 +205,22 @@ func _def(defs: Array[DotWeaponDef], id: StringName) -> DotWeaponDef:
 		if d.id == id:
 			return d
 	return DotWeaponDef.new()
+
+
+## The highest vertex in the rear half of the gun's length, as tools/measure_sights.py finds the rear sight.
+func _rear_top(n: Node, parent: Transform3D, muzzle: float, best_y: float, best: Vector3) -> Vector3:
+	var t := parent * (n as Node3D).transform if n is Node3D else parent
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+		var mesh := (n as MeshInstance3D).mesh
+		for surf in mesh.get_surface_count():
+			for v: Vector3 in mesh.surface_get_arrays(surf)[Mesh.ARRAY_VERTEX]:
+				var w := t * v
+				if w.z > -muzzle * 0.5 and w.y > best_y:
+					best_y = w.y
+					best = w
+	for c in n.get_children():
+		best = _rear_top(c, t, muzzle, best.y if best != Vector3.ZERO else -INF, best)
+	return best
 
 
 func _aabb(n: Node, parent: Transform3D) -> AABB:
