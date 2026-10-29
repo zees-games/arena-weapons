@@ -5,11 +5,11 @@
 	"packs": [
 		{
 			"id": "gamemann/arena-weapons",
-			"into": "assets",
+			"into": "addons/arena_weapons/assets/models",
 			"kind": "store",
-			"manifest_sha256": "5e95a100d93e0f05c5ea4c97fc1ec155480ea37e7fa6b8e1f92b58f60c5b436d",
+			"manifest_sha256": "75db7771fc92f84898d2debcf58c96fec027fdcaa99ab08da21390231e4a0b46",
 			"optional": false,
-			"version": "0.1.0"
+			"version": "1.1.0"
 		}
 	]
 }
