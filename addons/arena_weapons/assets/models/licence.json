@@ -1,1 +1,101 @@
-[{"paths": ["pistol.glb", "smg.glb", "rifle.glb", "carbine.glb", "sniper_rifle.glb", "pump_shotgun.glb", "rocket_launcher.glb", "rocket_launcher_alt.glb", "quad_rocket_launcher.glb", "frag_grenade.glb", "frag_grenade_alt.glb", "flash_grenade.glb", "smoke_grenade.glb", "incendiary_grenade.glb", "ammo_box.glb", "round_pistol.glb", "round_rifle.glb", "round_shell.glb", "round_sniper.glb"], "licence": "CC0-1.0", "author": "Styloo", "url": "https://styloo.itch.io/guns-asset-pack", "title": "Guns asset pack"}, {"paths": ["revolver.glb", "machine_pistol.glb", "derringer.glb", "bullpup.glb", "battle_rifle.glb", "burst_rifle.glb", "drum_shotgun.glb", "marksman.glb"], "licence": "CC0-1.0", "author": "Polyy", "url": "https://polyyai.itch.io/3d-low-poly-guns-pack", "title": "3D Low Poly Guns Pack"}, {"paths": ["minigun.glb", "lmg.glb", "grenade_launcher.glb", "plasma_rifle.glb", "rail_rifle.glb"], "licence": "CC0-1.0", "author": "Polyy", "url": "https://polyyai.itch.io/3d-low-poly-guns-pack-2", "title": "3D Low Poly Guns Pack 2"}, {"paths": ["knife.glb"], "licence": "CC0-1.0", "author": "Vinrax", "url": "https://opengameart.org/content/knife-low-poly", "title": "Knife low poly"}]
+[
+ {
+  "paths": [
+   "pistol",
+   "smg",
+   "rifle",
+   "carbine",
+   "sniper_rifle",
+   "pump_shotgun",
+   "rocket_launcher",
+   "rocket_launcher_alt",
+   "quad_rocket_launcher",
+   "frag_grenade",
+   "frag_grenade_alt",
+   "flash_grenade",
+   "smoke_grenade",
+   "incendiary_grenade",
+   "ammo_box",
+   "round_pistol",
+   "round_rifle",
+   "round_shell",
+   "round_sniper",
+   "_imported/pistol",
+   "_imported/smg",
+   "_imported/rifle",
+   "_imported/carbine",
+   "_imported/sniper_rifle",
+   "_imported/pump_shotgun",
+   "_imported/rocket_launcher",
+   "_imported/rocket_launcher_alt",
+   "_imported/quad_rocket_launcher",
+   "_imported/frag_grenade",
+   "_imported/frag_grenade_alt",
+   "_imported/flash_grenade",
+   "_imported/smoke_grenade",
+   "_imported/incendiary_grenade",
+   "_imported/ammo_box",
+   "_imported/round_pistol",
+   "_imported/round_rifle",
+   "_imported/round_shell",
+   "_imported/round_sniper",
+   "licence.json"
+  ],
+  "licence": "CC0-1.0",
+  "author": "Styloo",
+  "url": "https://styloo.itch.io/guns-asset-pack",
+  "title": "Guns asset pack"
+ },
+ {
+  "paths": [
+   "revolver",
+   "machine_pistol",
+   "derringer",
+   "bullpup",
+   "battle_rifle",
+   "burst_rifle",
+   "drum_shotgun",
+   "marksman",
+   "_imported/revolver",
+   "_imported/machine_pistol",
+   "_imported/derringer",
+   "_imported/bullpup",
+   "_imported/battle_rifle",
+   "_imported/burst_rifle",
+   "_imported/drum_shotgun",
+   "_imported/marksman"
+  ],
+  "licence": "CC0-1.0",
+  "author": "Polyy",
+  "url": "https://polyyai.itch.io/3d-low-poly-guns-pack",
+  "title": "3D Low Poly Guns Pack"
+ },
+ {
+  "paths": [
+   "minigun",
+   "lmg",
+   "grenade_launcher",
+   "plasma_rifle",
+   "rail_rifle",
+   "_imported/minigun",
+   "_imported/lmg",
+   "_imported/grenade_launcher",
+   "_imported/plasma_rifle",
+   "_imported/rail_rifle"
+  ],
+  "licence": "CC0-1.0",
+  "author": "Polyy",
+  "url": "https://polyyai.itch.io/3d-low-poly-guns-pack-2",
+  "title": "3D Low Poly Guns Pack 2"
+ },
+ {
+  "paths": [
+   "knife",
+   "_imported/knife"
+  ],
+  "licence": "CC0-1.0",
+  "author": "Vinrax",
+  "url": "https://opengameart.org/content/knife-low-poly",
+  "title": "Knife low poly"
+ }
+]
