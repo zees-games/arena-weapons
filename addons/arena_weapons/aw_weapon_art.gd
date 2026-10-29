@@ -38,10 +38,13 @@ const WEAPONS := {
 	&"charge_rifle": {"model": "rail_rifle", "muzzle": 0.830, "tier": "heavy", "view": {"aim": Vector3(0.016, -0.301, -0.474), "zoom": 0.4, "scoped": true}},
 	&"frag": {"model": "frag_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
 	&"sticky": {"model": "frag_grenade_alt", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
+	&"flash": {"model": "flash_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
+	&"smoke": {"model": "smoke_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
+	&"incendiary": {"model": "incendiary_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
 }
 
 ## Equipment and props with no weapon behind them yet: the pack's own, for a host's pickups and effects.
-const PROPS: Array[String] = ["flash_grenade", "smoke_grenade", "incendiary_grenade", "ammo_box", "round_pistol", "round_rifle", "round_shell", "round_sniper", "rocket_launcher_alt"]
+const PROPS: Array[String] = ["ammo_box", "round_pistol", "round_rifle", "round_shell", "round_sniper", "rocket_launcher_alt"]
 
 ## Who made each model ([method AwSpawnProvider.credits]); CREDITS.md says the same for people.
 const CREDITS: Array[Dictionary] = [

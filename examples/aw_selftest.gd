@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 139
+const CHECKS := 154
 
 var _entered := 0
 var _finished := 0
@@ -18,6 +18,7 @@ func _ready() -> void:
 	_provider()
 	_defs()
 	_dress()
+	_grenades()
 	await _finish()
 
 
@@ -106,6 +107,84 @@ func _dress() -> void:
 	_check("the muzzle is the table's", is_equal_approx(art.muzzle_distance, 0.548))
 	_check("the zee art itself is untouched until a game applies it", before.model_path != art.model_path)
 	_check("a grenade dressed keeps the throw carry", _thrown())
+	_end()
+
+
+func _grenades() -> void:
+	_begin("grenade gameplay")
+	var defs := AwSpawnProvider.weapon_defs()
+	var rules := AwGrenadeRules.new()
+	var floor_y := func(_from: Vector3, to: Vector3) -> Dictionary:
+		if to.y > 0.0:
+			return {}
+		return {"position": Vector3(to.x, 0.0, to.z), "normal": Vector3.UP}
+	var make := func(id: StringName, vel: Vector3, fuse: int) -> AwGrenade:
+		var s := DotWeaponSpawn.make(id, Vector3(0, 1, 0), vel, 7)
+		s.fuse_ticks = fuse
+		s.gravity_scale = 1.0
+		return AwGrenade.from_spawn(s, _def(defs, id), rules)
+
+	_check("flash, smoke and incendiary are weapons with their own kinds", [&"aw_flash", &"aw_smoke", &"aw_incendiary"].all(func(i: StringName) -> bool: return _def(defs, i).slot == 5 and _def(defs, i).params.has(&"kind")))
+	_check("they wear the baked grenade models", [&"flash", &"smoke", &"incendiary"].all(func(i: StringName) -> bool: return ResourceLoader.exists(AwWeaponArt.row_of(i)["model"])))
+
+	var g: AwGrenade = make.call(&"aw_frag", Vector3(4, 0, 0), 64)
+	var ticks := 0
+	while ticks < 200:
+		var gone := g.step(floor_y, 64)
+		ticks += 1
+		if gone:
+			break
+	_check("a frag bounces off the floor and goes off when the fuse runs out (%d ticks)" % ticks, g.bounces > 0 and ticks == 64 and g.position.y >= 0.0)
+	_check("a bounce loses speed", g.velocity.length() < 12.0)
+
+	var st: AwGrenade = make.call(&"aw_sticky", Vector3(2, 0, 0), 500)
+	for i in 100:
+		var _gone := st.step(floor_y, 64)
+	_check("a sticky stays where it landed", st.stuck and st.velocity == Vector3.ZERO)
+
+	var inc: AwGrenade = make.call(&"aw_incendiary", Vector3(0, -3, 0), 500)
+	var burst := false
+	for i in 100:
+		burst = inc.step(floor_y, 64)
+		if burst:
+			break
+	_check("an incendiary bursts on first contact, fuse not spent", burst and inc.fuse > 300)
+
+	var cooked: AwGrenade = make.call(&"aw_frag", Vector3.ZERO, 0)
+	_check("a grenade cooked past its fuse goes off at once", cooked.step(floor_y, 64))
+
+	g.position = Vector3.ZERO
+	var victims: Array = [
+		{"id": 7, "position": Vector3(0, 0, 0), "eye": Vector3(0, 1.6, 0), "forward": Vector3.FORWARD},
+		{"id": 2, "position": Vector3(2.6, 0, 0), "eye": Vector3(2.6, 1.6, 0), "forward": Vector3.FORWARD},
+		{"id": 3, "position": Vector3(9, 0, 0), "eye": Vector3(9, 1.6, 0), "forward": Vector3.FORWARD},
+		{"id": 4, "position": Vector3(1, 0, 0), "eye": Vector3(1, 1.6, 0), "forward": Vector3.FORWARD},
+	]
+	var clear := func(_a: Vector3, b: Vector3) -> bool: return b.x != 1.0
+	var hurt := {}
+	for e in AwGrenadeBlast.detonate(g, _def(defs, &"aw_frag"), victims, clear):
+		if e["event"] == "damage":
+			hurt[e["victim"]] = e["damage"]
+	_check("splash falls off with distance and the thrower is hurt", hurt.has(7) and hurt.has(2) and hurt[7] > hurt[2] and hurt[2] > 0.0)
+	_check("outside the radius or behind cover takes nothing", not hurt.has(3) and not hurt.has(4))
+
+	var flash := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_flash", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_flash"), rules)
+	var look: Array = [
+		{"id": 2, "position": Vector3(0, 0, -4), "eye": Vector3(0, 1.6, -4), "forward": Vector3(0, 0, 1)},
+		{"id": 3, "position": Vector3(0, 0, -4), "eye": Vector3(0, 1.6, -4), "forward": Vector3(0, 0, -1)},
+	]
+	var blind := {}
+	for e in AwGrenadeBlast.detonate(flash, _def(defs, &"aw_flash"), look, func(_a: Vector3, _b: Vector3) -> bool: return true):
+		if e["event"] == "blind":
+			blind[e["victim"]] = e["seconds"]
+	_check("a flash blinds who faces it and spares who looks away", blind.has(2) and not blind.has(3) and blind[2] <= rules.flash_seconds)
+
+	var sm := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_smoke", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_smoke"), rules)
+	var sev := AwGrenadeBlast.detonate(sm, _def(defs, &"aw_smoke"), [], clear)
+	_check("smoke leaves a cloud and no damage", sev.any(func(e: Dictionary) -> bool: return e["event"] == "smoke") and not sev.any(func(e: Dictionary) -> bool: return e["event"] == "damage"))
+
+	var _set := rules.set_cvar("sv_grenade_bounce", "5")
+	_check("cvars clamp to their range and have sane defaults", is_equal_approx(rules.bounce, 0.95) and is_equal_approx(AwGrenadeRules.new().friction, 0.7))
 	_end()
 
 

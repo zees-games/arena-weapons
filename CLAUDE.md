@@ -9,5 +9,6 @@ Arena's own weapon set (definitions and CC0 models), required by game-arena, usa
 - A model's origin is at the grip, its muzzle toward -Z, in metres. A new model goes through `tools/bake_models.py`, then `tools/measure_sights.py` for the muzzle and aim numbers in `AwWeaponArt.WEAPONS` (the aim puts the eye just above the gun's rear top and keeps the stock 0.15 m clear of it; zee scales a written aim with the ADS rules' `view_scale`).
 - Models are CC0 (Styloo, Polyy, a knife); names are by type, never the source's. Anything new needs CC0, CC-BY or MIT, a CREDITS.md row, a `licence.json` row and an `AwWeaponArt.CREDITS` row.
 - `arena_weapons_api.gd` holds the API level; raise `LEVEL` when a game could call something new.
+- Grenades: `AwGrenade` steps flight and fuse on the server, `AwGrenadeBlast.detonate` returns events for the host to apply.
 - Update `CHECKS` in `examples/aw_selftest.gd` with a new check. The hold and aim numbers are placement: look at them with game-arena's `tools/render_weapons.sh`.
 - No other game or engine is named in anything public here.

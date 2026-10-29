@@ -44,7 +44,7 @@ const IDS: Array[StringName] = [
 	&"smg", &"carbine", &"rifle", &"bullpup", &"battle_rifle", &"burst_rifle",
 	&"shotgun", &"drum_shotgun", &"marksman", &"lmg",
 	&"sniper", &"minigun", &"launcher", &"quad_launcher", &"grenade_launcher", &"beamer", &"charge_rifle",
-	&"frag", &"sticky",
+	&"frag", &"sticky", &"flash", &"smoke", &"incendiary",
 ]
 
 ## Carry weight in kg.
@@ -53,7 +53,7 @@ const WEIGHTS := {
 	&"smg": 2.8, &"carbine": 3.4, &"rifle": 3.8, &"bullpup": 4.2, &"battle_rifle": 4.4, &"burst_rifle": 3.6,
 	&"shotgun": 3.6, &"drum_shotgun": 4.6, &"marksman": 5.0, &"lmg": 7.0,
 	&"sniper": 6.0, &"minigun": 9.0, &"launcher": 6.5, &"quad_launcher": 8.0, &"grenade_launcher": 5.5,
-	&"beamer": 6.0, &"charge_rifle": 6.0, &"frag": 0.4, &"sticky": 0.4,
+	&"beamer": 6.0, &"charge_rifle": 6.0, &"frag": 0.4, &"sticky": 0.4, &"flash": 0.3, &"smoke": 0.3, &"incendiary": 0.4,
 }
 
 ## The host's game id for the game tier (`cfg/game/<game>/weapon`); empty skips it.
@@ -407,6 +407,7 @@ static func frag(t: Dictionary = {}) -> DotWeaponDef:
 	b.speed = 19.0
 	b.min_speed = 19.0
 	b.gravity_scale = 1.0
+	def.params[&"kind"] = &"frag"
 	return def
 
 
@@ -420,6 +421,37 @@ static func sticky(t: Dictionary = {}) -> DotWeaponDef:
 	b.min_speed = 22.0
 	b.gravity_scale = 0.8
 	def.params[&"sticks"] = true
+	def.params[&"kind"] = &"frag"
+	return def
+
+
+## Blinds whoever faces it, scaled by distance; no damage.
+static func flash(t: Dictionary = {}) -> DotWeaponDef:
+	var def := _thrown(t, &"flash", "Flashbang", 1.6)
+	def.params[&"kind"] = &"flash"
+	def.params[&"effect_radius"] = 12.0
+	return def
+
+
+## A cloud that blocks sight for a while; no damage.
+static func smoke(t: Dictionary = {}) -> DotWeaponDef:
+	var def := _thrown(t, &"smoke", "Smoke Grenade", 1.2)
+	def.params[&"kind"] = &"smoke"
+	def.params[&"effect_radius"] = 4.5
+	return def
+
+
+## Bursts on first contact and leaves a fire that burns whoever stands in it.
+static func incendiary(t: Dictionary = {}) -> DotWeaponDef:
+	var def := _thrown(t, &"incendiary", "Incendiary Grenade", 3.0)
+	var b := def.tuning as DotWeaponBallistics
+	b.splash_radius = 3.0
+	b.splash_damage = 25.0
+	b.speed = 18.0
+	b.min_speed = 18.0
+	def.params[&"kind"] = &"incendiary"
+	def.params[&"explode_on_impact"] = true
+	def.params[&"effect_radius"] = 3.5
 	return def
 
 
