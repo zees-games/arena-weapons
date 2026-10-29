@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 158
+const CHECKS := 175
 
 var _entered := 0
 var _finished := 0
@@ -40,10 +40,10 @@ func _models() -> void:
 		var box := _aabb(node, Transform3D.IDENTITY)
 		var rear_top := _rear_top(node, Transform3D.IDENTITY, float(row["muzzle"]), -INF, Vector3.ZERO)
 		node.free()
-		if row["tier"] == "sidearm":
+		if rear_top != Vector3.ZERO:
 			var aim_in: Vector3 = (row["view"] as Dictionary).get("aim", Vector3.ZERO)
 			var low := rad_to_deg(atan2(rear_top.y + aim_in.y, -(aim_in.z + rear_top.z)))
-			_check("%s: the rear sight sits %.2f degrees off the crosshair, under 0.25" % [role, low], absf(low) < 0.25)
+			_check("%s: the rear sight sits %.2f degrees off the crosshair, under 0.15" % [role, low], absf(low) < 0.15)
 		_check("%s: the barrel end is %.3f m ahead of the grip, as the table says" % [role, row["muzzle"]], absf(-box.position.z - float(row["muzzle"])) < 0.02)
 		_check("%s: a gun, not a tiny prop (%.2f m long)" % [role, box.size.z], box.size.z > 0.08 and box.size.z < 1.6)
 		var aim: Vector3 = (row["view"] as Dictionary).get("aim", Vector3.ZERO)
