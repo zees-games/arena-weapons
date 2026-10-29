@@ -10,5 +10,7 @@ extends RefCounted
 #    models, cfg/addons/arena_weapons/weapon/<id>.yml tuning, aims that keep the stock clear of the eye.
 # 3: flash, smoke and incendiary weapons; AwGrenade (flight, bounce, stick, fuse), AwGrenadeBlast (falloff, blind, smoke,
 #    fire events) and AwGrenadeRules (sv_grenade_* cvars).
-const LEVEL := 3
+# 4: AwUtilityZones (victims/line-of-sight adapter, fire-zone ticker, blast events to effects), AwBlindLedger (per-victim
+#    capped blind clock) and AwGrenadeFx (dot-fx smoke, fire and blind defs and visuals). Nothing removed, OLDEST stays.
+const LEVEL := 4
 const OLDEST := 1

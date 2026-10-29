@@ -10,5 +10,6 @@ Arena's own weapon set (definitions and CC0 models), required by game-arena, usa
 - Models are CC0 (Styloo, Polyy, a knife); names are by type, never the source's. Anything new needs CC0, CC-BY or MIT, a CREDITS.md row, a `licence.json` row and an `AwWeaponArt.CREDITS` row.
 - `arena_weapons_api.gd` holds the API level; raise `LEVEL` when a game could call something new.
 - Grenades: `AwGrenade` steps flight and fuse on the server, `AwGrenadeBlast.detonate` returns events for the host to apply.
+- Utility glue (level 4): `AwUtilityZones` (fire zones, victims, line of sight, damage through host callables), `AwBlindLedger`, client `AwGrenadeFx` (needs dot-fx). A game keeps only its adapters.
 - Update `CHECKS` in `examples/aw_selftest.gd` with a new check. The hold and aim numbers are placement: look at them with game-arena's `tools/render_weapons.sh`.
 - No other game or engine is named in anything public here.

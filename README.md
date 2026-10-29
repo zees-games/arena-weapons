@@ -23,3 +23,7 @@ The models use flat emission-style colour (the pack's own advice: not a metallic
 ## Credits
 
 See [CREDITS.md](CREDITS.md). The models are CC0 1.0; the code in this repository is MIT.
+
+## Utility grenade glue (API level 4)
+
+`AwUtilityZones` is the server side of flash, smoke and incendiary grenades, driven by the host: call `detonate(grenade, def)` when one goes off and `tick(delta)` once per game tick. The game plugs its combat in through callables (`victims`, `los` built with `AwUtilityZones.los_from_ray`, `damage`), so friendly fire and armour stay the game's rules. It runs the fire zones, keeps `AwBlindLedger` (one capped end time per victim) and emits `effect({fx, position, radius, seconds, victim})`. On the client `AwGrenadeFx.add_defs(catalogue, fx_dir)` registers the dot-fx smoke, fire and blind defs and `AwGrenadeFx.show(fx, tree, info, own_id)` plays an effect; the cloud scenes `smoke_cloud.tscn` and `fire_cloud.tscn` are the game's. Needs dot-fx linked.

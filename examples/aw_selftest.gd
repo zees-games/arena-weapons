@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 175
+const CHECKS := 194
 
 var _entered := 0
 var _finished := 0
@@ -19,6 +19,7 @@ func _ready() -> void:
 	_defs()
 	_dress()
 	_grenades()
+	_utility()
 	await _finish()
 
 
@@ -190,6 +191,82 @@ func _grenades() -> void:
 
 	var _set := rules.set_cvar("sv_grenade_bounce", "5")
 	_check("cvars clamp to their range and have sane defaults", is_equal_approx(rules.bounce, 0.95) and is_equal_approx(AwGrenadeRules.new().friction, 0.7))
+	_end()
+
+
+func _utility() -> void:
+	_begin("utility grenade glue")
+	var defs := AwSpawnProvider.weapon_defs()
+	var ids := AwUtilityZones.utility_ids(defs)
+	_check("utility ids are the flash, smoke and incendiary, not the frags", ids.size() == 3 and ids.has(&"aw_flash") and not ids.has(&"aw_frag"))
+
+	var z := AwUtilityZones.new()
+	var people: Array = [
+		AwUtilityZones.victim(2, Vector3(1, 0, 0), Vector3(1, 1.6, 0), Vector3.LEFT),
+		AwUtilityZones.victim(3, Vector3(30, 0, 0), Vector3(30, 1.6, 0), Vector3.LEFT),
+		AwUtilityZones.victim(4, Vector3(1, 5, 0), Vector3(1, 6.6, 0), Vector3.LEFT),
+	]
+	var hits: Array[Dictionary] = []
+	z.victims = func() -> Array: return people
+	z.los = AwUtilityZones.los_from_ray(func(_f: Vector3, _d: Vector3, _n: float) -> bool: return false)
+	z.damage = func(attacker: int, victim: int, amount: float, type: Variant, _w: StringName) -> void:
+		hits.append({"a": attacker, "v": victim, "n": amount, "t": type})
+	var seen: Array[Dictionary] = []
+	z.effect.connect(func(i: Dictionary) -> void: seen.append(i))
+
+	var blocked := AwUtilityZones.los_from_ray(func(_f: Vector3, _d: Vector3, _n: float) -> bool: return true)
+	_check("the ray adapter says clear when nothing is hit and blocked when something is", z.los.call(Vector3.ZERO, Vector3.ONE) and not blocked.call(Vector3.ZERO, Vector3.ONE) and z.los.call(Vector3.ONE, Vector3.ONE) and blocked.call(Vector3.ONE, Vector3.ONE))
+
+	var inc := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_incendiary", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_incendiary"), z.rules)
+	inc.owner_entity = 9
+	var _ev := z.detonate(inc, _def(defs, &"aw_incendiary"))
+	_check("an incendiary opens one fire zone and tells the host", z.active_fires() == 1 and seen.size() == 1 and int(seen[0]["fx"]) == AwUtilityZones.Fx.FIRE)
+	for i in 10:
+		z.tick(0.1)
+	var burned := hits.filter(func(h: Dictionary) -> bool: return h["v"] == 2)
+	_check("the fire pulses damage as the thrower, twice a second", burned.size() == 2 and burned[0]["a"] == 9 and burned[0]["t"] == AwUtilityZones.FIRE_TYPE)
+	_check("fire spares who stands far off or a floor above", not hits.any(func(h: Dictionary) -> bool: return h["v"] == 3 or h["v"] == 4))
+	for i in int(z.rules.fire_seconds * 10.0) + 10:
+		z.tick(0.1)
+	_check("a fire zone burns out", z.active_fires() == 0)
+
+	var smoke := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_smoke", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_smoke"), z.rules)
+	var _sev := z.detonate(smoke, _def(defs, &"aw_smoke"))
+	_check("smoke is a cloud that expires", z.active_smokes() == 1 and int(seen[-1]["fx"]) == AwUtilityZones.Fx.SMOKE)
+	z.tick(z.rules.smoke_seconds + 1.0)
+	_check("smoke is gone after its seconds", z.active_smokes() == 0)
+
+	var flash := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_flash", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_flash"), z.rules)
+	var _fev := z.detonate(flash, _def(defs, &"aw_flash"))
+	var blinds := seen.filter(func(i: Dictionary) -> bool: return int(i["fx"]) == AwUtilityZones.Fx.BLIND)
+	_check("a flash blinds the one facing it and the ledger holds the blind", blinds.any(func(i: Dictionary) -> bool: return int(i["victim"]) == 2) and z.ledger.is_blind(2) and not z.ledger.is_blind(3))
+	var before := z.ledger.remaining(2)
+	z.tick(1.0)
+	_check("the blind ticks down with the clock", is_equal_approx(z.ledger.remaining(2), before - 1.0))
+	z.tick(60.0)
+	_check("and ends", not z.ledger.is_blind(2) and z.ledger.count() == 0)
+
+	var l := AwBlindLedger.new()
+	var _a := l.blind(1, 3.0)
+	var _b := l.blind(1, 1.0)
+	_check("a shorter flash never shortens a blind", is_equal_approx(l.remaining(1), 3.0))
+	var _c := l.blind(1, 5.0)
+	_check("a longer one extends it", is_equal_approx(l.remaining(1), 5.0))
+	var _d := l.blind(2, 999.0)
+	_check("no blind passes the cap", is_equal_approx(l.remaining(2), l.max_seconds))
+	l.clear_victim(2)
+	_check("a victim's blind can be lifted", not l.is_blind(2) and l.is_blind(1))
+
+	z.apply_blast_damage = true
+	hits.clear()
+	var frag := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_frag", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_frag"), z.rules)
+	var _gev := z.detonate(frag, _def(defs, &"aw_frag"))
+	_check("blast damage goes through the host's callable when asked", hits.any(func(h: Dictionary) -> bool: return h["v"] == 2))
+
+	var fx_defs := AwGrenadeFx.defs("res://fx")
+	_check("three fx defs: two clouds from the game's folder and a screen flash", fx_defs.size() == 3 and fx_defs[0].scene_path == "res://fx/smoke_cloud.tscn" and fx_defs[2].kind == DotFxDef.Kind.SCREEN)
+	_check("the flash decay follows the blind, clamped", AwGrenadeFx.flash_decay_ms(0.01) == AwGrenadeFx.BLIND_MIN_MS and AwGrenadeFx.flash_decay_ms(3.0) == 3000 and AwGrenadeFx.flash_decay_ms(99.0) == AwGrenadeFx.BLIND_MAX_MS)
+	_check("showing with no fx host is a no-op", AwGrenadeFx.show(null, null, {"fx": AwUtilityZones.Fx.SMOKE, "seconds": 1.0, "radius": 1.0, "position": Vector3.ZERO, "victim": 0}, 0) == null)
 	_end()
 
 
