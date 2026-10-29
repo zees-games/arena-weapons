@@ -12,5 +12,7 @@ extends RefCounted
 #    fire events) and AwGrenadeRules (sv_grenade_* cvars).
 # 4: AwUtilityZones (victims/line-of-sight adapter, fire-zone ticker, blast events to effects), AwBlindLedger (per-victim
 #    capped blind clock) and AwGrenadeFx (dot-fx smoke, fire and blind defs and visuals). Nothing removed, OLDEST stays.
-const LEVEL := 4
+# 5: the smoke and fire cloud scenes ship in fx/ and AwGrenadeFx finds them itself (fx_dir optional); AwBlindLedger.strength
+#    and the effect/blind-event "strength" (0..1, distance and facing scaled) so a screen can be as white as the flash was.
+const LEVEL := 5
 const OLDEST := 1

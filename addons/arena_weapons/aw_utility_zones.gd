@@ -65,8 +65,8 @@ func detonate(g: AwGrenade, def: DotWeaponDef) -> Array[Dictionary]:
 	for ev in out:
 		match String(ev["event"]):
 			"blind":
-				var left := ledger.blind(int(ev["victim"]), float(ev["seconds"]))
-				_emit(Fx.BLIND, at, 0.0, left, int(ev["victim"]))
+				var left := ledger.blind(int(ev["victim"]), float(ev["seconds"]), float(ev["strength"]))
+				_emit(Fx.BLIND, at, 0.0, left, int(ev["victim"]), ledger.strength(int(ev["victim"])))
 			"smoke":
 				_smokes.append({"left": float(ev["seconds"])})
 				_emit(Fx.SMOKE, at, float(ev["radius"]), float(ev["seconds"]), 0)
@@ -136,5 +136,5 @@ func _open(_from: Vector3, _to: Vector3) -> bool:
 	return true
 
 
-func _emit(fx: int, at: Vector3, radius: float, seconds: float, victim_id: int) -> void:
-	effect.emit({"fx": fx, "position": at, "radius": radius, "seconds": seconds, "victim": victim_id})
+func _emit(fx: int, at: Vector3, radius: float, seconds: float, victim_id: int, strength: float = 1.0) -> void:
+	effect.emit({"fx": fx, "position": at, "radius": radius, "seconds": seconds, "victim": victim_id, "strength": strength})

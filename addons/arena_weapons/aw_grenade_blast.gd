@@ -26,9 +26,10 @@ static func detonate(g: AwGrenade, def: DotWeaponDef, victims: Array, los: Calla
 			continue
 		if g.kind == AwGrenade.FLASH:
 			var facing := maxf(0.0, (v["forward"] as Vector3).dot((at - (v["eye"] as Vector3)).normalized()))
-			var seconds := g.rules.flash_seconds * (1.0 - d / radius) * facing
+			var strength := (1.0 - d / radius) * facing
+			var seconds := g.rules.flash_seconds * strength
 			if seconds > 0.0:
-				out.append({"event": "blind", "victim": id, "seconds": seconds})
+				out.append({"event": "blind", "victim": id, "seconds": seconds, "strength": strength})
 		elif b != null and b.splash_damage > 0.0:
 			if id == g.owner_entity and not b.splash_hurts_owner:
 				continue

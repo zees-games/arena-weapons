@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 194
+const CHECKS := 200
 
 var _entered := 0
 var _finished := 0
@@ -262,6 +262,20 @@ func _utility() -> void:
 	var frag := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_frag", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_frag"), z.rules)
 	var _gev := z.detonate(frag, _def(defs, &"aw_frag"))
 	_check("blast damage goes through the host's callable when asked", hits.any(func(h: Dictionary) -> bool: return h["v"] == 2))
+
+	var _w := l.blind(5, 2.0, 0.4)
+	var _w2 := l.blind(5, 1.0, 0.9)
+	var _w3 := l.blind(5, 1.0, 0.2)
+	_check("the ledger keeps the strongest strength of a stretch", is_equal_approx(l.strength(5), 0.9) and is_equal_approx(l.strength(1), 1.0))
+	l.tick(99.0)
+	_check("strength is 0 once the blind ends, and a new blind starts fresh", l.strength(5) == 0.0 and is_equal_approx((l.blind(5, 1.0, 0.3) * 0.0) + l.strength(5), 0.3))
+	_check("a blind event carries strength, and a flash at the edge or side is weaker",
+		blinds.any(func(i: Dictionary) -> bool: return int(i["victim"]) == 2 and float(i["strength"]) > 0.0 and float(i["strength"]) <= 1.0))
+	var own_dir := AwGrenadeFx.own_dir()
+	var own_defs := AwGrenadeFx.defs()
+	_check("with no folder the clouds load from the addon's own fx/", own_defs[0].scene_path == own_dir + "/smoke_cloud.tscn" and ResourceLoader.exists(own_defs[0].scene_path) and ResourceLoader.exists(own_defs[1].scene_path))
+	_check("both shipped cloud scenes instance", (load(own_defs[0].scene_path) as PackedScene).instantiate() != null and (load(own_defs[1].scene_path) as PackedScene).instantiate() != null)
+	_check("API level 5", preload("res://addons/arena_weapons/arena_weapons_api.gd").LEVEL == 5)
 
 	var fx_defs := AwGrenadeFx.defs("res://fx")
 	_check("three fx defs: two clouds from the game's folder and a screen flash", fx_defs.size() == 3 and fx_defs[0].scene_path == "res://fx/smoke_cloud.tscn" and fx_defs[2].kind == DotFxDef.Kind.SCREEN)

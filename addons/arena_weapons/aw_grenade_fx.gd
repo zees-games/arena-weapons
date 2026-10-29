@@ -2,17 +2,21 @@ class_name AwGrenadeFx
 extends RefCounted
 
 ## Client visuals of the utility grenades through dot-fx: smoke and fire clouds, and the blind flash the player's flash settings cap.
-## The cloud scenes are the game's art, so [method add_defs] takes the folder that holds them.
+## The cloud scenes ship in this addon's `fx/` folder; [method add_defs] takes another folder only to override them.
 
 const SMOKE_ID := &"smoke_cloud"
 const FIRE_ID := &"fire_cloud"
 const BLIND_ID := &"blind_flash"
 const BLIND_MIN_MS := 250
 const BLIND_MAX_MS := 10000
+## Where this script lives, so the cloud scenes are found wherever the addon is linked.
+const FX_DIR := "res://addons/arena_weapons/fx"
 
 
-## The three defs; [param fx_dir] holds `smoke_cloud.tscn` and `fire_cloud.tscn`.
-static func defs(fx_dir: String) -> Array[DotFxDef]:
+## The three defs; [param fx_dir] holds `smoke_cloud.tscn` and `fire_cloud.tscn` (empty: the addon's own).
+static func defs(fx_dir: String = "") -> Array[DotFxDef]:
+	if fx_dir.is_empty():
+		fx_dir = own_dir()
 	var out: Array[DotFxDef] = []
 	for id: StringName in [SMOKE_ID, FIRE_ID]:
 		var cloud := DotFxDef.new()
@@ -33,7 +37,13 @@ static func defs(fx_dir: String) -> Array[DotFxDef]:
 	return out
 
 
-static func add_defs(catalogue: DotFxCatalogue, fx_dir: String) -> void:
+## The addon's `fx/` folder, from this script's own path.
+static func own_dir() -> String:
+	var here: String = (AwGrenadeFx as Script).resource_path
+	return here.get_base_dir().path_join("fx") if not here.is_empty() else FX_DIR
+
+
+static func add_defs(catalogue: DotFxCatalogue, fx_dir: String = "") -> void:
 	for def in defs(fx_dir):
 		catalogue.add(def)
 
@@ -49,12 +59,14 @@ static func show(fx: DotFxManager, tree: SceneTree, info: Dictionary, own_id: in
 		return null
 
 	var seconds := float(info["seconds"])
+	var strength := clampf(float(info.get("strength", 1.0)), 0.0, 1.0)
 	match int(info["fx"]):
 		AwUtilityZones.Fx.BLIND:
 			var def := fx.catalogue.find(BLIND_ID)
 			if int(info["victim"]) == own_id and def != null:
 				# The decay is set per flash: it is how long this blind lasts.
 				def.flash_decay_ms = flash_decay_ms(seconds)
+				def.flash_peak = maxf(strength, 0.05)
 				var _shown := fx.flash(BLIND_ID)
 		AwUtilityZones.Fx.SMOKE, AwUtilityZones.Fx.FIRE:
 			var id := SMOKE_ID if int(info["fx"]) == AwUtilityZones.Fx.SMOKE else FIRE_ID
