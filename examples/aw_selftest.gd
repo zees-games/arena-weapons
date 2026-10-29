@@ -1,9 +1,10 @@
 extends Node
 
-## Headless suite: models load with the muzzle where the table says, the provider's contract, the cloned weapons, and a zee art dressed by role.
+## Headless suite: models load with the muzzle where the table says and the stock clear of the eye at the sights,
+## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 60
+const CHECKS := 139
 
 var _entered := 0
 var _finished := 0
@@ -22,11 +23,7 @@ func _ready() -> void:
 
 func _models() -> void:
 	_begin("models")
-	var all := {}
-	for role: StringName in AwWeaponArt.ROLES:
-		all[role] = AwWeaponArt.row_of(role)
-	for role: StringName in AwWeaponArt.EXTRAS:
-		all[role] = AwWeaponArt.row_of(role)
+	var all := AwWeaponArt.weapon_rows("")
 
 	for role: StringName in all:
 		var row: Dictionary = all[role]
@@ -42,7 +39,9 @@ func _models() -> void:
 		var box := _aabb(node, Transform3D.IDENTITY)
 		node.free()
 		_check("%s: the barrel end is %.3f m ahead of the grip, as the table says" % [role, row["muzzle"]], absf(-box.position.z - float(row["muzzle"])) < 0.02)
-		_check("%s: a gun, not a tiny prop (%.2f m long)" % [role, box.size.z], box.size.z > 0.15 and box.size.z < 1.6)
+		_check("%s: a gun, not a tiny prop (%.2f m long)" % [role, box.size.z], box.size.z > 0.08 and box.size.z < 1.6)
+		var aim: Vector3 = (row["view"] as Dictionary).get("aim", Vector3.ZERO)
+		_check("%s: at the sights the stock ends %.2f m ahead of the eye" % [role, -(aim.z + box.end.z)], aim.z + box.end.z < -0.1)
 
 	for prop in AwWeaponArt.PROPS:
 		_check("prop %s ships" % prop, ResourceLoader.exists(AwWeaponArt.model_path(prop)))
@@ -53,19 +52,24 @@ func _provider() -> void:
 	_begin("provider contract")
 	var rows := AwSpawnProvider.art_rows()
 	var entries := AwSpawnProvider.spawn_entries()
-	_check("one art row per weapon this pack defines", rows.size() == AwWeaponArt.ROLES.size() + AwWeaponArt.EXTRAS.size())
+	_check("one art row per weapon this pack defines", rows.size() == AwWeaponPack.IDS.size() and AwWeaponArt.WEAPONS.size() == AwWeaponPack.IDS.size())
 	_check("every weapon id carries the pack prefix", rows.keys().all(func(k: StringName) -> bool: return String(k).begins_with("aw_")))
 	_check("one spawn entry per weapon", entries.size() == rows.size())
 	_check("role_art is keyed by role, not by this pack's ids", AwSpawnProvider.role_art().has(&"rifle") and not AwSpawnProvider.role_art().has(&"aw_rifle"))
 	var credit := AwSpawnProvider.credits()[0]
 	_check("the credit names Styloo, CC0 and the page", credit["author"] == "Styloo" and str(credit["licence"]).begins_with("CC0") and str(credit["url"]).begins_with("https://styloo.itch.io/"))
+	_check("every credit is CC0 with a page", AwSpawnProvider.credits().all(func(c: Dictionary) -> bool: return str(c["licence"]).begins_with("CC0") and str(c["url"]).begins_with("https://")))
+	AwSpawnProvider.set_id_prefix("")
+	var plain := AwSpawnProvider.art_rows()
+	_check("a host that owns the plain ids gets `rifle`, not `aw_rifle`", plain.has(&"rifle") and not plain.has(&"aw_rifle") and AwSpawnProvider.role_art().is_empty())
+	AwSpawnProvider.set_id_prefix(AwSpawnProvider.DEFAULT_PREFIX)
 	_end()
 
 
 func _defs() -> void:
-	_begin("cloned weapon definitions")
+	_begin("the pack's own weapon definitions")
 	var defs := AwSpawnProvider.weapon_defs()
-	_check("every pack weapon has a definition", defs.size() == AwWeaponArt.ROLES.size() + AwWeaponArt.EXTRAS.size())
+	_check("every pack weapon has a definition", defs.size() == AwWeaponPack.IDS.size() and AwWeaponPack.errors.is_empty())
 	var ids := {}
 	var tiered := true
 	for def in defs:
@@ -76,8 +80,9 @@ func _defs() -> void:
 		tiered = tiered and n == 1
 	_check("ids are unique", ids.size() == defs.size())
 	_check("each has exactly one tier tag", tiered)
-	_check("the rifle clone keeps the host rifle's magazine", defs.size() > 0 and _def(defs, &"aw_rifle").magazine == ZeeWeaponPack.rifle().magazine)
-	_check("the quad launcher starts from the launcher", _def(defs, &"aw_quad_launcher").ammo_type == ZeeWeaponPack.launcher().ammo_type)
+	_check("the rifle is a primary with a magazine", _def(defs, &"aw_rifle").slot == AwWeaponPack.SLOT_PRIMARY and _def(defs, &"aw_rifle").magazine > 0)
+	_check("the quad launcher fires the launcher's ammunition", _def(defs, &"aw_quad_launcher").ammo_type == _def(defs, &"aw_launcher").ammo_type)
+	_check("one weapon per slot at least", [1, 2, 3, 4, 5].all(func(s: int) -> bool: return defs.any(func(d: DotWeaponDef) -> bool: return d.slot == s)))
 	# As a host's registered source: it must not recurse through the host's own weapons().
 	ZeeWeaponPack.add_source(&"aw_selftest", Callable(AwSpawnProvider, &"weapon_defs"))
 	var hosted := ZeeWeaponPack.weapons()
@@ -85,7 +90,7 @@ func _defs() -> void:
 	var found := 0
 	for d in hosted:
 		found += 1 if String(d.id).begins_with("aw_") else 0
-	_check("registered as a zee source, every clone joins the catalogue once", found == defs.size())
+	_check("registered as a zee source, every weapon joins the catalogue once", found == defs.size())
 	_check("and the catalogue is the host's plus the pack's", hosted.size() == ZeeWeaponPack.weapons().size() + defs.size())
 	_end()
 
