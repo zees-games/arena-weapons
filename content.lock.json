@@ -7,9 +7,9 @@
 			"id": "gamemann/arena-weapons",
 			"into": "addons/arena_weapons/assets/models",
 			"kind": "store",
-			"manifest_sha256": "75db7771fc92f84898d2debcf58c96fec027fdcaa99ab08da21390231e4a0b46",
+			"manifest_sha256": "ab33748e7011f3a321c7ef6906d3e3e2395e16a87c582fbbeaef3915eec003f2",
 			"optional": false,
-			"version": "1.1.0"
+			"version": "1.3.0"
 		}
 	]
 }
