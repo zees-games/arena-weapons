@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 205
+const CHECKS := 209
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -93,6 +93,11 @@ func _defs() -> void:
 	_check("the rifle is a primary with a magazine", _def(defs, &"aw_rifle").slot == AwWeaponPack.SLOT_PRIMARY and _def(defs, &"aw_rifle").magazine > 0)
 	_check("the quad launcher fires the launcher's ammunition", _def(defs, &"aw_quad_launcher").ammo_type == _def(defs, &"aw_launcher").ammo_type)
 	_check("one weapon per slot at least", [1, 2, 3, 4, 5].all(func(s: int) -> bool: return defs.any(func(d: DotWeaponDef) -> bool: return d.slot == s)))
+	var rifle_modes := _def(defs, &"aw_rifle").allowed_fire_modes()
+	_check("the rifle's selector offers semi, burst and auto", rifle_modes.size() == 3 and rifle_modes.has(DotWeaponDef.Fire.AUTO) and rifle_modes.has(DotWeaponDef.Fire.SEMI))
+	_check("the pistol's selector has no auto it cannot fire", not _def(defs, &"aw_pistol").allowed_fire_modes().has(DotWeaponDef.Fire.AUTO))
+	_check("the smg's selector offers more than one mode", _def(defs, &"aw_smg").allowed_fire_modes().size() > 1)
+	_check("every selector starts on a mode its gun allows", defs.all(func(d: DotWeaponDef) -> bool: return d.allowed_fire_modes().has(d.fire_mode)))
 	# As a host's registered source: it must not recurse through the host's own weapons().
 	ZeeWeaponPack.add_source(&"aw_selftest", Callable(AwSpawnProvider, &"weapon_defs"))
 	var hosted := ZeeWeaponPack.weapons()
