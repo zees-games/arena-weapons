@@ -4,7 +4,10 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 200
+const CHECKS := 204
+## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
+const OWN_SIGHTED := 9
+const ZeeIronSightProbe := preload("res://addons/zee_weapons/view/zee_iron_sight.gd")
 
 var _entered := 0
 var _finished := 0
@@ -18,6 +21,7 @@ func _ready() -> void:
 	_provider()
 	_defs()
 	_dress()
+	_own_sights()
 	_grenades()
 	_utility()
 	await _finish()
@@ -113,6 +117,51 @@ func _dress() -> void:
 	_check("the muzzle is the table's", is_equal_approx(art.muzzle_distance, 0.548))
 	_check("the zee art itself is untouched until a game applies it", before.model_path != art.model_path)
 	_check("a grenade dressed keeps the throw carry", _thrown())
+	_end()
+
+
+func _own_sights() -> void:
+	_begin("aimed down each model's own sight")
+	var view := ZeeViewModel.new()
+	view.show_arms = false
+	add_child(view)
+	var own := 0
+	var built: Array[StringName] = []
+	var blocked: Array[StringName] = []
+	var worst := 0.0
+	var rows := AwWeaponArt.weapon_rows("")
+	for role: StringName in rows:
+		var row: Dictionary = rows[role]
+		if row["motion"] != "gun" or (row["view"] as Dictionary).get("scoped", false):
+			continue
+		var art := ZeeWeaponArt.make(role)
+		ZeeArtDress.apply(art, row)
+		view.equip(art)
+		view.aim(true)
+		for _i in 40:
+			view._process(0.02)
+		if view.find_child("Sight", true, false) != null:
+			built.append(role)
+		var points := view.sight_points()
+		if points.is_empty():
+			continue
+		own += 1
+		for p: Vector3 in [points.rear, points.front]:
+			worst = maxf(worst, Vector2(p.x, p.y).length())
+		# From behind the rear sight to just short of the front one, the line passes through the model.
+		var line: Dictionary = view._sight_line
+		var f := art.model_forward.normalized()
+		var from: Vector3 = (line.rear as Vector3) - f * 0.3
+		var to: Vector3 = (line.front as Vector3) - f * 0.002
+		for tri: Dictionary in ZeeIronSightProbe.triangles_of(view._weapon, view._holder):
+			if Geometry3D.segment_intersects_triangle(from, to, tri.a, tri.b, tri.c) != null:
+				blocked.append(role)
+				break
+	view.queue_free()
+	_check("no gun has a sight built over its own (%s)" % str(built), built.is_empty())
+	_check("%d guns aim down a notch, aperture or post of their own" % own, own >= OWN_SIGHTED)
+	_check("each own sight line runs through the screen's centre (worst %.4f m)" % worst, worst < 0.002)
+	_check("and nothing of the model stands in it before the front sight (%s)" % str(blocked), blocked.is_empty())
 	_end()
 
 
