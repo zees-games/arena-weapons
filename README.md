@@ -20,6 +20,10 @@ The models use flat emission-style colour (the pack's own advice: not a metallic
 
 `addons/arena_weapons/`: `aw_weapon_pack.gd` (`AwWeaponPack`, the weapon definitions), `aw_weapon_art.gd` (`AwWeaponArt`, the only file with a model name), `spawn_provider.gd` (`AwSpawnProvider`, the host contract), `assets/models/*.glb`. `tools/bake_models.py` (Blender) makes the models from the source packs' folders, `tools/measure_sights.py` measures the muzzle, sight point and aim hold that go in the table. `examples/aw_selftest.tscn` is the headless suite (`./game.sh test`).
 
+## Fire modes
+
+Every automatic gun also fires semi, and the submachine guns, carbines and rifles burst as well, declared in `fire_modes` (first entry is the starting mode) and tunable per weapon in the profile. The host binds `DotWeaponCommand.BUTTON_FIRE_MODE`; a game plays the click (zee-dot-weapons ships three).
+
 ## Credits
 
 See [CREDITS.md](CREDITS.md). The models are CC0 1.0; the code in this repository is MIT.
