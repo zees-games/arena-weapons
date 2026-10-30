@@ -7,7 +7,6 @@ extends Node
 const CHECKS := 204
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
-const ZeeIronSightProbe := preload("res://addons/zee_weapons/view/zee_iron_sight.gd")
 
 var _entered := 0
 var _finished := 0
@@ -142,27 +141,27 @@ func _own_sights() -> void:
 			view._process(0.02)
 		if view.find_child("Sight", true, false) != null:
 			built.append(role)
+		_aim_clear(view, role, blocked)
 		var points := view.sight_points()
 		if points.is_empty():
 			continue
 		own += 1
 		for p: Vector3 in [points.rear, points.front]:
 			worst = maxf(worst, Vector2(p.x, p.y).length())
-		# From behind the rear sight to just short of the front one, the line passes through the model.
-		var line: Dictionary = view._sight_line
-		var f := art.model_forward.normalized()
-		var from: Vector3 = (line.rear as Vector3) - f * 0.3
-		var to: Vector3 = (line.front as Vector3) - f * 0.002
-		for tri: Dictionary in ZeeIronSightProbe.triangles_of(view._weapon, view._holder):
-			if Geometry3D.segment_intersects_triangle(from, to, tri.a, tri.b, tri.c) != null:
-				blocked.append(role)
-				break
 	view.queue_free()
 	_check("no gun has a sight built over its own (%s)" % str(built), built.is_empty())
 	_check("%d guns aim down a notch, aperture or post of their own" % own, own >= OWN_SIGHTED)
 	_check("each own sight line runs through the screen's centre (worst %.4f m)" % worst, worst < 0.002)
-	_check("and nothing of the model stands in it before the front sight (%s)" % str(blocked), blocked.is_empty())
+	_check("no gun has any of its model inside the see-through cone round the aim line (%s)" % str(blocked), blocked.is_empty())
 	_end()
+
+
+## Rays from the aimed eye inside the sight cone, as far as the front post, hit nothing of the gun.
+func _aim_clear(view: ZeeViewModel, role: StringName, blocked: Array[StringName]) -> void:
+	var roots: Array = [view._weapon]
+	var cone: Dictionary = ZeeViewModel.SightFit.cone_for(view._art, view.ads_rules, roots, view._holder, view._aim_target(), view._sight_line)
+	if cone.is_empty() or ZeeViewModel.SightFit.Cut.occluders(view._weapon, view._holder, cone) > 0:
+		blocked.append(role)
 
 
 func _grenades() -> void:
