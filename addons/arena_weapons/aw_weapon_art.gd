@@ -54,6 +54,21 @@ const CREDITS: Array[Dictionary] = [
 	{"id": "vinrax-knife", "model": "knife", "author": "Vinrax", "licence": "CC0-1.0", "url": "https://opengameart.org/content/knife-low-poly"},
 ]
 
+## The view rig's wall response per tier (zee `wall_*` keys, into each def's `params.ads`): a long gun needs a deeper retreat than a pistol to clear a wall.
+const WALL_BY_TIER := {
+	"melee": {"wall_reach": 0.6},
+	"primary": {"wall_max": 0.7, "wall_push": 1.2},
+	"heavy": {"wall_max": 0.9, "wall_push": 1.3},
+}
+
+
+## The wall keys for [param id]'s tier; empty for the sidearm, whose defaults suit it.
+static func wall_row(id: StringName) -> Dictionary:
+	if not WEAPONS.has(id):
+		return {}
+	return (WALL_BY_TIER.get(str(WEAPONS[id]["tier"]), {}) as Dictionary).duplicate()
+
+
 ## The zee role each tier dresses when a host skins its own weapons by role.
 const ROLE_OF := [&"pistol", &"smg", &"carbine", &"rifle", &"shotgun", &"sniper", &"launcher", &"frag"]
 

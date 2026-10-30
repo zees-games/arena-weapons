@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 213
+const CHECKS := 219
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -68,6 +68,15 @@ func _provider() -> void:
 	_check("the pistol row slims its forearm so it does not fill the lower right", float(pistol.get("forearm_scale", 1.0)) <= 0.5)
 	_check("the pistol row names a support grip", (pistol["support_grip"] as Vector3).is_finite())
 	_check("the grenade launcher is drawn smaller than a long gun", float(AwWeaponArt.row_of(&"grenade_launcher")["view"]["scale"]) < 0.5)
+	_check("a pistol keeps zee's wall defaults", AwWeaponArt.wall_row(&"pistol").is_empty())
+	_check("a rifle retreats deeper from a wall than the 0.34 m default", float(AwWeaponArt.wall_row(&"rifle")["wall_max"]) > 0.34)
+	_check("a launcher retreats deeper than a rifle", float(AwWeaponArt.wall_row(&"launcher")["wall_max"]) > float(AwWeaponArt.wall_row(&"rifle")["wall_max"]))
+	_check("a knife shortens its wall reach", float(AwWeaponArt.wall_row(&"knife")["wall_reach"]) < 1.0)
+	var rifle_def := AwWeaponPack.weapons({}, "", false).filter(func(d: DotWeaponDef) -> bool: return d.id == &"rifle")[0] as DotWeaponDef
+	_check("the rifle def carries its wall row in params.ads", (rifle_def.params["ads"] as Dictionary).has("wall_max"))
+	var rules := ZeeAdsRules.new()
+	rules.set_def_row(&"rifle", rifle_def.params["ads"])
+	_check("zee accepts the rifle's wall row whole", float(rules.wall_for(&"rifle")["max"]) == float((rifle_def.params["ads"] as Dictionary)["wall_max"]))
 	_check("every weapon id carries the pack prefix", rows.keys().all(func(k: StringName) -> bool: return String(k).begins_with("aw_")))
 	_check("one spawn entry per weapon", entries.size() == rows.size())
 	_check("role_art is keyed by role, not by this pack's ids", AwSpawnProvider.role_art().has(&"rifle") and not AwSpawnProvider.role_art().has(&"aw_rifle"))

@@ -75,6 +75,9 @@ static func weapons(types: Dictionary = {}, prefix: String = "", profiled: bool 
 	for id in IDS:
 		var def: DotWeaponDef = Callable(AwWeaponPack, id).call(types)
 		def.weight = float(WEIGHTS.get(id, def.weight))
+		var wall := AwWeaponArt.wall_row(id)
+		if not wall.is_empty():
+			def.params[&"ads"] = wall
 		out.append(def)
 
 	if profiled:
