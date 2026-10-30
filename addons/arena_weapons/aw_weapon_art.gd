@@ -33,7 +33,7 @@ const WEAPONS := {
 	&"minigun": {"model": "minigun", "muzzle": 0.766, "tier": "heavy", "reload": {"style": "belt"}, "view": {"aim": Vector3(0.000, -0.273, -0.342)}},
 	&"launcher": {"model": "rocket_launcher", "muzzle": 0.756, "tier": "heavy", "reload": {"style": "launcher", "round": "rocket", "eject": "none"}, "view": {"aim": Vector3(-0.005, -0.142, -0.577)}},
 	&"quad_launcher": {"model": "quad_rocket_launcher", "muzzle": 0.422, "tier": "heavy", "reload": {"style": "launcher", "round": "rocket", "eject": "none"}, "view": {"hold": Vector3(0.19, -0.2, -0.42), "aim": Vector3(0.009, -0.185, -0.581), "scale": 0.35}},
-	&"grenade_launcher": {"model": "grenade_launcher", "muzzle": 0.522, "tier": "heavy", "reload": {"style": "launcher"}, "view": {"sight": "red_dot", "aim": Vector3(0.000, -0.330, -0.431)}},
+	&"grenade_launcher": {"model": "grenade_launcher", "muzzle": 0.522, "tier": "heavy", "reload": {"style": "launcher"}, "view": {"sight": "red_dot", "rot": Vector3(0, 3, 10), "aim": Vector3(0.000, -0.330, -0.431)}},
 	&"beamer": {"model": "plasma_rifle", "muzzle": 0.597, "tier": "heavy", "reload": {"style": "cell"}, "view": {"sight": "red_dot", "aim": Vector3(0.000, -0.274, -0.407)}},
 	&"charge_rifle": {"model": "rail_rifle", "muzzle": 0.830, "tier": "heavy", "reload": {"style": "cell"}, "view": {"aim": Vector3(0.016, -0.296, -0.474), "zoom": 0.4, "scoped": true}},
 	&"frag": {"model": "frag_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
@@ -74,6 +74,10 @@ static func row_of(id: StringName) -> Dictionary:
 		var view: Dictionary = tier.duplicate()
 		view.merge(src["view"] as Dictionary, true)
 		out["view"] = view
+		# The models are baked with the origin at the grip, so the palm goes there rather than at a guess from the bounds.
+		out["grip_socket"] = Vector3.ZERO
+		if src["tier"] == "sidearm":
+			out["hand_scale"] = 0.36
 
 	return out
 
