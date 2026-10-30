@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 209
+const CHECKS := 212
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -63,6 +63,10 @@ func _provider() -> void:
 	var rows := AwSpawnProvider.art_rows()
 	var entries := AwSpawnProvider.spawn_entries()
 	_check("one art row per weapon this pack defines", rows.size() == AwWeaponPack.IDS.size() and AwWeaponArt.WEAPONS.size() == AwWeaponPack.IDS.size())
+	var pistol := AwWeaponArt.row_of(&"pistol")
+	_check("the pistol row keeps its own hand scale, not the tier's 0.36", is_equal_approx(float(pistol["hand_scale"]), 0.25))
+	_check("the pistol row names a support grip", (pistol["support_grip"] as Vector3).is_finite())
+	_check("the grenade launcher is drawn smaller than a long gun", float(AwWeaponArt.row_of(&"grenade_launcher")["view"]["scale"]) < 0.5)
 	_check("every weapon id carries the pack prefix", rows.keys().all(func(k: StringName) -> bool: return String(k).begins_with("aw_")))
 	_check("one spawn entry per weapon", entries.size() == rows.size())
 	_check("role_art is keyed by role, not by this pack's ids", AwSpawnProvider.role_art().has(&"rifle") and not AwSpawnProvider.role_art().has(&"aw_rifle"))

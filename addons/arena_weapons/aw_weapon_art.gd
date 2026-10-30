@@ -15,7 +15,7 @@ const _HEAVY := {"hold": Vector3(0.19, -0.21, -0.42), "rot": Vector3(0, 10, 26),
 ## further out when the stock would otherwise fill the screen. `view` without hold/rot/scale/zoom takes its tier's.
 const WEAPONS := {
 	&"knife": {"model": "knife", "muzzle": 0.0, "motion": "melee", "tier": "melee", "view": {}},
-	&"pistol": {"model": "pistol", "muzzle": 0.076, "tier": "sidearm", "reload": {"style": "pistol"}, "view": {"aim": Vector3(0.000, -0.065, -0.411)}},
+	&"pistol": {"model": "pistol", "muzzle": 0.076, "tier": "sidearm", "reload": {"style": "pistol"}, "support_grip": Vector3(-0.022, -0.03, 0.03), "hand_scale": 0.25, "view": {"hold": Vector3(0.12, -0.10, -0.36), "scale": 0.8, "aim": Vector3(0.000, -0.065, -0.411)}},
 	&"revolver": {"model": "revolver", "muzzle": 0.231, "tier": "sidearm", "reload": {"style": "revolver"}, "view": {"scale": 0.8, "aim": Vector3(0.011, -0.132, -0.306)}},
 	&"machine_pistol": {"model": "machine_pistol", "muzzle": 0.274, "tier": "sidearm", "reload": {"style": "pistol"}, "view": {"scale": 0.8, "aim": Vector3(0.007, -0.168, -0.309)}},
 	&"derringer": {"model": "derringer", "muzzle": 0.120, "tier": "sidearm", "reload": {"style": "launcher", "round": "round", "case": "casing"}, "view": {"aim": Vector3(0.000, -0.061, -0.305)}},
@@ -76,7 +76,7 @@ static func row_of(id: StringName) -> Dictionary:
 		out["view"] = view
 		# The models are baked with the origin at the grip, so the palm goes there rather than at a guess from the bounds.
 		out["grip_socket"] = Vector3.ZERO
-		if src["tier"] == "sidearm":
+		if src["tier"] == "sidearm" and not out.has("hand_scale"):
 			out["hand_scale"] = 0.36
 
 	return out
