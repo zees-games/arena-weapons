@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 204
+const CHECKS := 205
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -116,7 +116,20 @@ func _dress() -> void:
 	_check("the muzzle is the table's", is_equal_approx(art.muzzle_distance, 0.548))
 	_check("the zee art itself is untouched until a game applies it", before.model_path != art.model_path)
 	_check("a grenade dressed keeps the throw carry", _thrown())
+	_check("every gun row names its own reload style: %s" % ", ".join(_unstyled()), _unstyled().is_empty())
 	_end()
+
+
+## Gun rows whose `reload` names no known style (the view model would play the generic reload).
+func _unstyled() -> Array[String]:
+	var out: Array[String] = []
+	var rows := AwWeaponArt.weapon_rows("")
+	for role: StringName in rows:
+		var row: Dictionary = rows[role]
+		var style := str((row.get("reload", {}) as Dictionary).get("style", ""))
+		if row["motion"] == "gun" and not style in ["magazine", "pistol", "revolver", "tube", "bolt", "belt", "launcher", "cell"]:
+			out.append(String(role))
+	return out
 
 
 func _own_sights() -> void:
