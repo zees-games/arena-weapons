@@ -43,6 +43,9 @@ func _models() -> void:
 		var node := scene.instantiate() as Node3D
 		var box := _aabb(node, Transform3D.IDENTITY)
 		var rear_top := _rear_top(node, Transform3D.IDENTITY, float(row["muzzle"]), -INF, Vector3.ZERO)
+		var mark := node.find_child("sight_rear", true, false) as Node3D
+		if mark != null:
+			rear_top = mark.transform.origin
 		node.free()
 		if rear_top != Vector3.ZERO:
 			var aim_in: Vector3 = (row["view"] as Dictionary).get("aim", Vector3.ZERO)
