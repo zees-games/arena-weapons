@@ -14,5 +14,6 @@ extends RefCounted
 #    capped blind clock) and AwGrenadeFx (dot-fx smoke, fire and blind defs and visuals). Nothing removed, OLDEST stays.
 # 5: the smoke and fire cloud scenes ship in fx/ and AwGrenadeFx finds them itself (fx_dir optional); AwBlindLedger.strength
 #    and the effect/blind-event "strength" (0..1, distance and facing scaled) so a screen can be as white as the flash was.
-const LEVEL := 5
+# 6: sound_classes(prefix) (id -> weapon-sound class) so a host's sound table classes lmg, the launchers and prefixed ids.
+const LEVEL := 6
 const OLDEST := 1

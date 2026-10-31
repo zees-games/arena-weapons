@@ -26,6 +26,11 @@ static func art_rows() -> Dictionary:
 	return AwWeaponArt.weapon_rows(id_prefix)
 
 
+## weapon id -> sound class for [method weapon_defs]'s guns; a host passes each pair to its weapon-sound table.
+static func sound_classes() -> Dictionary:
+	return AwWeaponPack.sound_classes(id_prefix)
+
+
 ## role -> row, for a host that dresses its own weapons by role. Empty while the pack owns the plain ids: nothing else to dress.
 static func role_art() -> Dictionary:
 	return AwWeaponArt.role_rows() if id_prefix != "" else {}

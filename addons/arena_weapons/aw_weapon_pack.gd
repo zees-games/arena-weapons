@@ -47,6 +47,17 @@ const IDS: Array[StringName] = [
 	&"frag", &"sticky", &"flash", &"smoke", &"incendiary",
 ]
 
+## Sound class of each gun, as the names a weapon-sound table uses (light, magnum, smg, rifle, heavy, sniper, shotgun, minigun,
+## launcher, beam, charge). Plain data so the pack names no zee class; a host feeds it to `ZeeWeaponSound.set_class`.
+const SOUND_CLASSES := {
+	&"pistol": &"light", &"revolver": &"magnum", &"derringer": &"magnum", &"machine_pistol": &"smg", &"smg": &"smg",
+	&"carbine": &"rifle", &"rifle": &"rifle", &"bullpup": &"rifle", &"burst_rifle": &"rifle",
+	&"battle_rifle": &"heavy", &"marksman": &"heavy", &"lmg": &"heavy", &"sniper": &"sniper",
+	&"shotgun": &"shotgun", &"drum_shotgun": &"shotgun", &"minigun": &"minigun",
+	&"launcher": &"launcher", &"quad_launcher": &"launcher", &"grenade_launcher": &"launcher",
+	&"beamer": &"beam", &"charge_rifle": &"charge",
+}
+
 ## Carry weight in kg.
 const WEIGHTS := {
 	&"knife": 0.4, &"pistol": 1.0, &"revolver": 1.2, &"machine_pistol": 1.4, &"derringer": 0.5,
@@ -66,6 +77,14 @@ static var base_roots: PackedStringArray = PackedStringArray()
 static var errors: PackedStringArray = PackedStringArray()
 static var _kick: Dictionary = {}
 static var _kick_read := false
+
+
+## Weapon id (with [param prefix]) -> sound class, so a host that prefixes ids still gets each gun's own report.
+static func sound_classes(prefix: String = "") -> Dictionary:
+	var out := {}
+	for id: StringName in SOUND_CLASSES:
+		out[StringName(prefix + String(id))] = SOUND_CLASSES[id]
+	return out
 
 
 ## Every weapon, ids prefixed with [param prefix] (a host mixing packs passes `aw_`), tuned by the profiles.
