@@ -30,7 +30,7 @@ tags = Array[StringName]([&"heavy", &"energy", &"scoped"])
 behaviour_path = "res://addons/dot_weapon/behaviour/dot_weapon_hitscan.gd"
 params = {
 &"ads": {
-"wall_max": 0.65,
+"wall_max": 0.5,
 "wall_push": 1.3
 },
 &"art": {
