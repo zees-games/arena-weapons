@@ -15,5 +15,7 @@ extends RefCounted
 # 5: the smoke and fire cloud scenes ship in fx/ and AwGrenadeFx finds them itself (fx_dir optional); AwBlindLedger.strength
 #    and the effect/blind-event "strength" (0..1, distance and facing scaled) so a screen can be as white as the flash was.
 # 6: sound_classes(prefix) (id -> weapon-sound class) so a host's sound table classes lmg, the launchers and prefixed ids.
-const LEVEL := 6
+# 7: sound_classes() names nine new classes (lmg, battle, marksman, carbine, derringer, mpistol, autoshot, grenade, rail),
+#    each a recording of its own in dot-audio's stock; a host that fed the old classes to set_class need change nothing.
+const LEVEL := 7
 const OLDEST := 1

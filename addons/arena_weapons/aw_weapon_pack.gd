@@ -47,15 +47,15 @@ const IDS: Array[StringName] = [
 	&"frag", &"sticky", &"flash", &"smoke", &"incendiary",
 ]
 
-## Sound class of each gun, as the names a weapon-sound table uses (light, magnum, smg, rifle, heavy, sniper, shotgun, minigun,
-## launcher, beam, charge). Plain data so the pack names no zee class; a host feeds it to `ZeeWeaponSound.set_class`.
+## Sound class of each gun, as the names a weapon-sound table uses (dot-weapon's `DotWeaponSound.FIRE`). Plain data so the pack
+## names no zee class; a host feeds it to `ZeeWeaponSound.set_class`. Nine guns have a recording of their own.
 const SOUND_CLASSES := {
-	&"pistol": &"light", &"revolver": &"magnum", &"derringer": &"magnum", &"machine_pistol": &"smg", &"smg": &"smg",
-	&"carbine": &"rifle", &"rifle": &"rifle", &"bullpup": &"rifle", &"burst_rifle": &"rifle",
-	&"battle_rifle": &"heavy", &"marksman": &"heavy", &"lmg": &"heavy", &"sniper": &"sniper",
-	&"shotgun": &"shotgun", &"drum_shotgun": &"shotgun", &"minigun": &"minigun",
-	&"launcher": &"launcher", &"quad_launcher": &"launcher", &"grenade_launcher": &"launcher",
-	&"beamer": &"beam", &"charge_rifle": &"charge",
+	&"pistol": &"light", &"revolver": &"magnum", &"derringer": &"derringer", &"machine_pistol": &"mpistol", &"smg": &"smg",
+	&"carbine": &"carbine", &"rifle": &"rifle", &"bullpup": &"rifle", &"burst_rifle": &"battle",
+	&"battle_rifle": &"battle", &"marksman": &"marksman", &"lmg": &"lmg", &"sniper": &"sniper",
+	&"shotgun": &"shotgun", &"drum_shotgun": &"autoshot", &"minigun": &"minigun",
+	&"launcher": &"launcher", &"quad_launcher": &"launcher", &"grenade_launcher": &"grenade",
+	&"beamer": &"beam", &"charge_rifle": &"rail",
 }
 
 ## Carry weight in kg.
