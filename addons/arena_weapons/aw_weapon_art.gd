@@ -35,7 +35,7 @@ const WEAPONS := {
 	&"quad_launcher": {"model": "quad_rocket_launcher", "muzzle": 0.422, "fore_along": 0.47, "tier": "heavy", "reload": {"style": "launcher", "round": "rocket", "eject": "none"}, "view": {"hold": Vector3(0.19, -0.2, -0.42), "aim": Vector3(0.009, -0.185, -0.581), "scale": 0.35}},
 	&"grenade_launcher": {"model": "grenade_launcher", "muzzle": 0.522, "fore_along": 0.31, "fore_up": 0.3, "tier": "heavy", "reload": {"style": "launcher"}, "view": {"sight": "red_dot", "rot": Vector3(0, 4, 2), "hold": Vector3(0.17, -0.22, -0.5), "scale": 0.42, "aim": Vector3(0.000, -0.330, -0.431)}},
 	&"beamer": {"model": "plasma_rifle", "muzzle": 0.597, "fore_along": 0.32, "tier": "heavy", "reload": {"style": "cell"}, "view": {"sight": "red_dot", "aim": Vector3(0.000, -0.274, -0.407)}},
-	&"charge_rifle": {"model": "rail_rifle", "muzzle": 0.830, "fore_along": 0.495, "tier": "heavy", "reload": {"style": "cell"}, "view": {"aim": Vector3(0.016, -0.296, -0.474), "zoom": 0.4, "scoped": true}},
+	&"charge_rifle": {"model": "rail_rifle", "muzzle": 0.830, "fore_along": 0.495, "tier": "heavy", "reload": {"style": "cell"}, "view": {"aim": Vector3(0.016, -0.296, -0.474), "zoom": 0.4, "iron": true}},
 	&"frag": {"model": "frag_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
 	&"sticky": {"model": "frag_grenade_alt", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
 	&"flash": {"model": "flash_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
