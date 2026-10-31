@@ -27,15 +27,26 @@ for v in bm.verts:
     if w.y < REAR:
         w.y = REAR
         v.co = ob.matrix_world.inverted() @ w
-# Close the rear with a slab whose UVs sample a plain dark face of the receiver side
+# Close the rear with a cap shaped like the receiver section; its UVs sample a body-coloured face of the receiver
 mw_inv = ob.matrix_world.inverted()
-src = max((f for f in bm.faces if (ob.matrix_world @ f.calc_center_median()).x > 0.07 and 0.0 < (ob.matrix_world @ f.calc_center_median()).y < 0.3), key=lambda f: f.calc_area())
+def wc(f): return ob.matrix_world @ f.calc_center_median()
+img = next(n.image for n in ob.data.materials[0].node_tree.nodes if n.type == 'TEX_IMAGE')
+W, H = img.size
+px = list(img.pixels)
+def texel(f, uvl):
+    u = sum(l[uvl].uv.x for l in f.loops) / len(f.loops)
+    v = sum(l[uvl].uv.y for l in f.loops) / len(f.loops)
+    i = (int(v * H) % H * W + int(u * W) % W) * 4
+    return px[i:i + 3]
 uv_layer = bm.loops.layers.uv.active
+src = max((f for f in bm.faces if 0.0 < wc(f).y < 0.4 and f.calc_area() > 2e-4 and texel(f, uv_layer)[2] < 0.35), key=lambda f: (lambda t: t[2] - t[0])(texel(f, uv_layer)))
 uvc = sum((l[uv_layer].uv for l in src.loops), type(src.loops[0][uv_layer].uv)((0, 0))) / len(src.loops)
-x0, x1, z0, z1 = -0.058, 0.058, 0.035, 0.145
-ys = REAR - 0.002
-vs = [bm.verts.new(mw_inv @ type(ob.location)((x, ys, z))) for x, z in ((x0, z0), (x1, z0), (x1, z1), (x0, z1))]
+SECTION = ((-0.019, 0.02), (0.019, 0.02), (0.024, 0.031), (0.035, 0.056), (0.043, 0.162), (0.023, 0.17), (-0.023, 0.17), (-0.043, 0.162), (-0.035, 0.056), (-0.024, 0.031))
+ys = REAR - 0.0005
+vs = [bm.verts.new(mw_inv @ type(ob.location)((x, ys, z))) for x, z in SECTION]
 f = bm.faces.new(vs)
+f.material_index = src.material_index
+f.normal_update()
 if (ob.matrix_world.to_3x3() @ f.normal).y > 0:
     f.normal_flip()
 for l in f.loops:
