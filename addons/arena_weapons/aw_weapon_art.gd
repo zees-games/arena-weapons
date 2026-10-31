@@ -15,9 +15,9 @@ const _HEAVY := {"hold": Vector3(0.19, -0.21, -0.42), "rot": Vector3(0, 10, 26),
 ## further out when the stock would otherwise fill the screen. `view` without hold/rot/scale/zoom takes its tier's.
 const WEAPONS := {
 	&"knife": {"model": "knife", "muzzle": 0.0, "motion": "melee", "tier": "melee", "view": {}},
-	&"pistol": {"model": "pistol", "muzzle": 0.076, "tier": "sidearm", "reload": {"style": "pistol"}, "support_grip": Vector3(-0.022, -0.03, 0.03), "hand_scale": 0.25, "forearm_scale": 0.85, "view": {"hold": Vector3(0.12, -0.10, -0.36), "scale": 0.8, "aim": Vector3(0.000, -0.079, -0.405)}},
+	&"pistol": {"model": "pistol", "muzzle": 0.076, "tier": "sidearm", "reload": {"style": "pistol"}, "support_grip": Vector3(-0.03, -0.06, 0.02), "hand_scale": 0.4, "forearm_scale": 0.85, "view": {"hold": Vector3(0.12, -0.10, -0.36), "scale": 0.8, "aim": Vector3(0.000, -0.079, -0.405)}},
 	&"revolver": {"model": "revolver", "muzzle": 0.231, "tier": "sidearm", "reload": {"style": "revolver"}, "view": {"scale": 0.8, "aim": Vector3(0.000, -0.150, -0.350)}},
-	&"machine_pistol": {"model": "machine_pistol", "muzzle": 0.274, "tier": "sidearm", "reload": {"style": "pistol"}, "view": {"scale": 0.8, "aim": Vector3(0.000, -0.184, -0.309)}},
+	&"machine_pistol": {"model": "machine_pistol", "muzzle": 0.274, "tier": "sidearm", "reload": {"style": "pistol"}, "support_grip": Vector3(-0.03, -0.06, 0.05), "hand_scale": 0.4, "view": {"scale": 0.8, "aim": Vector3(0.000, -0.184, -0.309)}},
 	&"derringer": {"model": "derringer", "muzzle": 0.120, "tier": "sidearm", "reload": {"style": "launcher", "round": "round", "case": "casing"}, "view": {"aim": Vector3(0.000, -0.074, -0.330)}},
 	&"smg": {"model": "smg", "muzzle": 0.143, "tier": "primary", "reload": {"style": "magazine", "anchors": {"below": [0.0, -0.11, -0.06], "pouch": [-0.07, -0.17, -0.16]}}, "view": {"aim": Vector3(0.000, -0.048, -0.400), "scale": 0.9, "zoom": 0.85}},
 	&"carbine": {"model": "carbine", "muzzle": 0.548, "tier": "primary", "reload": {"style": "magazine", "anchors": {"below": [0.0, -0.12, -0.12], "pouch": [-0.07, -0.2, -0.2]}}, "view": {"aim": Vector3(-0.007, -0.079, -0.227), "scale": 0.75}},
