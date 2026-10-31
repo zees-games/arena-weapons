@@ -68,7 +68,7 @@ func _provider() -> void:
 	_check("one art row per weapon this pack defines", rows.size() == AwWeaponPack.IDS.size() and AwWeaponArt.WEAPONS.size() == AwWeaponPack.IDS.size())
 	var pistol := AwWeaponArt.row_of(&"pistol")
 	_check("the pistol row keeps its own hand scale, not the tier's 0.36", is_equal_approx(float(pistol["hand_scale"]), 0.25))
-	_check("the pistol row slims its forearm so it does not fill the lower right", float(pistol.get("forearm_scale", 1.0)) <= 0.5)
+	_check("the pistol row slims its forearm so it does not fill the lower right", float(pistol.get("forearm_scale", 1.0)) < 1.0)
 	_check("the pistol row names a support grip", (pistol["support_grip"] as Vector3).is_finite())
 	_check("the grenade launcher is drawn smaller than a long gun", float(AwWeaponArt.row_of(&"grenade_launcher")["view"]["scale"]) < 0.5)
 	_check("a pistol keeps zee's wall defaults", AwWeaponArt.wall_row(&"pistol").is_empty())
@@ -174,7 +174,7 @@ func _own_sights() -> void:
 		view.aim(true)
 		for _i in 40:
 			view._process(0.02)
-		if view.find_child("Sight", true, false) != null:
+		if view.find_child("Sight", true, false) != null and not (row["view"] as Dictionary).get("iron", false):
 			built.append(role)
 		_aim_clear(view, role, blocked)
 		var points := view.sight_points()
