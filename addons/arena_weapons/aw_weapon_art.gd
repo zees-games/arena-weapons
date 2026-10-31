@@ -35,7 +35,7 @@ const WEAPONS := {
 	&"quad_launcher": {"model": "quad_rocket_launcher", "muzzle": 0.422, "fore_along": 0.47, "tier": "heavy", "reload": {"style": "launcher", "round": "rocket", "eject": "none"}, "view": {"hold": Vector3(0.19, -0.2, -0.42), "aim": Vector3(0.000, -0.209, -0.600), "scale": 0.35}},
 	&"grenade_launcher": {"model": "grenade_launcher", "muzzle": 0.522, "fore_along": 0.31, "fore_up": 0.3, "tier": "heavy", "reload": {"style": "launcher"}, "view": {"sight": "red_dot", "rot": Vector3(0, 4, 2), "hold": Vector3(0.17, -0.22, -0.5), "scale": 0.42, "aim": Vector3(0.000, -0.330, -0.431)}},
 	&"beamer": {"model": "plasma_rifle", "muzzle": 0.597, "fore_along": 0.32, "tier": "heavy", "reload": {"style": "cell"}, "view": {"sight": "red_dot", "aim": Vector3(0.000, -0.274, -0.407)}},
-	&"charge_rifle": {"model": "rail_rifle", "muzzle": 0.830, "fore_along": 0.495, "tier": "heavy", "reload": {"style": "cell"}, "view": {"aim": Vector3(0.016, -0.296, -0.474), "zoom": 0.4, "iron": true}},
+	&"charge_rifle": {"model": "rail_rifle", "muzzle": 0.830, "fore_along": 0.34, "wall": {"wall_max": 0.65}, "tier": "heavy", "reload": {"style": "cell"}, "view": {"aim": Vector3(0.016, -0.296, -0.474), "zoom": 0.4, "scale": 0.8, "iron": true}},
 	&"frag": {"model": "frag_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
 	&"sticky": {"model": "frag_grenade_alt", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
 	&"flash": {"model": "flash_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
@@ -58,15 +58,17 @@ const CREDITS: Array[Dictionary] = [
 const WALL_BY_TIER := {
 	"melee": {"wall_reach": 0.6},
 	"primary": {"wall_max": 0.7, "wall_push": 1.2},
-	"heavy": {"wall_max": 0.9, "wall_push": 1.3},
+	"heavy": {"wall_max": 0.8, "wall_push": 1.3},
 }
 
 
-## The wall keys for [param id]'s tier; empty for the sidearm, whose defaults suit it.
+## The wall keys for [param id]'s tier, over-ridden by the row's own `wall`; empty for the sidearm, whose defaults suit it.
 static func wall_row(id: StringName) -> Dictionary:
 	if not WEAPONS.has(id):
 		return {}
-	return (WALL_BY_TIER.get(str(WEAPONS[id]["tier"]), {}) as Dictionary).duplicate()
+	var out: Dictionary = (WALL_BY_TIER.get(str(WEAPONS[id]["tier"]), {}) as Dictionary).duplicate()
+	out.merge(WEAPONS[id].get("wall", {}) as Dictionary, true)
+	return out
 
 
 ## The zee role each tier dresses when a host skins its own weapons by role.
