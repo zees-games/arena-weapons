@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="DotWeaponDef" format=3]
+
+[ext_resource type="Script" path="res://addons/dot_weapon/core/dot_weapon_def.gd" id="1_bgpsf"]
+[ext_resource type="Script" path="res://addons/dot_combat/core/dot_damage_type.gd" id="2_qw2do"]
+[ext_resource type="Script" path="res://addons/dot_weapon/tuning/dot_weapon_ballistics.gd" id="3_7tlbb"]
+
+[sub_resource type="Resource" id="Resource_3137b"]
+script = ExtResource("2_qw2do")
+id = &"blast"
+display_name = "Blast"
+
+[sub_resource type="Resource" id="Resource_4ah71"]
+script = ExtResource("3_7tlbb")
+damage = 0.0
+damage_type = SubResource("Resource_3137b")
+max_range = 100.0
+radius = 0.12
+life_ticks = 768
+
+[resource]
+script = ExtResource("1_bgpsf")
+id = &"smoke"
+display_name = "Smoke Grenade"
+tags = Array[StringName]([&"thrown", &"explosive"])
+behaviour_path = "res://addons/dot_weapon/behaviour/dot_weapon_thrown.gd"
+params = {
+&"effect_radius": 4.5,
+&"fuse_ticks": 77,
+&"kind": &"smoke",
+&"speed_scales_with_cook": false
+}
+tuning = SubResource("Resource_4ah71")
+weight = 0.3
+authored_tick_rate = 64
+slot = 5
+holster_ticks = 16
+fire_mode = 3
+use_interval_ticks = 64
+fire_modes = PackedStringArray()
+charge_ticks = 77
+ammo_type = &"grenades"
+reserve = 2
+reserve_max = 4
+reload_ticks = 0
+auto_reload = false

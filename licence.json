@@ -1,0 +1,16 @@
+[
+    {
+        "paths": [""],
+        "licence": "MIT",
+        "author": "TMC",
+        "url": "https://github.com/zees-games/arena-weapons",
+        "title": "arena-weapons (original content)"
+    },
+    {
+        "paths": ["addons/arena_weapons/assets/models"],
+        "licence": "CC0-1.0",
+        "author": "Styloo, Polyy, Vinrax",
+        "url": "https://styloo.itch.io/guns-asset-pack",
+        "title": "Arena weapon models (see CREDITS.md)"
+    }
+]

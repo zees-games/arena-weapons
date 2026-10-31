@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="DotWeaponDef" format=3]
+
+[ext_resource type="Script" path="res://addons/dot_weapon/core/dot_weapon_def.gd" id="1_c0s6e"]
+[ext_resource type="Script" path="res://addons/dot_combat/core/dot_damage_type.gd" id="2_x1dna"]
+[ext_resource type="Script" path="res://addons/dot_weapon/tuning/dot_weapon_ballistics.gd" id="3_y5mxq"]
+
+[sub_resource type="Resource" id="Resource_v8bfs"]
+script = ExtResource("2_x1dna")
+id = &"dart"
+display_name = "Dart"
+
+[sub_resource type="Resource" id="Resource_ruxmc"]
+script = ExtResource("3_y5mxq")
+damage = 21.0
+damage_type = SubResource("Resource_v8bfs")
+max_range = 170.0
+spread = 0.9
+spread_moving = 3.8
+spread_airborne = 6.5
+spread_crouched = 0.6
+bloom = 0.18
+bloom_max = 3.6
+bloom_recovery = 0.09375
+recoil_pitch = 0.3
+recoil_yaw = 0.2
+
+[resource]
+script = ExtResource("1_c0s6e")
+id = &"lmg"
+display_name = "Light Machine Gun"
+tags = Array[StringName]([&"primary", &"automatic"])
+behaviour_path = "res://addons/dot_weapon/behaviour/dot_weapon_hitscan.gd"
+params = {
+&"ads": {
+"wall_max": 0.7,
+"wall_push": 1.2
+},
+&"art": {
+"reload_class": "heavy"
+},
+&"bash_cooldown_ticks": 51,
+&"bash_damage": 42.0,
+&"bash_reach": 1.9,
+&"view_camera_share": 0.3,
+&"view_kick_back": 0.008,
+&"view_kick_back_max": 0.045,
+&"view_kick_knee": 0.45,
+&"view_kick_min": 2.0,
+&"view_kick_min_back": 0.012,
+&"view_kick_pitch": 4.0,
+&"view_kick_rate_max": 1.8,
+&"view_kick_rate_ref": 0.12,
+&"view_kick_response": 22.0,
+&"view_kick_roll": 1.5,
+&"view_kick_yaw": 3.0
+}
+tuning = SubResource("Resource_ruxmc")
+weight = 7.0
+authored_tick_rate = 64
+slot = 3
+deploy_ticks = 45
+holster_ticks = 32
+fire_mode = 1
+use_interval_ticks = 5
+fire_modes = PackedStringArray("auto", "semi")
+ammo_type = &"darts_heavy"
+magazine = 100
+reserve = 200
+reserve_max = 400
+reload_ticks = 294

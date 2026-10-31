@@ -1,0 +1,67 @@
+[gd_resource type="Resource" script_class="DotWeaponDef" format=3]
+
+[ext_resource type="Script" path="res://addons/dot_weapon/core/dot_weapon_def.gd" id="1_pg8lc"]
+[ext_resource type="Script" path="res://addons/dot_combat/core/dot_damage_type.gd" id="2_pbeme"]
+[ext_resource type="Script" path="res://addons/dot_weapon/tuning/dot_weapon_ballistics.gd" id="3_rhypx"]
+
+[sub_resource type="Resource" id="Resource_51eu4"]
+script = ExtResource("2_pbeme")
+id = &"dart"
+display_name = "Dart"
+
+[sub_resource type="Resource" id="Resource_2tm8v"]
+script = ExtResource("3_rhypx")
+damage = 11.0
+damage_type = SubResource("Resource_51eu4")
+max_range = 110.0
+spread = 2.4
+spread_moving = 4.5
+spread_airborne = 7.0
+spread_crouched = 2.0
+bloom = 0.08
+bloom_max = 2.0
+bloom_recovery = 0.0625
+recoil_pitch = 0.12
+recoil_yaw = 0.1
+
+[resource]
+script = ExtResource("1_pg8lc")
+id = &"minigun"
+display_name = "Minigun"
+tags = Array[StringName]([&"heavy", &"automatic"])
+behaviour_path = "res://addons/dot_weapon/behaviour/dot_weapon_hitscan.gd"
+params = {
+&"ads": {
+"wall_max": 0.8,
+"wall_push": 1.3
+},
+&"bash_cooldown_ticks": 51,
+&"bash_damage": 42.0,
+&"bash_reach": 1.9,
+&"view_camera_share": 0.3,
+&"view_kick_back": 0.008,
+&"view_kick_back_max": 0.045,
+&"view_kick_knee": 0.45,
+&"view_kick_min": 2.0,
+&"view_kick_min_back": 0.012,
+&"view_kick_pitch": 4.0,
+&"view_kick_rate_max": 1.8,
+&"view_kick_rate_ref": 0.12,
+&"view_kick_response": 22.0,
+&"view_kick_roll": 1.5,
+&"view_kick_yaw": 3.0
+}
+tuning = SubResource("Resource_2tm8v")
+weight = 9.0
+authored_tick_rate = 64
+slot = 4
+deploy_ticks = 70
+holster_ticks = 51
+fire_mode = 1
+use_interval_ticks = 3
+fire_modes = PackedStringArray("auto", "semi")
+ammo_type = &"belt"
+reserve = 200
+reserve_max = 400
+reload_ticks = 0
+auto_reload = false

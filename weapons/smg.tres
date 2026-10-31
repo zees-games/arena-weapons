@@ -1,0 +1,69 @@
+[gd_resource type="Resource" script_class="DotWeaponDef" format=3]
+
+[ext_resource type="Script" path="res://addons/dot_weapon/core/dot_weapon_def.gd" id="1_lvfa7"]
+[ext_resource type="Script" path="res://addons/dot_combat/core/dot_damage_type.gd" id="2_385r2"]
+[ext_resource type="Script" path="res://addons/dot_weapon/tuning/dot_weapon_ballistics.gd" id="3_cr6a0"]
+
+[sub_resource type="Resource" id="Resource_q27mu"]
+script = ExtResource("2_385r2")
+id = &"dart"
+display_name = "Dart"
+
+[sub_resource type="Resource" id="Resource_34hct"]
+script = ExtResource("3_cr6a0")
+damage = 16.0
+damage_type = SubResource("Resource_q27mu")
+max_range = 80.0
+spread = 0.7
+spread_moving = 2.4
+spread_airborne = 5.0
+spread_crouched = 0.6
+bloom = 0.26
+bloom_max = 4.5
+bloom_recovery = 0.140625
+recoil_pitch = 0.26
+recoil_yaw = 0.14
+
+[resource]
+script = ExtResource("1_lvfa7")
+id = &"smg"
+display_name = "SMG"
+tags = Array[StringName]([&"primary", &"automatic"])
+behaviour_path = "res://addons/dot_weapon/behaviour/dot_weapon_hitscan.gd"
+params = {
+&"ads": {
+"wall_max": 0.7,
+"wall_push": 1.2
+},
+&"art": {
+"reload_class": "smg"
+},
+&"bash_cooldown_ticks": 51,
+&"bash_damage": 42.0,
+&"bash_reach": 1.9,
+&"view_camera_share": 0.3,
+&"view_kick_back": 0.008,
+&"view_kick_back_max": 0.045,
+&"view_kick_knee": 0.45,
+&"view_kick_min": 2.0,
+&"view_kick_min_back": 0.012,
+&"view_kick_pitch": 4.0,
+&"view_kick_rate_max": 1.8,
+&"view_kick_rate_ref": 0.12,
+&"view_kick_response": 22.0,
+&"view_kick_roll": 1.5,
+&"view_kick_yaw": 3.0
+}
+tuning = SubResource("Resource_34hct")
+weight = 2.8
+authored_tick_rate = 64
+slot = 3
+deploy_ticks = 17
+fire_mode = 1
+use_interval_ticks = 5
+fire_modes = PackedStringArray("auto", "semi", "burst")
+ammo_type = &"darts_light"
+magazine = 30
+reserve = 120
+reserve_max = 240
+reload_ticks = 115

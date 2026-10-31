@@ -1,0 +1,66 @@
+[gd_resource type="Resource" script_class="DotWeaponDef" format=3]
+
+[ext_resource type="Script" path="res://addons/dot_weapon/core/dot_weapon_def.gd" id="1_icy4i"]
+[ext_resource type="Script" path="res://addons/dot_combat/core/dot_damage_type.gd" id="2_pc8sm"]
+[ext_resource type="Script" path="res://addons/dot_weapon/tuning/dot_weapon_ballistics.gd" id="3_7xeet"]
+
+[sub_resource type="Resource" id="Resource_dl628"]
+script = ExtResource("2_pc8sm")
+id = &"energy"
+display_name = "Energy"
+
+[sub_resource type="Resource" id="Resource_7ynkc"]
+script = ExtResource("3_7xeet")
+damage = 9.0
+damage_type = SubResource("Resource_dl628")
+max_range = 40.0
+spread = 0.0
+spread_moving = 0.0
+spread_airborne = 0.0
+spread_crouched = 0.0
+recoil_pitch = 0.0
+recoil_yaw = 0.0
+
+[resource]
+script = ExtResource("1_icy4i")
+id = &"beamer"
+display_name = "Plasma Beamer"
+tags = Array[StringName]([&"heavy", &"energy"])
+behaviour_path = "res://addons/dot_weapon/behaviour/dot_weapon_beam.gd"
+params = {
+&"ads": {
+"wall_max": 0.8,
+"wall_push": 1.3
+},
+&"bash_cooldown_ticks": 51,
+&"bash_damage": 42.0,
+&"bash_reach": 1.9,
+&"ramp_from": 0.45,
+&"ramp_ticks": 32,
+&"view_camera_share": 0.3,
+&"view_kick_back": 0.008,
+&"view_kick_back_max": 0.045,
+&"view_kick_knee": 0.45,
+&"view_kick_min": 2.0,
+&"view_kick_min_back": 0.012,
+&"view_kick_pitch": 4.0,
+&"view_kick_rate_max": 1.8,
+&"view_kick_rate_ref": 0.12,
+&"view_kick_response": 22.0,
+&"view_kick_roll": 1.5,
+&"view_kick_yaw": 3.0
+}
+tuning = SubResource("Resource_7ynkc")
+weight = 6.0
+authored_tick_rate = 64
+slot = 4
+deploy_ticks = 26
+holster_ticks = 19
+fire_mode = 4
+use_interval_ticks = 4
+fire_modes = PackedStringArray()
+ammo_type = &"cells"
+reserve = 260
+reserve_max = 520
+reload_ticks = 0
+auto_reload = false

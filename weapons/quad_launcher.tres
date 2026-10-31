@@ -1,0 +1,79 @@
+[gd_resource type="Resource" script_class="DotWeaponDef" format=3]
+
+[ext_resource type="Script" path="res://addons/dot_weapon/core/dot_weapon_def.gd" id="1_e5xua"]
+[ext_resource type="Script" path="res://addons/dot_combat/core/dot_damage_type.gd" id="2_3cruw"]
+[ext_resource type="Script" path="res://addons/dot_weapon/tuning/dot_weapon_ballistics.gd" id="3_m4fq6"]
+
+[sub_resource type="Resource" id="Resource_526pa"]
+script = ExtResource("2_3cruw")
+id = &"blast"
+display_name = "Blast"
+
+[sub_resource type="Resource" id="Resource_dch7p"]
+script = ExtResource("2_3cruw")
+id = &"blast"
+display_name = "Blast"
+
+[sub_resource type="Resource" id="Resource_bqe5u"]
+script = ExtResource("3_m4fq6")
+damage = 24.0
+damage_type = SubResource("Resource_526pa")
+min_charge_damage = 1.0
+max_range = 260.0
+spread = 1.2
+spread_moving = 0.0
+spread_airborne = 0.0
+spread_crouched = 0.0
+recoil_pitch = 3.0
+recoil_yaw = 0.2
+splash_radius = 3.6
+splash_damage = 62.0
+splash_type = SubResource("Resource_dch7p")
+speed = 44.0
+min_speed = 44.0
+gravity_scale = 0.25
+radius = 0.2
+life_ticks = 320
+
+[resource]
+script = ExtResource("1_e5xua")
+id = &"quad_launcher"
+display_name = "Quad Rocket Launcher"
+tags = Array[StringName]([&"heavy", &"explosive"])
+behaviour_path = "res://addons/dot_weapon/behaviour/dot_weapon_projectile.gd"
+params = {
+&"ads": {
+"wall_max": 0.8,
+"wall_push": 1.3
+},
+&"bash_cooldown_ticks": 51,
+&"bash_damage": 42.0,
+&"bash_reach": 1.9,
+&"death_power": 1.0,
+&"death_reaction": &"power_launch",
+&"view_camera_share": 0.3,
+&"view_kick_back": 0.008,
+&"view_kick_back_max": 0.045,
+&"view_kick_knee": 0.45,
+&"view_kick_min": 2.0,
+&"view_kick_min_back": 0.012,
+&"view_kick_pitch": 4.0,
+&"view_kick_rate_max": 1.8,
+&"view_kick_rate_ref": 0.12,
+&"view_kick_response": 22.0,
+&"view_kick_roll": 1.5,
+&"view_kick_yaw": 3.0
+}
+tuning = SubResource("Resource_bqe5u")
+weight = 8.0
+authored_tick_rate = 64
+slot = 4
+deploy_ticks = 32
+holster_ticks = 22
+use_interval_ticks = 16
+fire_modes = PackedStringArray()
+ammo_type = &"ordnance"
+magazine = 4
+reserve = 8
+reserve_max = 16
+reload_ticks = 269
