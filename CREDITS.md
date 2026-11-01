@@ -19,12 +19,12 @@ The pack ships no audio; its guns play the family's stock weapon sounds from dot
 
 | What | Author | Licence | Where |
 | --- | --- | --- | --- |
-| `lmg` report | KuraiWolf | CC-BY 4.0 | https://opengameart.org/content/light-machine-gun |
+| `lmg` report | KuraiWolf (layered with Tabasco) | CC-BY 4.0 | https://opengameart.org/content/light-machine-gun |
 | `battle_rifle`, `burst_rifle`, `marksman` reports and the sniper bolt | Tabasco (bundled text by Vincent Sevedge) | CC-BY 3.0 | https://opengameart.org/content/gunshot-sounds |
 | `carbine`, `derringer`, `machine_pistol`, `drum_shotgun` reports | Michel Baradari (apollo-music.de) | CC-BY 3.0 | http://apollo-music.de (hosted on opengameart.org) |
 | `charge_rifle` and the energy dry clicks | jc-sounds | CC-BY 4.0 | https://opengameart.org/content/jc-sounds-sci-fi-pack-vol-1 |
-| `beamer` | cyklon698, number99, Zane Little Music | CC0 | https://opengameart.org/content/alien-blaster, https://opengameart.org/content/laser-weapon-burst-fire, https://opengameart.org/content/theremin-laser-sfx |
-| `charge_rifle` core | railkill | CC0 | https://opengameart.org/content/doomsday-laser-cannon-sound-effect |
+| `beamer` | cyklon698, celestialghost8, Zane Little Music | CC0 | https://opengameart.org/content/alien-blaster, https://opengameart.org/content/laser-weapon-burst-fire, https://opengameart.org/content/theremin-laser-sfx |
+| `charge_rifle` core | TAD | CC0 | https://opengameart.org/content/doomsday-laser-cannon-sound-effect |
 
 ## Surface finish
 
