@@ -12,5 +12,12 @@
         "author": "Styloo, Polyy, Vinrax",
         "url": "https://styloo.itch.io/guns-asset-pack",
         "title": "Arena weapon models (see CREDITS.md)"
+    },
+    {
+        "paths": ["tools/detail"],
+        "licence": "CC0-1.0",
+        "author": "ambientCG",
+        "url": "https://ambientcg.com/view?id=Metal038",
+        "title": "Metal038 and Metal027 (ambientCG), baked into the gun maps by tools/detail_models.py"
     }
 ]

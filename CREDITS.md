@@ -29,3 +29,7 @@ The pack ships no audio; its guns play the family's stock weapon sounds from dot
 ## Surface finish
 
 Every gun, grenade and the ammo box was re-finished (`tools/bake_wear.py`, `tools/finish_models.py`) from the CC0 sources above: the unlit colour map became a lit base colour, with a baked ambient-occlusion and bevel-edge pass turned into an occlusion, roughness and metallic map and a normal map, all generated from the models themselves, so no further source or licence applies.
+
+## Surface detail
+
+`tools/detail_models.py` layers two CC0 PBR sets from ambientCG into every gun's normal and roughness maps and the albedo grain: Metal038 (https://ambientcg.com/view?id=Metal038) and Metal027 (https://ambientcg.com/view?id=Metal027). CC0 was confirmed on each page; ambientCG names no individual author. The detail is baked into the existing per-gun maps, so the pack grows by no new file.
