@@ -372,6 +372,11 @@ func _utility() -> void:
 	_check("strength is 0 once the blind ends, and a new blind starts fresh", l.strength(5) == 0.0 and is_equal_approx((l.blind(5, 1.0, 0.3) * 0.0) + l.strength(5), 0.3))
 	_check("a blind event carries strength, and a flash at the edge or side is weaker",
 		blinds.any(func(i: Dictionary) -> bool: return int(i["victim"]) == 2 and float(i["strength"]) > 0.0 and float(i["strength"]) <= 1.0))
+	_utility_fx()
+	_end()
+
+
+func _utility_fx() -> void:
 	var own_dir := AwGrenadeFx.own_dir()
 	var own_defs := AwGrenadeFx.defs()
 	_check("with no folder the clouds load from the addon's own fx/", own_defs[0].scene_path == own_dir + "/smoke_cloud.tscn" and ResourceLoader.exists(own_defs[0].scene_path) and ResourceLoader.exists(own_defs[1].scene_path))
@@ -382,7 +387,6 @@ func _utility() -> void:
 	_check("three fx defs: two clouds from the game's folder and a screen flash", fx_defs.size() == 3 and fx_defs[0].scene_path == "res://fx/smoke_cloud.tscn" and fx_defs[2].kind == DotFxDef.Kind.SCREEN)
 	_check("the flash decay follows the blind, clamped", AwGrenadeFx.flash_decay_ms(0.01) == AwGrenadeFx.BLIND_MIN_MS and AwGrenadeFx.flash_decay_ms(3.0) == 3000 and AwGrenadeFx.flash_decay_ms(99.0) == AwGrenadeFx.BLIND_MAX_MS)
 	_check("showing with no fx host is a no-op", AwGrenadeFx.show(null, null, {"fx": AwUtilityZones.Fx.SMOKE, "seconds": 1.0, "radius": 1.0, "position": Vector3.ZERO, "victim": 0}, 0) == null)
-	_end()
 
 
 func _thrown() -> bool:
