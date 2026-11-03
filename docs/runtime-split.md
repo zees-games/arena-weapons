@@ -32,3 +32,14 @@ Anything a second weapon pack would need goes into one shared addon, never into 
 ## Work in flight that this moves
 
 New weapon-view code (sights, reload motion) lands in zee's `view/` until step 1 and moves with it; after step 1 it goes into dot-weapon-view, and per-weapon numbers go into the pack's art rows. Recoil and spread stay in dot-weapon, which is already the shared base.
+
+## Status (2026-11-03)
+
+None of the four steps has landed: game-arena still links `addons/zee_weapons` and every arena gun is drawn by zee's view model, so zee's own tuning moves arena's guns. On 2026-11-03 zee's hip zero went from 20 m to 3 m (zee 5c08846) and every arena gun turned across the screen with its butt pad in view. Until step 3, game-arena pins its hold numbers in `cfg/addon/zee_weapons/ads.yml` (the game's addon tier, under the operator's), and any zee commit under `view/` is render-checked in game-arena with `tools/screenshot_weapons.sh --fp=marksman,rifle,smg` before it is pushed. Code changes in zee's view model since 2026-10-29 (wall retract 8620d94, wall-free overlay pass 25bd31d, `world_scale`/`hands_life` d459a42 and 4d5c0e3) still reach arena; only cfg numbers are pinned.
+
+Remaining, in order, one repository per builder:
+
+1. Create `modcommunity/dot-weapon-view` (add it to `dot-bootstrap/projects.tsv` and dot-ci's owner table) and move zee's generic files into it as `DotWeapon*`, leaving `Zee* extends Dot*` shims; `zee_selftest` and one small game's suite green.
+2. arena-weapons: `AwWeaponIds` (zee's current wire indices, append-only), `AwWeaponDamage`, art rows registered with `DotWeaponArtRegistry`, its own `cfg/addon/arena_weapons/ads.yml` carrying the numbers game-arena pins today; `aw_selftest` green with no `addons/zee_weapons` link.
+3. game-arena: the 48 files naming `Zee*` (21 classes; `ZeeWeaponIds` 139 times) renamed, the pin file moved to arena-weapons, `.gitignore`, `requires.floor.json` and `game.sh` art sync updated, protocol version raised, all suites green with zee-dot-weapons absent, packs republished.
+4. The shims go, one builder per zee consumer.
