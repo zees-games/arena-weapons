@@ -13,7 +13,7 @@ const THROWN := "res://addons/dot_weapon/behaviour/dot_weapon_thrown.gd"
 const BEAM := "res://addons/dot_weapon/behaviour/dot_weapon_beam.gd"
 const MELEE := "res://addons/dot_weapon/behaviour/dot_weapon_melee.gd"
 ## Optional: a host with a view rig gets its kick numbers into each gun's params, so a profile can tune them.
-const POSE_SCRIPT := "res://addons/zee_weapons/view/zee_weapon_pose.gd"
+const POSE_SCRIPT := "res://addons/arena_weapons/view/aw_weapon_pose.gd"
 
 const SLOT_MELEE := 1
 const SLOT_SIDEARM := 2
@@ -47,8 +47,8 @@ const IDS: Array[StringName] = [
 	&"frag", &"sticky", &"flash", &"smoke", &"incendiary",
 ]
 
-## Sound class of each gun, as the names a weapon-sound table uses (dot-weapon's `DotWeaponSound.FIRE`). Plain data so the pack
-## names no zee class; a host feeds it to `ZeeWeaponSound.set_class`. Nine guns have a recording of their own.
+## Sound class of each gun, as the names a weapon-sound table uses (dot-weapon's `DotWeaponSound.FIRE`), as plain data;
+## a host feeds it to `AwWeaponSound.set_class`. Nine guns have a recording of their own.
 const SOUND_CLASSES := {
 	&"pistol": &"light", &"revolver": &"magnum", &"derringer": &"derringer", &"machine_pistol": &"mpistol", &"smg": &"smg",
 	&"carbine": &"carbine", &"rifle": &"rifle", &"bullpup": &"rifle", &"burst_rifle": &"battle",

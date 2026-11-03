@@ -1,7 +1,7 @@
 extends Node
 
 ## Headless suite: models load with the muzzle where the table says and the stock clear of the eye at the sights,
-## the provider's contract, the pack's own weapon definitions, and a zee art dressed by role.
+## the provider's contract, the pack's own weapon definitions, and a base art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const CHECKS := 223
@@ -89,15 +89,15 @@ func _provider() -> void:
 	_check("the pistol row slims its forearm so it does not fill the lower right", float(pistol.get("forearm_scale", 1.0)) < 1.0)
 	_check("the pistol row names a support grip", (pistol["support_grip"] as Vector3).is_finite())
 	_check("the grenade launcher is drawn smaller than a long gun", float(AwWeaponArt.row_of(&"grenade_launcher")["view"]["scale"]) < 0.5)
-	_check("a pistol keeps zee's wall defaults", AwWeaponArt.wall_row(&"pistol").is_empty())
+	_check("a pistol keeps the runtime's wall defaults", AwWeaponArt.wall_row(&"pistol").is_empty())
 	_check("a rifle retreats deeper from a wall than the 0.34 m default", float(AwWeaponArt.wall_row(&"rifle")["wall_max"]) > 0.34)
 	_check("a launcher retreats deeper than a rifle", float(AwWeaponArt.wall_row(&"launcher")["wall_max"]) > float(AwWeaponArt.wall_row(&"rifle")["wall_max"]))
 	_check("a knife shortens its wall reach", float(AwWeaponArt.wall_row(&"knife")["wall_reach"]) < 1.0)
 	var rifle_def := AwWeaponPack.weapons({}, "", false).filter(func(d: DotWeaponDef) -> bool: return d.id == &"rifle")[0] as DotWeaponDef
 	_check("the rifle def carries its wall row in params.ads", (rifle_def.params["ads"] as Dictionary).has("wall_max"))
-	var rules := ZeeAdsRules.new()
+	var rules := AwAdsRules.new()
 	rules.set_def_row(&"rifle", rifle_def.params["ads"])
-	_check("zee accepts the rifle's wall row whole", float(rules.wall_for(&"rifle")["max"]) == float((rifle_def.params["ads"] as Dictionary)["wall_max"]))
+	_check("the ADS rules accept the rifle's wall row whole", float(rules.wall_for(&"rifle")["max"]) == float((rifle_def.params["ads"] as Dictionary)["wall_max"]))
 	_check("every weapon id carries the pack prefix", rows.keys().all(func(k: StringName) -> bool: return String(k).begins_with("aw_")))
 	_check("one spawn entry per weapon", entries.size() == rows.size())
 	_check("role_art is keyed by role, not by this pack's ids", AwSpawnProvider.role_art().has(&"rifle") and not AwSpawnProvider.role_art().has(&"aw_rifle"))
@@ -134,27 +134,27 @@ func _defs() -> void:
 	_check("the smg's selector offers more than one mode", _def(defs, &"aw_smg").allowed_fire_modes().size() > 1)
 	_check("every selector starts on a mode its gun allows", defs.all(func(d: DotWeaponDef) -> bool: return d.allowed_fire_modes().has(d.fire_mode)))
 	# As a host's registered source: it must not recurse through the host's own weapons().
-	ZeeWeaponPack.add_source(&"aw_selftest", Callable(AwSpawnProvider, &"weapon_defs"))
-	var hosted := ZeeWeaponPack.weapons()
-	ZeeWeaponPack.remove_source(&"aw_selftest")
+	AwWeaponCatalogue.add_source(&"aw_selftest", Callable(AwSpawnProvider, &"weapon_defs"))
+	var hosted := AwWeaponCatalogue.weapons()
+	AwWeaponCatalogue.remove_source(&"aw_selftest")
 	var found := 0
 	for d in hosted:
 		found += 1 if String(d.id).begins_with("aw_") else 0
-	_check("registered as a zee source, every weapon joins the catalogue once", found == defs.size())
-	_check("and the catalogue is the host's plus the pack's", hosted.size() == ZeeWeaponPack.weapons().size() + defs.size())
+	_check("registered as a catalogue source, every weapon joins the catalogue once", found == defs.size())
+	_check("and the catalogue is the host's plus the pack's", hosted.size() == AwWeaponCatalogue.weapons().size() + defs.size())
 	_end()
 
 
 func _dress() -> void:
-	_begin("dressing a zee art by role")
-	ZeeWeaponArtTable.drop_cache()
-	var before := ZeeWeaponArtTable.table()[ZeeWeaponIds.RIFLE] as ZeeWeaponArt
+	_begin("dressing a base art by role")
+	AwWeaponArtTable.drop_cache()
+	var before := AwWeaponArtTable.rifle()
 	var rows := AwSpawnProvider.role_art()
-	var art := ZeeWeaponArt.make(&"rifle")
-	ZeeArtDress.apply(art, rows[&"rifle"])
+	var art := AwWeaponVisual.make(&"rifle")
+	AwArtDress.apply(art, rows[&"rifle"])
 	_check("the model is this pack's", art.model_path == AwWeaponArt.model_path("rifle"))
 	_check("the muzzle is the table's", is_equal_approx(art.muzzle_distance, 0.548))
-	_check("the zee art itself is untouched until a game applies it", before.model_path != art.model_path)
+	_check("the base art itself is untouched until a game applies it", before.model_path != art.model_path)
 	_check("a grenade dressed keeps the throw carry", _thrown())
 	_check("every gun row names its own reload style: %s" % ", ".join(_unstyled()), _unstyled().is_empty())
 	_end()
@@ -174,7 +174,7 @@ func _unstyled() -> Array[String]:
 
 func _own_sights() -> void:
 	_begin("aimed down each model's own sight")
-	var view := ZeeViewModel.new()
+	var view := AwViewModel.new()
 	view.show_arms = false
 	add_child(view)
 	var own := 0
@@ -186,8 +186,8 @@ func _own_sights() -> void:
 		var row: Dictionary = rows[role]
 		if row["motion"] != "gun" or (row["view"] as Dictionary).get("scoped", false):
 			continue
-		var art := ZeeWeaponArt.make(role)
-		ZeeArtDress.apply(art, row)
+		var art := AwWeaponVisual.make(role)
+		AwArtDress.apply(art, row)
 		view.equip(art)
 		view.aim(true)
 		for _i in 40:
@@ -210,10 +210,10 @@ func _own_sights() -> void:
 
 
 ## Rays from the aimed eye inside the sight cone, as far as the front post, hit nothing of the gun.
-func _aim_clear(view: ZeeViewModel, role: StringName, blocked: Array[StringName]) -> void:
+func _aim_clear(view: AwViewModel, role: StringName, blocked: Array[StringName]) -> void:
 	var roots: Array = [view._weapon]
-	var cone: Dictionary = ZeeViewModel.SightFit.cone_for(view._art, view.ads_rules, roots, view._holder, view._aim_target(), view._sight_line)
-	if cone.is_empty() or ZeeViewModel.SightFit.Cut.occluders(view._weapon, view._holder, cone) > 0:
+	var cone: Dictionary = AwViewModel.SightFit.cone_for(view._art, view.ads_rules, roots, view._holder, view._aim_target(), view._sight_line)
+	if cone.is_empty() or AwViewModel.SightFit.Cut.occluders(view._weapon, view._holder, cone) > 0:
 		blocked.append(role)
 
 
@@ -381,7 +381,7 @@ func _utility_fx() -> void:
 	var own_defs := AwGrenadeFx.defs()
 	_check("with no folder the clouds load from the addon's own fx/", own_defs[0].scene_path == own_dir + "/smoke_cloud.tscn" and ResourceLoader.exists(own_defs[0].scene_path) and ResourceLoader.exists(own_defs[1].scene_path))
 	_check("both shipped cloud scenes instance", (load(own_defs[0].scene_path) as PackedScene).instantiate() != null and (load(own_defs[1].scene_path) as PackedScene).instantiate() != null)
-	_check("API level 7", preload("res://addons/arena_weapons/arena_weapons_api.gd").LEVEL == 7)
+	_check("API level 8", preload("res://addons/arena_weapons/arena_weapons_api.gd").LEVEL == 8)
 
 	var fx_defs := AwGrenadeFx.defs("res://fx")
 	_check("three fx defs: two clouds from the game's folder and a screen flash", fx_defs.size() == 3 and fx_defs[0].scene_path == "res://fx/smoke_cloud.tscn" and fx_defs[2].kind == DotFxDef.Kind.SCREEN)
@@ -390,9 +390,9 @@ func _utility_fx() -> void:
 
 
 func _thrown() -> bool:
-	var art := ZeeWeaponArt.make(&"frag")
+	var art := AwWeaponVisual.make(&"frag")
 	art.model_forward = Vector3.UP
-	ZeeArtDress.apply(art, AwSpawnProvider.role_art()[&"frag"])
+	AwArtDress.apply(art, AwSpawnProvider.role_art()[&"frag"])
 	return art.model_path == AwWeaponArt.model_path("frag_grenade") and art.model_forward == Vector3.UP
 
 

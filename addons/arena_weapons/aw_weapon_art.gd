@@ -55,7 +55,7 @@ const CREDITS: Array[Dictionary] = [
 	{"id": "vinrax-knife", "model": "knife", "author": "Vinrax", "licence": "CC0-1.0", "url": "https://opengameart.org/content/knife-low-poly"},
 ]
 
-## The view rig's wall response per tier (zee `wall_*` keys, into each def's `params.ads`): a long gun needs a deeper retreat than a pistol to clear a wall.
+## The view rig's wall response per tier (`wall_*` keys, into each def's `params.ads`): a long gun needs a deeper retreat than a pistol to clear a wall.
 const WALL_BY_TIER := {
 	"melee": {"wall_reach": 0.6},
 	"primary": {"wall_max": 0.7, "wall_push": 1.2},
@@ -72,7 +72,7 @@ static func wall_row(id: StringName) -> Dictionary:
 	return out
 
 
-## The zee role each tier dresses when a host skins its own weapons by role.
+## The role each tier dresses when a host skins its own weapons by role.
 const ROLE_OF := [&"pistol", &"smg", &"carbine", &"rifle", &"shotgun", &"sniper", &"launcher", &"frag"]
 
 

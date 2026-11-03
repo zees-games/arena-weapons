@@ -1,4 +1,4 @@
-"""Gives a baked gun model a visible rear aperture, a front post with ears and the `sight_rear` / `sight_front` marks zee's iron sight reads (the aimed line then runs through the ring's centre and the post's tip, above everything between).
+"""Gives a baked gun model a visible rear aperture, a front post with ears and the `sight_rear` / `sight_front` marks the view runtime's iron sight reads (the aimed line then runs through the ring's centre and the post's tip, above everything between).
 Run: blender -b -P tools/add_sights.py -- <addons/arena_weapons/assets/models> [name ...]
 A model that already has a `sight_rear` mark is skipped. Stations are metres in the baked frame (origin at the grip, muzzle toward -Z, Y up)."""
 import bpy, bmesh, sys, os, math

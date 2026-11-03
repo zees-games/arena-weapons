@@ -15,7 +15,7 @@ for name in GUNS:
     behind = verts[verts[:, 2] > -muzzle * 0.5]
     top = behind[behind[:, 1].argmax()]
     rear = verts[:, 2].max()
-    # No margin: zee multiplies the aim by the view scale, so any margin becomes a visibly low sight.
+    # No margin: the view runtime multiplies the aim by the view scale, so any margin becomes a visibly low sight.
     # Aim hold: the sight 0.32 ahead of the eye, or further when the stock would reach within 0.15 of it (a wedge across the screen).
     aim = (-top[0], -top[1], min(-0.32 - top[2], -(rear + 0.15)))
     print(f"{name}: aim ({aim[0]:.3f}, {aim[1]:.3f}, {aim[2]:.3f}) muzzle {muzzle:.3f} sight ({top[0]:.3f}, {top[1]:.3f}, {top[2]:.3f}) rear {rear:.3f} size {np.ptp(verts, axis=0).round(3).tolist()}")

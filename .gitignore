@@ -15,6 +15,10 @@
 /addons/dot_net
 /addons/dot_physics
 /addons/dot_fx
+/addons/dot_audio
+/addons/dot_player
+/addons/dot_player_controller
+/addons/dot_player_char
 
 # Exports
 build/
@@ -36,5 +40,3 @@ Thumbs.db
 __pycache__/
 art-src/reference/
 
-# Linked for tests only (the pack itself names no zee class).
-/addons/zee_weapons

@@ -1,0 +1,840 @@
+class_name AwShotFx
+extends "aw_shot_fx_audio.gd"
+
+## What a shot looks and sounds like: a tracer to where it landed, a flash at the muzzle,
+## a spark where it struck, and the report.
+##
+## [b]It existed nowhere, and that is why every weapon in the pack "fired nothing".[/b] The
+## rig decided the use, the ammunition went down, the server resolved the hit — and the
+## only thing a player saw was the gun kick. dot-weapon refuses to draw a shot, correctly;
+## this pack is the half that draws, and it drew the gun and stopped there, leaving the
+## rest to "a game hanging a muzzle flash off [signal AwViewModel.model_ready]". No game
+## did. Two games carried the pack and both were silent and tracerless.
+##
+## [b]Where the tracer ends is a presentation raycast, never the server's answer.[/b] A
+## client does not know what the server's lag-compensated hitboxes decided and must not
+## wait for it, so the line is drawn to whatever the client's own physics world has along
+## the shot's direction. It is right almost always, and on the occasions it is not the
+## server's damage is still the server's.
+##
+## [b]Only ever on a render frame, never on a server, never on a replayed tick.[/b] The rig
+## does not build one in [constant AwWeaponRig.Role.SERVER] and only calls it from
+## [method AwWeaponRig._record_use] outside a replay — a reconciliation that replayed
+## eight ticks would otherwise play eight reports.
+##
+## [b]Every node it makes is its own and freed by it.[/b] Effects are top-level so the
+## carrier moving does not drag a tracer already in flight, and capped, so a minigun held
+## down for a minute does not leave a thousand nodes behind.
+
+# No CHANNEL: this runs per shot per frame, and there is nothing in it an operator acts on.
+
+## Most pellets drawn per use. A shotgun's twelve all land; drawing all twelve tracers is
+## a fan of lines that reads as a beam weapon.
+const MAX_TRACERS_PER_USE := 6
+
+## Most effects alive at once, per carrier.
+const MAX_LIVE := 48
+
+## Most marks left on the world at once, per carrier. A mark outlives every other effect, so
+## it has its own budget: sharing [constant MAX_LIVE] let a held minigun evict its own tracers.
+const MAX_MARKS := 32
+
+## How long a mark stays on a wall, in seconds, the last quarter of it fading.
+const MARK_LIFE := 8.0
+
+## Put a node in this group to have a shot that lands on it drawn as a hit on a body (a red
+## burst, no mark), whatever its class. A character, a ragdoll's bone and this group are bodies.
+const BODY_GROUP := &"aw_body"
+
+## Put a node in this group to have it never drawn as a body, even if it is a character: a game
+## where what was hit must not be given away by the impact (a disguised player).
+const NOT_BODY_GROUP := &"aw_not_body"
+
+## What a presentation ray's collider is, for [method impact_kind].
+const IMPACT_WORLD := &"world"
+const IMPACT_BODY := &"body"
+
+## What each weapon class's flash and case are, by [AwWeaponSound] class: `size` scales the
+## flash (1 is a rifle's, 12 cm across at the muzzle), `light` its light, `petals` how many
+## crossed streaks leave the muzzle (a shotgun's is a fat four, a sniper's a long two), `length`
+## stretches them, and `case` is the spent case's length in metres, `hull` true for a shotgun's
+## fat red one, `delay` seconds before it leaves (a bolt or a pump cycles after the shot). A
+## class not here is a rifle's. No `case` means nothing is ejected: a revolver keeps its
+## cases, and a launcher has none.
+const FLASH := {
+	AwWeaponSound.LIGHT: {"size": 0.7, "light": 0.7, "petals": 2, "length": 0.9, "case": 0.024},
+	AwWeaponSound.SUPPRESSED: {"size": 0.3, "light": 0.15, "petals": 1, "length": 0.6, "case": 0.024},
+	AwWeaponSound.SMG: {"size": 0.75, "light": 0.75, "petals": 2, "length": 0.9, "case": 0.026},
+	AwWeaponSound.MAGNUM: {"size": 1.15, "light": 1.1, "petals": 3, "length": 1.0},
+	AwWeaponSound.RIFLE: {"size": 1.0, "light": 1.0, "petals": 2, "length": 1.0, "case": 0.038},
+	AwWeaponSound.HEAVY: {"size": 1.25, "light": 1.25, "petals": 3, "length": 1.1, "case": 0.05},
+	AwWeaponSound.SNIPER: {"size": 1.5, "light": 1.4, "petals": 2, "length": 2.0, "case": 0.065, "delay": 0.45},
+	AwWeaponSound.SHOTGUN: {"size": 1.6, "light": 1.5, "petals": 4, "length": 0.9, "case": 0.055, "hull": true, "delay": 0.4},
+	AwWeaponSound.MINIGUN: {"size": 1.1, "light": 0.9, "petals": 3, "length": 1.2, "case": 0.038},
+	AwWeaponSound.LAUNCHER: {"size": 2.0, "light": 1.8, "petals": 4, "length": 1.4},
+}
+
+@export_group("Muzzle flash")
+
+## Draw dot-fx's `DotMuzzleFlash` (sized by the profile's `extra.muzzle_flash`, else the weapon class) when dot-fx is linked; off, or without dot-fx, the procedural flash below is drawn.
+@export var binbun_flash: bool = true
+
+## The charged weapon's draw when the shot left, for the beam. The rig sets it before play_use.
+const CHARGE_READY := 0.98
+var rail_charge := 0.0
+
+## Where a weapon's `extra.muzzle_flash` is read from; the rig sets it. Without it the class decides.
+var catalogue: DotWeaponCatalogue = null
+
+## Multiplier on every flash's size, on top of the weapon class's own ([constant FLASH]).
+@export_range(0.0, 3.0, 0.05) var flash_scale: float = 1.0
+
+## Size of a first-person flash on top of everything else; the rig sets it below 1 while the view is scoped, because the zoom magnifies the flash with the world.
+var first_person_flash_scale: float = 1.0
+
+## Multiplier on the flash's light. 0 draws no light at all.
+@export_range(0.0, 3.0, 0.05) var flash_light_scale: float = 1.0
+
+## Most flash lights alive at once, per carrier. A held minigun asks for one per shot and each
+## lives 0.06 s, so without a cap it is a light per frame; past the cap the flash is drawn
+## without its light.
+@export_range(0, 8) var max_flash_lights: int = 2
+
+@export_group("Shell ejection")
+
+## Eject spent cases from the gun's port. Presentation only: no physics body; the landing is a stock sound.
+@export var eject_shells: bool = true
+
+## Multiplier on a case's size (the base is drawn for a view model, which is smaller than life).
+@export_range(0.2, 4.0, 0.05) var shell_scale: float = 1.0
+
+## Most cases in the air at once, per carrier; the pool is this big and no bigger, and the
+## oldest is reused. Each is one draw call.
+@export_range(0, 32) var max_shells: int = 10
+
+## How long a case is drawn, in seconds.
+@export_range(0.1, 3.0, 0.05) var shell_life: float = 0.7
+
+@export_group("Behaviour")
+
+## Draw tracers, flashes and impacts.
+@export var visuals: bool = true
+
+## How far a tracer is drawn when nothing is hit, in metres.
+@export_range(5.0, 1000.0, 1.0) var miss_distance: float = 120.0
+
+## Physics layers the presentation ray stops on.
+@export_flags_3d_physics var collision_mask: int = 0xFFFFFFFF
+
+## Bodies the presentation ray must not stop on: the carrier's own. Filled by whoever
+## owns this, see [method exclude_carrier].
+var exclude: Array[RID] = []
+
+## What each effect still alive is: {node, age, life, kind, ...}.
+var _live: Array[Dictionary] = []
+
+## Pooled dot-fx flashes by `category/size name/first person`.
+var _pack_flashes: Dictionary = {}
+
+## Spent cases in the air: {node, pos, vel, spin, basis, age, delay}. Finished nodes wait,
+## hidden, in [member _shell_pool] and are never freed until the carrier is.
+var _shells: Array[Dictionary] = []
+var _shell_pool: Array[MeshInstance3D] = []
+
+## The marks on the world still showing: {node, age, size}. See [constant MAX_MARKS].
+var _marks: Array[Dictionary] = []
+
+## Where and when (msec) the last body was drawn hit, so a confirmation of the same hit
+## arriving from the server ([method play_body_hit]) does not draw it twice.
+var _last_body_at := Vector3.INF
+var _last_body_msec: int = -100000
+
+func _ready() -> void:
+	top_level = true
+	# Placed at the world origin and never moved: every effect is written in world space.
+	global_transform = Transform3D.IDENTITY
+
+
+## Stops every report on the way out.
+##
+## [b]A report still playing when its player is freed is held by the audio server[/b], and
+## a process that quits in the same frame — a suite, a shell unloading a game — reports
+## the playback and its stream as leaked at exit.
+func _exit_tree() -> void:
+	stop_flashes()
+	for voice in _voices:
+		if is_instance_valid(voice):
+			voice.stop()
+
+
+## Hides every pooled muzzle flash: a weapon switch, death, a respawn.
+func stop_flashes() -> void:
+	for flash: Variant in _pack_flashes.values():
+		if flash != null and is_instance_valid(flash) and (flash as Node).has_method("stop"):
+			(flash as Node).call("stop")
+
+
+# --- Being told what happened -----------------------------------------------
+
+## Collects every physics body under [param carrier] into [member exclude], so a shot from
+## the eye does not stop on the shooter's own capsule.
+func exclude_carrier(carrier: Node) -> void:
+	exclude.clear()
+	if carrier != null:
+		_collect_bodies(carrier, 0)
+
+
+## A use this machine simulated, with its shots in hand.
+##
+## [param muzzle] is where the effect leaves from — the view model's muzzle in first
+## person — and [param id] is the weapon, for its sound.
+func play_use(outcome: DotWeaponOutcome, muzzle: Transform3D, id: StringName) -> void:
+	if outcome == null or not outcome.used or not is_inside_tree():
+		return
+
+	var kind := outcome.kind
+	_report(id, kind, muzzle.origin)
+
+	if not visuals:
+		return
+
+	match kind:
+		DotWeaponOutcome.KIND_SWING, DotWeaponOutcome.KIND_THROW:
+			return
+		DotWeaponOutcome.KIND_SPAWN:
+			_flash(muzzle, 1.4, AwWeaponSound.LAUNCHER, id, true)
+			return
+
+	var beam := kind == DotWeaponOutcome.KIND_BEAM
+	if not beam:
+		_flash(muzzle, 1.0, AwWeaponSound.class_for(id, kind), id, true)
+
+	var rail := rail_charge >= CHARGE_READY \
+		and AwWeaponSound.class_for(id, kind) == AwWeaponSound.CHARGE
+	var drawn := 0
+	for shot: DotShot in outcome.shots:
+		var directions: Array[Vector3] = shot.pellets
+		if directions.is_empty():
+			directions = [shot.direction]
+
+		for direction in directions:
+			if drawn >= MAX_TRACERS_PER_USE:
+				break
+			drawn += 1
+			_trace(muzzle.origin, shot.origin, direction, shot.max_range, beam, rail)
+
+
+## A use somebody else made, known only by its kind: a watcher's view, from the world
+## model's muzzle along its barrel.
+func play_remote(
+	kind: int, muzzle: Transform3D, direction: Vector3, id: StringName, charge: float = 0.0
+) -> void:
+	if not is_inside_tree():
+		return
+
+	_report(id, AwWeaponNet.kind_name(kind), muzzle.origin)
+
+	if not visuals:
+		return
+
+	match kind:
+		AwWeaponNet.KIND_SWING, AwWeaponNet.KIND_THROW, AwWeaponNet.KIND_NONE:
+			return
+		AwWeaponNet.KIND_SPAWN:
+			_flash(muzzle, 1.4, AwWeaponSound.LAUNCHER, id, false)
+			return
+
+	var beam := kind == AwWeaponNet.KIND_BEAM
+	if not beam:
+		_flash(muzzle, 1.0, AwWeaponSound.class_for(id, AwWeaponNet.kind_name(kind)), id, false)
+
+	var rail := charge >= CHARGE_READY \
+		and AwWeaponSound.class_for(id, AwWeaponNet.kind_name(kind)) == AwWeaponSound.CHARGE
+	_trace(muzzle.origin, muzzle.origin, direction, miss_distance, beam, rail)
+
+
+## How many effects are alive. For a suite, and for [method describe].
+func live_count() -> int:
+	return _live.size()
+
+
+## How many tracers are alive.
+func tracer_count() -> int:
+	var count := 0
+	for fx in _live:
+		if fx["kind"] == &"tracer":
+			count += 1
+	return count
+
+
+## How many marks are on the world.
+func mark_count() -> int:
+	return _marks.size()
+
+
+## How many live effects are of [param kind] (`&"spark"`, `&"puff"`, `&"hit"`, `&"mist"`, ...).
+func count_of(kind: StringName) -> int:
+	var count := 0
+	for fx in _live:
+		if fx["kind"] == kind:
+			count += 1
+	return count
+
+
+## How many flash lights are alive, against [member max_flash_lights].
+func _lights_live() -> int:
+	var count := 0
+	for fx in _live:
+		if fx.get("has_light", false):
+			count += 1
+	return count
+
+
+## Spent cases in the air, for a suite and [method describe].
+func shell_count() -> int:
+	return _shells.size()
+
+
+## A spent case leaves [param port] (the gun's ejection port: its origin on the receiver's
+## right, its +X out of the gun, +Y up, as [method AwViewModel.eject_transform] hands it).
+##
+## [b]Pooled, and no physics body.[/b] A case lives 0.7 s and is a ballistic arc written by
+## hand (a velocity, gravity, a tumble): a rigid body per case is a body per shot on a
+## machine that, on the web, has no threads to spend on it. The pool is [member max_shells]
+## nodes made on first use and reused oldest first, so a held minigun cannot grow the scene.
+func play_eject(port: Transform3D, id: StringName, speed_scale: float = 1.0) -> void:
+	if not visuals or not eject_shells or max_shells <= 0 or not is_inside_tree():
+		return
+
+	var profile: Dictionary = FLASH.get(AwWeaponSound.class_for(id, DotWeaponOutcome.KIND_SHOT), {})
+	if not profile.has("case") or not port.origin.is_finite():
+		return
+
+	_schedule_casing(port.origin, float(profile.get("delay", 0.0)))
+
+	var hull: bool = profile.get("hull", false)
+	var length: float = float(profile["case"]) * shell_scale
+	var width: float = length * (0.42 if hull else 0.3)
+
+	var node: MeshInstance3D = null
+	if not _shell_pool.is_empty():
+		node = _shell_pool.pop_back()
+	elif _shells.size() < max_shells:
+		node = _mesh(_shell_mesh_unit(), _brass_mat())
+	else:
+		# Out of pool: the oldest case is the one nobody is looking at.
+		var oldest: Dictionary = _shells.pop_front()
+		node = oldest["node"]
+	if node == null or not is_instance_valid(node):
+		return
+
+	node.material_override = _hull_mat() if hull else _brass_mat()
+	node.visible = false
+	node.scale = Vector3(width, length, width)
+	var out := port.basis.x.normalized()
+	var up := port.basis.y.normalized()
+	var back := port.basis.z.normalized()
+	var speed := randf_range(1.0, 1.5) * speed_scale
+	_shells.append({
+		"node": node,
+		"pos": port.origin,
+		"vel": (out * 1.0 + up * randf_range(0.5, 0.9) + back * randf_range(0.0, 0.35)) * speed,
+		"spin": Vector3(randf_range(-18.0, 18.0), randf_range(-18.0, 18.0), randf_range(-18.0, 18.0)),
+		"age": 0.0,
+		"delay": float(profile.get("delay", 0.0)),
+		"basis": port.basis.orthonormalized(),
+	})
+
+
+func _advance_shells(delta: float) -> void:
+	var kept: Array[Dictionary] = []
+	for shell in _shells:
+		var node: MeshInstance3D = shell["node"]
+		if not is_instance_valid(node):
+			continue
+		var wait: float = shell["delay"]
+		if wait > 0.0:
+			shell["delay"] = wait - delta
+			kept.append(shell)
+			continue
+		shell["age"] = float(shell["age"]) + delta
+		if float(shell["age"]) >= shell_life:
+			node.visible = false
+			_shell_pool.append(node)
+			continue
+		var vel: Vector3 = shell["vel"]
+		vel.y -= 9.8 * delta
+		shell["vel"] = vel
+		shell["pos"] = (shell["pos"] as Vector3) + vel * delta
+		var spun: Basis = (shell["basis"] as Basis) * Basis.from_euler((shell["spin"] as Vector3) * delta)
+		shell["basis"] = spun.orthonormalized()
+		var length_scale := node.scale
+		node.global_transform = Transform3D((shell["basis"] as Basis).scaled_local(length_scale), shell["pos"])
+		node.visible = true
+		kept.append(shell)
+	_shells = kept
+
+
+## A body the server says this machine's shot hit, at [param at], the shot travelling along
+## [param direction].
+##
+## [b]For bodies the presentation ray cannot see.[/b] A game whose targets have no physics body
+## on the client (a horde drawn as figures, hit through the server's hitboxes) gets a world
+## impact behind its target from the ray, and the hit on the body only from this. Called from
+## the same confirmation that flashes the hit marker. A body the ray already drew within a
+## fifth of a second and half a metre of [param at] is not drawn again.
+func play_body_hit(at: Vector3, direction: Vector3 = Vector3.ZERO) -> void:
+	if not visuals or not is_inside_tree() or not at.is_finite():
+		return
+	if Time.get_ticks_msec() - _last_body_msec < 200 and _last_body_at.distance_to(at) < 0.5:
+		return
+	var back := -direction.normalized() if direction.is_finite() and not direction.is_zero_approx() else Vector3.UP
+	_impact(at, back, IMPACT_BODY, false)
+
+
+## What a shot landing on [param collider] is drawn as: [constant IMPACT_BODY] for a character,
+## a ragdoll's bone or a node in [constant BODY_GROUP]; otherwise [constant IMPACT_WORLD].
+static func impact_kind(collider: Object) -> StringName:
+	var node := collider as Node
+	if node == null:
+		return IMPACT_WORLD
+	if node.is_in_group(NOT_BODY_GROUP):
+		return IMPACT_WORLD
+	if node is CharacterBody3D or node is PhysicalBone3D or node.is_in_group(BODY_GROUP):
+		return IMPACT_BODY
+	return IMPACT_WORLD
+
+
+## Whether a shot landing on [param collider] may leave a mark: only on what never moves. A mark
+## is placed in world space and would hang in the air where a crate or a door used to be.
+static func takes_marks(collider: Object) -> bool:
+	if collider == null:
+		return false
+	if collider is RigidBody3D or collider is CharacterBody3D or collider is AnimatableBody3D \
+			or collider is PhysicalBone3D:
+		return false
+	# By class name, not by type: a build without the CSG or GridMap module must still parse this.
+	return collider is StaticBody3D or collider.is_class("CSGShape3D") or collider.is_class("GridMap")
+
+
+## The effects of a shot landing at [param at] on [param collider], facing [param normal]: what a
+## presentation ray would draw. Public for a suite and for a game that traces its own shots.
+func play_impact(at: Vector3, normal: Vector3, collider: Object) -> void:
+	if not visuals or not is_inside_tree() or not at.is_finite():
+		return
+	_impact(at, normal, impact_kind(collider), takes_marks(collider))
+
+
+# --- The frame --------------------------------------------------------------
+
+func _process(delta: float) -> void:
+	advance(delta)
+
+
+## Moves every effect on by [param delta] seconds. [method _process] calls it; a capture that
+## steps time by hand (the range's contact sheet) calls it instead.
+func advance(delta: float) -> void:
+	if _layers != null:
+		var camera := get_viewport().get_camera_3d() if get_viewport() != null else null
+		if camera != null:
+			_layers.probe(delta, camera.global_position, get_world_3d().direct_space_state)
+	if not _marks.is_empty():
+		_advance_marks(delta)
+
+	if not _shells.is_empty():
+		_advance_shells(delta)
+
+	if _live.is_empty():
+		return
+
+	var kept: Array[Dictionary] = []
+
+	for fx in _live:
+		var node: Node3D = fx["node"]
+		if not is_instance_valid(node):
+			continue
+
+		fx["age"] = float(fx["age"]) + delta
+		var through := float(fx["age"]) / float(fx["life"])
+
+		if through >= 1.0:
+			node.queue_free()
+			continue
+
+		_animate(fx, node, through)
+		kept.append(fx)
+
+	_live = kept
+
+
+func _animate(fx: Dictionary, node: Node3D, through: float) -> void:
+	match fx["kind"]:
+		&"tracer":
+			# A streak that travels, rather than a line that appears: a line from the gun
+			# to the wall all at once reads as a laser, and a short bright segment moving
+			# along it reads as something that was fired.
+			var from: Vector3 = fx["from"]
+			var to: Vector3 = fx["to"]
+			var length: float = fx["length"]
+			var total := from.distance_to(to)
+			var head := minf(total, total * through * 1.15 + length * 0.5)
+			var tail := maxf(0.0, head - length)
+			var mid := from.lerp(to, ((head + tail) * 0.5) / maxf(0.001, total))
+			var span := maxf(0.001, head - tail)
+			_place_along(node, mid, to - from, span, _screen_width(mid, float(fx["width"])))
+		&"beam", &"petal":
+			node.transparency = through
+		&"flashlight":
+			(node as OmniLight3D).light_energy = float(fx["energy"]) * (1.0 - through)
+		&"flash":
+			var grow := 1.0 + through * 0.6
+			node.scale = Vector3.ONE * float(fx["size"]) * grow
+			node.transparency = through * through
+			var light: Variant = fx.get("light")
+			if light is OmniLight3D and is_instance_valid(light):
+				(light as OmniLight3D).light_energy = float(fx["energy"]) * (1.0 - through)
+		&"spark":
+			var near := _distance_scale(node.global_position)
+			node.scale = Vector3.ONE * float(fx["size"]) * near * (1.0 - through * 0.5)
+			node.transparency = through
+		&"puff":
+			var far := _distance_scale(node.global_position)
+			node.scale = Vector3.ONE * float(fx["size"]) * far * (0.6 + through * 1.4)
+			node.transparency = 0.1 + through * 0.9
+		&"hit":
+			# A burst that opens fast and is gone: on a body the news is "that landed", and a
+			# cloud hanging on a moving target trails behind it.
+			var near := _distance_scale(node.global_position)
+			node.scale = Vector3.ONE * float(fx["size"]) * near * (0.7 + sqrt(through) * 0.8)
+			node.transparency = through * through
+		&"mist":
+			var far := _distance_scale(node.global_position)
+			node.global_position = (fx["origin"] as Vector3) + (fx["drift"] as Vector3) * float(fx["age"])
+			node.scale = Vector3.ONE * float(fx["size"]) * far * (0.5 + through * 1.2)
+			node.transparency = 0.3 + through * 0.7
+
+
+func _advance_marks(delta: float) -> void:
+	var kept: Array[Dictionary] = []
+	for mark in _marks:
+		var node: Node3D = mark["node"]
+		if not is_instance_valid(node):
+			continue
+		mark["age"] = float(mark["age"]) + delta
+		var through := float(mark["age"]) / MARK_LIFE
+		if through >= 1.0:
+			node.queue_free()
+			continue
+		# Holds, then fades over its last quarter: a mark that fades from the start is gone
+		# before anybody looks at the wall.
+		node.transparency = clampf((through - 0.75) / 0.25, 0.0, 1.0)
+		kept.append(mark)
+	_marks = kept
+
+
+# --- Building effects -------------------------------------------------------
+
+func _trace(
+	muzzle: Vector3, eye: Vector3, direction: Vector3, reach: float, beam: bool,
+	rail: bool = false
+) -> void:
+	var dir := direction.normalized()
+	if not dir.is_finite() or dir.is_zero_approx():
+		return
+
+	# Traced from the eye, where the shot really started, and drawn from the muzzle. The
+	# eye is what decides where it lands; the muzzle is only where the picture leaves.
+	var end := eye + dir * minf(reach, miss_distance)
+	var hit := false
+	var normal := Vector3.UP
+	var collider: Object = null
+
+	var space := get_world_3d().direct_space_state if get_world_3d() != null else null
+	if space != null:
+		var query := PhysicsRayQueryParameters3D.create(eye, eye + dir * reach, collision_mask, exclude)
+		query.collide_with_areas = false
+		var found := space.intersect_ray(query)
+		if not found.is_empty():
+			end = found["position"]
+			normal = found["normal"]
+			hit = true
+			collider = found.get("collider")
+
+	if rail:
+		_rail_beam(muzzle, end)
+	elif beam:
+		_beam(muzzle, end)
+	else:
+		_tracer(muzzle, end)
+
+	if hit:
+		play_impact(end, normal, collider)
+
+
+func _tracer(from: Vector3, to: Vector3) -> void:
+	var total := from.distance_to(to)
+	if total < 0.05:
+		return
+
+	var node := _mesh(_streak_mesh(), _tracer_mat())
+	# The time it takes to cross is fixed rather than physical: a real round crosses a room
+	# in a few milliseconds, which is no frames at all. A fifteenth of a second is two to
+	# eight frames, which is enough to be seen and short enough to read as fast.
+	var life := clampf(total / 420.0, 0.045, 0.11)
+	var length := clampf(total * 0.3, 0.6, 5.0)
+	_add(node, {"kind": &"tracer", "life": life, "from": from, "to": to,
+		"length": length, "width": 0.004})
+	_place_along(node, from, to - from, 0.001, 0.001)
+
+
+func _beam(from: Vector3, to: Vector3) -> void:
+	var total := from.distance_to(to)
+	if total < 0.05:
+		return
+
+	var node := _mesh(_streak_mesh(), _beam_mat())
+	_place_along(node, (from + to) * 0.5, to - from, total, 0.03)
+	# Lives about as long as the gap between two of the beam's uses, so a held beam reads
+	# as continuous without one use's line outliving where it was aimed.
+	_add(node, {"kind": &"beam", "life": 0.07})
+
+
+## A fully charged shot: a wide blue glow round a white core, both fading over a third of a
+## second, so the line stays on screen long enough to read as a beam and not a tracer.
+func _rail_beam(from: Vector3, to: Vector3) -> void:
+	var total := from.distance_to(to)
+	if total < 0.05:
+		return
+	for pass_i in 2:
+		var node := _mesh(_streak_mesh(), _beam_mat() if pass_i == 0 else _tracer_mat())
+		_place_along(node, (from + to) * 0.5, to - from, total, 0.16 if pass_i == 0 else 0.04)
+		_add(node, {"kind": &"beam", "life": 0.4 if pass_i == 0 else 0.26})
+	var ring := _mesh(_quad_mesh(), _flash_mat())
+	ring.global_position = from
+	ring.scale = Vector3.ONE * 0.9
+	_add(ring, {"kind": &"flash", "life": 0.18, "size": 0.9})
+
+
+func _flash(muzzle: Transform3D, size: float, weapon_class: StringName = AwWeaponSound.RIFLE,
+		id: StringName = &"", first_person: bool = false) -> void:
+	if binbun_flash and _pack_flash(muzzle, size, weapon_class, id, first_person):
+		return
+	var profile: Dictionary = FLASH.get(weapon_class, FLASH[AwWeaponSound.RIFLE])
+	size *= float(profile["size"]) * flash_scale
+	if size <= 0.0:
+		return
+
+	var node := _mesh(_quad_mesh(), _flash_mat())
+	var forward := -muzzle.basis.z.normalized()
+	node.global_position = muzzle.origin
+	node.rotate_object_local(Vector3.FORWARD, randf() * TAU)
+	# Twelve centimetres, half a metre from the eye in first person: about a seventh of the screen.
+	# Twice the first seven was a pale square over the gun; seven alone was the play test's
+	# "almost no muzzle flash", a white dot lost against a pale barrel.
+	var across := 0.12 * size * randf_range(0.85, 1.15)
+	node.scale = Vector3.ONE * across
+
+	# Crossed petals along the barrel's line, so the flash has a direction and a shape and
+	# is read as fire leaving the muzzle rather than as a light on the gun. How many, and how
+	# long, is the class's: a shotgun's is a fat star, a sniper's two long tongues.
+	var petals: Array[MeshInstance3D] = []
+	var count: int = int(profile["petals"])
+	for i in count:
+		var turn := PI * float(i) / float(count)
+		var petal := _mesh(_quad_mesh(), _petal_mat())
+		var length := 0.16 * size * float(profile["length"]) * randf_range(0.85, 1.2)
+		var width := 0.05 * size
+		var x := forward.cross(Vector3.UP if absf(forward.dot(Vector3.UP)) < 0.98 else Vector3.RIGHT).normalized()
+		x = x.rotated(forward, turn)
+		# The quad lies in its X/Y plane: Y along the barrel, X across it.
+		petal.global_transform = Transform3D(Basis(x * width, forward * length, x.cross(forward)),
+			muzzle.origin + forward * (length * 0.5))
+		petals.append(petal)
+
+	var fx := {"kind": &"flash", "life": 0.06, "size": across}
+	var light := _flash_light(muzzle, size, profile, node)
+	if light != null:
+		fx["light"] = light
+		fx["energy"] = light.light_energy
+		fx["has_light"] = true
+
+	_add(node, fx)
+	for petal in petals:
+		_add(petal, {"kind": &"petal", "life": 0.05})
+
+
+## The dynamic muzzle light: short, shadowless, capped by [member max_flash_lights]. Null when off or at the cap.
+func _flash_light(muzzle: Transform3D, size: float, profile: Dictionary, parent: Node3D) -> OmniLight3D:
+	if flash_light_scale <= 0.0 or _lights_live() >= max_flash_lights:
+		return null
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.72, 0.38)
+	light.omni_range = 4.5 * size
+	light.light_energy = 2.2 * size * float(profile["light"]) / maxf(0.01, float(profile["size"])) \
+		* flash_light_scale
+	light.shadow_enabled = false
+	parent.add_child(light)
+	light.top_level = true
+	light.global_position = muzzle.origin - (-muzzle.basis.z.normalized()) * 0.05
+	return light
+
+
+## Pack flashes draw no light of their own: ours is the one that is capped and cvar-controlled.
+func _pack_flash_light(muzzle: Transform3D, size: float, weapon_class: StringName, flash: Node3D) -> void:
+	for child in flash.get_children():
+		if child.get("light_enable") == true:
+			child.set("light_enable", false)
+	var profile: Dictionary = FLASH.get(weapon_class, FLASH[AwWeaponSound.RIFLE])
+	var light := _flash_light(muzzle, size * float(profile["size"]) * flash_scale, profile, self)
+	if light != null:
+		_add(light, {"kind": &"flashlight", "life": 0.05, "light": light,
+			"energy": light.light_energy, "has_light": true})
+
+
+## Weapon class to the dot-fx category `DotMuzzleFlash.size_for` sizes by.
+const CLASS_CATEGORY := {
+	AwWeaponSound.LIGHT: "pistol", AwWeaponSound.MAGNUM: "magnum", AwWeaponSound.SMG: "smg",
+	AwWeaponSound.RIFLE: "rifle", AwWeaponSound.HEAVY: "dmr", AwWeaponSound.SNIPER: "sniper",
+	AwWeaponSound.SHOTGUN: "shotgun", AwWeaponSound.MINIGUN: "lmg", AwWeaponSound.LAUNCHER: "shotgun",
+	AwWeaponSound.CHARGE: "rifle",
+}
+
+## One pooled flash per size and view, moved to the muzzle for each shot. False only when dot-fx is not linked; size none, quality off and a headless server draw nothing and count as handled.
+func _pack_flash(muzzle: Transform3D, size: float, weapon_class: StringName, id: StringName, first_person: bool) -> bool:
+	if not ResourceLoader.exists(DotWeaponMuzzle.SCRIPT_PATH):
+		return false
+	var def: DotWeaponDef = catalogue.get_def(id) if catalogue != null and catalogue.has(id) else null
+	var category: String = CLASS_CATEGORY.get(weapon_class, "rifle")
+	var key := "%s/%s/%s" % [category, DotWeaponMuzzle.flash_name(def), first_person]
+	if not _pack_flashes.has(key) or (_pack_flashes[key] != null and not is_instance_valid(_pack_flashes[key])):
+		var made := DotWeaponMuzzle.attach(self, category, def, first_person, weapon_class == AwWeaponSound.SUPPRESSED)
+		if made != null:
+			made.top_level = true
+		_pack_flashes[key] = made
+	var flash: Node3D = _pack_flashes[key]
+	if flash == null:
+		return true
+	flash.global_transform = muzzle
+	flash.scale = Vector3.ONE * (first_person_flash_scale if first_person else 1.0)
+	DotWeaponMuzzle.fire(flash)
+	_pack_flash_light(muzzle, size, weapon_class, flash)
+	return true
+
+
+func _impact(at: Vector3, normal: Vector3, kind: StringName, mark: bool) -> void:
+	if _live.size() > MAX_LIVE - 2:
+		return
+
+	var facing := normal.normalized() if normal.is_finite() and not normal.is_zero_approx() else Vector3.UP
+	var lifted := at + facing * 0.02
+
+	if kind == IMPACT_BODY:
+		_last_body_at = at
+		_last_body_msec = Time.get_ticks_msec()
+		# A red burst and a darker mist drifting back toward the shooter: "that was somebody",
+		# told apart from a wall's grey dust at a glance. No spark: a body does not strike one.
+		var burst := _mesh(_quad_mesh(), _hit_mat())
+		burst.global_position = lifted + facing * 0.04
+		var burst_size := randf_range(0.30, 0.40)
+		burst.scale = Vector3.ONE * burst_size
+		_add(burst, {"kind": &"hit", "life": 0.16, "size": burst_size})
+
+		var mist := _mesh(_quad_mesh(), _mist_mat())
+		mist.global_position = lifted + facing * 0.08
+		var mist_size := randf_range(0.32, 0.42)
+		mist.scale = Vector3.ONE * mist_size
+		_add(mist, {"kind": &"mist", "life": 0.45, "size": mist_size, "drift": facing * 0.4,
+			"origin": mist.global_position})
+		_play(AwWeaponSound.stream(AwWeaponSound.IMPACT), at, -10.0)
+		return
+
+	var spark := _mesh(_quad_mesh(), _spark_mat())
+	spark.global_position = lifted
+	var spark_size := randf_range(0.24, 0.32)
+	spark.scale = Vector3.ONE * spark_size
+	_add(spark, {"kind": &"spark", "life": 0.09, "size": spark_size})
+
+	var puff := _mesh(_quad_mesh(), _puff_mat())
+	puff.global_position = lifted + facing * 0.05
+	var puff_size := randf_range(0.3, 0.4)
+	puff.scale = Vector3.ONE * puff_size
+	_add(puff, {"kind": &"puff", "life": 0.45, "size": puff_size})
+
+	if mark:
+		_mark(at, facing)
+
+	_play(AwWeaponSound.stream(AwWeaponSound.IMPACT), at, -8.0)
+
+
+## A dark scorch on the wall where a shot landed, flat on the surface, held for
+## [constant MARK_LIFE]. [b]The one effect that says where the shots went after they went[/b]:
+## a spark and a puff are gone in a third of a second, and a player correcting their aim reads
+## the group on the wall.
+func _mark(at: Vector3, facing: Vector3) -> void:
+	if _marks.size() >= MAX_MARKS:
+		var oldest: Dictionary = _marks.pop_front()
+		var old: Node3D = oldest["node"]
+		if is_instance_valid(old):
+			old.queue_free()
+
+	var node := _mesh(_quad_mesh(), _mark_mat())
+	# A quad faces +Z: turn +Z onto the surface's normal, any roll.
+	var up := Vector3.UP if absf(facing.dot(Vector3.UP)) < 0.98 else Vector3.RIGHT
+	var x := up.cross(facing).normalized()
+	var y := facing.cross(x).normalized()
+	# Grown with distance like an impact (capped at four times, at twenty-four metres): left at
+	# its real size a mark at range was three pixels, which is no mark at all.
+	var size := randf_range(0.09, 0.11) * _distance_scale(at)
+	var spin := Basis(facing, randf() * TAU)
+	node.global_transform = Transform3D(spin * Basis(x * size, y * size, facing),
+		at + facing * 0.004)
+	_marks.append({"node": node, "age": 0.0})
+
+
+func _add(node: Node3D, fx: Dictionary) -> void:
+	if _live.size() >= MAX_LIVE:
+		var oldest: Dictionary = _live.pop_front()
+		var old: Node3D = oldest["node"]
+		if is_instance_valid(old):
+			old.queue_free()
+
+	fx["node"] = node
+	fx["age"] = 0.0
+	_live.append(fx)
+
+
+func _mesh(mesh: Mesh, material: Material) -> MeshInstance3D:
+	var node := MeshInstance3D.new()
+	node.mesh = mesh
+	node.material_override = material
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.top_level = true
+	add_child(node)
+	return node
+
+
+func _collect_bodies(node: Node, depth: int) -> void:
+	if node is CollisionObject3D:
+		exclude.append((node as CollisionObject3D).get_rid())
+
+	# Deep enough for a body under a character under a player; shallow enough that a
+	# carrier parented under a whole level does not walk the level.
+	if depth >= 4:
+		return
+
+	for child in node.get_children():
+		_collect_bodies(child, depth + 1)
+
+
+func describe() -> Dictionary:
+	return {
+		"live": _live.size(),
+		"tracers": tracer_count(),
+		"marks": _marks.size(),
+		"shells": _shells.size(),
+		"voices": _voices.size(),
+		"excluded": exclude.size(),
+		"visuals": visuals,
+		"sounds": sounds,
+		"layered": _layers != null and _layers.is_ready(),
+	}

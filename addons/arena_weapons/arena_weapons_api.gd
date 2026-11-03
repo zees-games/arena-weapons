@@ -17,5 +17,7 @@ extends RefCounted
 # 6: sound_classes(prefix) (id -> weapon-sound class) so a host's sound table classes lmg, the launchers and prefixed ids.
 # 7: sound_classes() names nine new classes (lmg, battle, marksman, carbine, derringer, mpistol, autoshot, grenade, rail),
 #    each a recording of its own in dot-audio's stock; a host that fed the old classes to set_class need change nothing.
-const LEVEL := 7
+# 8: the view runtime is the pack's own: AwWeaponCatalogue, AwWeaponArtTable, AwWeaponVisual, AwViewModel, AwWorldModel,
+#    AwWeaponRig, AwWeaponNet, AwShotFx, AwWeaponSound, AwAdsRules (hip_zero 20 m) and the rest, a host needs no other weapon pack.
+const LEVEL := 8
 const OLDEST := 1
