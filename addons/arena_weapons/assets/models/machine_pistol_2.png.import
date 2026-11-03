@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bs86p7ffjgnlu"
-path="res://.godot/imported/pistol_pewfinal_color.png-6f87cae041c6c798253a9596bdbea9a8.ctex"
+uid="uid://gh2ad0vmh60x"
+path="res://.godot/imported/machine_pistol_2.png-c8c04827a76eec9dc95ca149105e323d.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "21dc9f97e9057c7018b08f724904f0a2"
+"md5": "d9c3a069fa788b1b24b69e3878bf47b7"
 }
 
 [deps]
 
-source_file="res://addons/arena_weapons/assets/models/pistol_pewfinal_color.png"
-dest_files=["res://.godot/imported/pistol_pewfinal_color.png-6f87cae041c6c798253a9596bdbea9a8.ctex"]
+source_file="res://addons/arena_weapons/assets/models/machine_pistol_2.png"
+dest_files=["res://.godot/imported/machine_pistol_2.png-c8c04827a76eec9dc95ca149105e323d.ctex"]
 
 [params]
 
