@@ -1,45 +1,17 @@
 # arena-weapons as its own runtime: the split from zee-dot-weapons
 
-Today arena-weapons is definitions and art data (about 1,600 lines); everything that draws, animates, sounds and replicates a weapon in game-arena is zee-dot-weapons' runtime (about 12,000 lines), and game-arena names `Zee*` classes about 300 times in 35 files. The decision: arena-weapons runs on the family's own base (dot-weapon, dot-profile, and a shared view addon), with no zee-dot-weapons on disk; zee-dot-weapons stays the pack the smaller games use.
+**Decision (2026-11-03, from the owner's orders of 2026-10-29/30):** arena-weapons carries its own runtime. There is no shared `dot-weapon-view` addon. zee-dot-weapons stays the pack the smaller games use, and is untouched by the split.
 
-## The rule that decides each piece
+## What was done
 
-Anything a second weapon pack would need goes into one shared addon, never into both packs. Anything that names a particular weapon, model file or damage type stays with the pack that owns it.
+- **arena-weapons, API level 8** (2e204e4): zee's runtime was copied in as `Aw*` classes under `addons/arena_weapons/{art,behaviour,content,net,runtime,view}/`. That covers the rig, input, bash, view model, arms, hip hold, pose, wall, sights, reload parts, world model, net, shot fx, sound, art registry, ADS rules, cards, preview and pack scan. Two classes were renamed to avoid clashes with the pack's own: `ZeeWeaponPack` became `AwWeaponCatalogue` (sources only, no built-in weapons) and `ZeeWeaponArt` became `AwWeaponVisual`. `AwWeaponIds` is zee's wire index, verbatim and append-only, so the protocol is unchanged. `AwWeaponArtTable` keeps only the base stand-in rows (knife, pistol, rifle, launcher, frag) that a pack's `art_rows()` dresses. The ADS rules are `cfg/addon/arena_weapons/ads.yml`, with `hip_zero` 20 m as the code default. The cvar is `aw_ads_rules`.
+- **game-arena switched, on branch `aw-runtime` (not yet on main)**: every `Zee*` name is now `Aw*`, and the own pack is always registered first under plain ids. `addons/zee_weapons` is unlinked, and `requires.floor.json` drops `zee_weapons` and asks `arena_weapons` 8. `game.sh` lost the zee art-sync check, and the `cfg/addon/zee_weapons/ads.yml` pin is gone (its numbers are the defaults). `grep -i zee` is empty outside history.
+- **Marksman hip**: the row keeps view `scale` 0.7 and gets its own hip `view_shift` (0.20, -0.22, -0.17) through a new per-row `ads` dict, which `AwWeaponArt.wall_row` merges into `params.ads`. That puts the stock end below the frame. A smaller scale cleared it too, but the scale also sizes the aim hold, and at 0.5 the support hand no longer reaches the foregrip down the sights (`headless_viewarms`).
 
-## What moves where
+## Remaining
 
-| Piece (zee file today) | Generic? | Goes to |
-| --- | --- | --- |
-| `runtime/zee_weapon_rig*.gd`, `zee_weapon_input.gd` (drives a `DotWeaponArsenal`, the bash, the snapshot) | yes; only `ZeeWeaponPack.catalogue()`, `ZeeWeaponIds.all()` and `ZeeWeaponArtTable.table()` tie it to zee | **dot-weapon-view**: `DotWeaponRig`, `DotWeaponInput`; catalogue, id list and art lookup handed in |
-| `behaviour/zee_weapon_bash.gd` | yes (damage type handed in) | dot-weapon-view `DotWeaponBash` |
-| `view/` view model, arms, rigged arm, glove, hand reach, hip hold, pose and pose keys, view feel, wall slam, finish, iron sight, own sight, sight fit, reload parts, scope overlay, attachment dress | yes; three calls into the art table's per-pose tables | dot-weapon-view; the per-pose tables (`sprint_view`, `sprint_bob`, `reload_keys`, `pose_world_factor`, `pose_two_handed`) move with them, a pack only names a pose |
-| `view/zee_world_model.gd`, `net/zee_weapon_net.gd` | yes | dot-weapon-view `DotWeaponWorldModel`, `DotWeaponNet` |
-| `view/zee_shot_fx*.gd`, `zee_weapon_sound.gd` | the engine yes; the id-to-sound-class table no | engine to dot-weapon-view; each pack's art row names its sound class (`sound: rifle`) |
-| `art/zee_weapon_art.gd`, `zee_model_cache.gd`, `zee_art_dress.gd`, `zee_art_listing.gd`, `zee_attachment_art.gd`, the registry half of `zee_weapon_art_table.gd` (`add_source`, `table`, `get_art`) | yes | dot-weapon-view `DotWeaponArt`, `DotWeaponModelCache`, `DotWeaponArtRegistry`; the arms models (CC0) move with the arms |
-| `content/zee_ads_rules.gd`, `zee_weapon_cards.gd`, `view/zee_weapon_preview.gd` | yes (read off the document and the art) | dot-weapon-view |
-| `content/zee_pack_scan.gd`, `zee_pack_roles.gd`, `zee_pack_source.gd` (the `spawn_provider.gd` contract) | yes | dot-weapon-view |
-| `ZeeWeaponPack` (27 builders), `ZeeWeaponIds`, `ZeeWeaponDamage`, the filename half of `ZeeWeaponArtTable`, `assets/`, `cfg/`, export tools | no | **stay in zee-dot-weapons**, which then sits on dot-weapon-view |
-| Wire numbers (arena reuses zee's index), roles, damage types (`bullet`, `fall`, `world` plus the guns'), sound class and pose per weapon | arena's | **arena-weapons**: `AwWeaponIds` (append-only index, roles), `AwWeaponDamage`, rows in `AwWeaponArt` |
-| `ArenaWeaponRoles` zee fallback, `ArenaWeaponSkins`, the vendored zee art in game-arena `assets/`, `game.sh` art sync | arena's | removed from game-arena; a missing arena-weapons is an error, not zee stand-ins |
-
-## Steps, each green and pushed
-
-1. **dot-weapon-view** (new official addon, `modcommunity/dot-weapon-view`, `addons/dot_weapon_view`): the generic files moved out of zee with `Dot` names and their selftest sections. In the same step zee's files become `class_name Zee* extends Dot*` shims and zee's rig builds zee subclasses, so no code exists twice and the eight zee consumers keep parsing. Checks: dot-weapon-view's suite, `zee_selftest`, one small game's suite.
-2. **arena-weapons on dot-weapon-view**: `AwWeaponIds`, `AwWeaponDamage`, art rows registered with `DotWeaponArtRegistry`, sound class per row; zee unlinked; `aw_selftest` passes with no `addons/zee_weapons`.
-3. **game-arena switched**: every `Zee*` name to `DotWeapon*` or `Aw*`; `requires.floor.json` drops `zee_weapons` and adds `dot_weapon_view`; `.gitignore` links; `game.sh` loses the zee art sync; dot-ci resolve-deps knows dot-weapon-view's owner; all suites green with zee-dot-weapons absent; `grep -ri zee` empty outside history. The wire index changes, so arena's protocol version is raised. The dev and prod arena packs are republished and `content.lock.json` re-pinned.
-4. **The shims go**: each zee consumer (game-playground, game-zombie-zone, mg-deathrun, mg-prop-hunt, mg-smash-copter, mg-wipeout, zed-dot-weapons) renamed to the `Dot` classes, one builder per repo; dot-server-deploy's client shell links dot-weapon-view and the web shell is re-uploaded.
-
-## Work in flight that this moves
-
-New weapon-view code (sights, reload motion) lands in zee's `view/` until step 1 and moves with it; after step 1 it goes into dot-weapon-view, and per-weapon numbers go into the pack's art rows. Recoil and spread stay in dot-weapon, which is already the shared base.
-
-## Status (2026-11-03)
-
-None of the four steps has landed: game-arena still links `addons/zee_weapons` and every arena gun is drawn by zee's view model, so zee's own tuning moves arena's guns. On 2026-11-03 zee's hip zero went from 20 m to 3 m (zee 5c08846) and every arena gun turned across the screen with its butt pad in view. Until step 3, game-arena pins its hold numbers in `cfg/addon/zee_weapons/ads.yml` (the game's addon tier, under the operator's), and any zee commit under `view/` is render-checked in game-arena with `tools/screenshot_weapons.sh --fp=marksman,rifle,smg` before it is pushed. Code changes in zee's view model since 2026-10-29 (wall retract 8620d94, wall-free overlay pass 25bd31d, `world_scale`/`hands_life` d459a42 and 4d5c0e3) still reach arena; only cfg numbers are pinned.
-
-Remaining, in order, one repository per builder:
-
-1. Create `modcommunity/dot-weapon-view` (add it to `dot-bootstrap/projects.tsv` and dot-ci's owner table) and move zee's generic files into it as `DotWeapon*`, leaving `Zee* extends Dot*` shims; `zee_selftest` and one small game's suite green.
-2. arena-weapons: `AwWeaponIds` (zee's current wire indices, append-only), `AwWeaponDamage`, art rows registered with `DotWeaponArtRegistry`, its own `cfg/addon/arena_weapons/ads.yml` carrying the numbers game-arena pins today; `aw_selftest` green with no `addons/zee_weapons` link.
-3. game-arena: the 48 files naming `Zee*` (21 classes; `ZeeWeaponIds` 139 times) renamed, the pin file moved to arena-weapons, `.gitignore`, `requires.floor.json` and `game.sh` art sync updated, protocol version raised, all suites green with zee-dot-weapons absent, packs republished.
-4. The shims go, one builder per zee consumer.
+0. **`headless_viewarms` is 219/2 on the branch, against 221/0 on main.** The failures are `grenade_launcher aim` (support hand 0.032 m off its grip, Middle1.L 0.48 m from the shoulder against an arm of 0.46 m) and `derringer reload` (nearest hand 0.015 m, inside the near plane). The zee runtime with this same pack passes, so the cause is not the pack data, the ADS defaults (zee's semantics, default 3 forced to 20, still fail) or the row numbers (a changed `fore_along` and changed derringer anchors gave byte-identical results). The runtime files are identical to zee's under the renames, apart from the trimmed art table. One lead remains: the test sorts StringName ids, so the weapon order, and the state each weapon inherits, differs between the two runs. Merge `aw-runtime` into main once the suite is green.
+1. **Tag and lock.** arena-weapons and game-arena need a tag and an `addons.lock` bump: the deployed shell pins arena-weapons v1.4.22, which predates level 8. After that, republish the arena packs to dev and prod and rebuild and upload the web shell.
+2. **Vendored base art.** The base rows still point at CC0 models vendored in game-arena's `assets/` (`low-poly-guns/*_magazine.glb`, `ammo/`, `arms/`). Move the ones the rows need into `addons/arena_weapons/assets/` and repoint the rows; game-arena's copies can then go.
+3. **Other consumers.** game-playground and game-zombie-zone link both packs. Each now resolves `Aw*` classes from arena-weapons, and each needs `--import` and a suite run after pulling it.
+4. **Two copies of the same code.** zee and arena now drift independently. A fix in one view runtime is not in the other. Port deliberately, and render-check with game-arena's `tools/screenshot_weapons.sh --fp=marksman,rifle,smg`.

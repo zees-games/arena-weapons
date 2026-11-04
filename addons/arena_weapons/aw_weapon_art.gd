@@ -27,7 +27,7 @@ const WEAPONS := {
 	&"burst_rifle": {"model": "burst_rifle", "muzzle": 0.498, "tier": "primary", "reload": {"style": "magazine", "prop_scale": 2.3, "gun_scale": 1.6, "anchors": {"below": [0.0, -0.11, -0.06], "pouch": [-0.07, -0.17, -0.16]}}, "view": {"sight": "red_dot", "aim": Vector3(-0.002, -0.278, -0.456)}},
 	&"shotgun": {"model": "pump_shotgun", "muzzle": 0.444, "tier": "primary", "reload": {"style": "tube", "anchors": {"pouch": [-0.05, -0.15, -0.20], "near": [-0.02, -0.08, -0.16]}}, "view": {"aim": Vector3(0.000, -0.111, -0.594), "scale": 0.75}},
 	&"drum_shotgun": {"model": "drum_shotgun", "muzzle": 0.384, "fore_along": 0.32, "tier": "primary", "reload": {"style": "magazine", "prop_scale": 2.3, "gun_scale": 1.6, "anchors": {"below": [0.0, -0.11, -0.06], "pouch": [-0.07, -0.17, -0.16]}}, "view": {"aim": Vector3(0.020, -0.284, -0.619), "scale": 0.45}},
-	&"marksman": {"model": "marksman", "wall": {"wall_max": 0.5}, "muzzle": 0.882, "fore_along": 0.53, "tier": "primary", "reload": {"style": "magazine", "anchors": {"below": [0.0, -0.2, -0.1], "pouch": [-0.1, -0.28, -0.2]}}, "view": {"aim": Vector3(0.013, -0.254, -0.372), "zoom": 0.45, "scoped": true}},
+	&"marksman": {"model": "marksman", "wall": {"wall_max": 0.5}, "muzzle": 0.882, "fore_along": 0.53, "tier": "primary", "reload": {"style": "magazine", "anchors": {"below": [0.0, -0.2, -0.1], "pouch": [-0.1, -0.28, -0.2]}}, "ads": {"view_shift_x": 0.20, "view_shift_y": -0.22, "view_shift_z": -0.17}, "view": {"aim": Vector3(0.013, -0.254, -0.372), "scale": 0.7, "zoom": 0.45, "scoped": true}},
 	&"lmg": {"model": "lmg", "wall": {"wall_max": 0.35, "wall_lean": 0.5}, "max_lean": 0.14, "forearm_scale": 1.5, "muzzle": 0.790, "fore_along": 0.30, "belt_feed": true, "tier": "primary", "reload": {"style": "belt"}, "view": {"aim": Vector3(0.000, -0.384, -0.414), "scale": 0.36}},
 	&"sniper": {"model": "sniper_rifle", "muzzle": 0.784, "fore_along": 0.42, "tier": "heavy", "reload": {"style": "bolt", "prop_scale": 2.0, "gun_scale": 1.4, "anchors": {"pouch": [-0.04, -0.14, -0.20], "near": [-0.02, -0.08, -0.14]}}, "view": {"hold": Vector3(0.17, -0.17, -0.42), "aim": Vector3(0.007, -0.142, -0.491), "rot": Vector3(0, 8, 24), "scale": 0.6, "zoom": 0.3, "scoped": true}},
 	&"minigun": {"model": "minigun", "muzzle": 0.766, "fore_along": 0.32, "belt_feed": true, "tier": "heavy", "reload": {"style": "belt"}, "view": {"aim": Vector3(0.000, -0.273, -0.342)}},
@@ -63,12 +63,13 @@ const WALL_BY_TIER := {
 }
 
 
-## The wall keys for [param id]'s tier, over-ridden by the row's own `wall`; empty for the sidearm, whose defaults suit it.
+## The ADS keys for [param id]: its tier's wall keys, over-ridden by the row's own `wall` and `ads`; empty for the sidearm, whose defaults suit it.
 static func wall_row(id: StringName) -> Dictionary:
 	if not WEAPONS.has(id):
 		return {}
 	var out: Dictionary = (WALL_BY_TIER.get(str(WEAPONS[id]["tier"]), {}) as Dictionary).duplicate()
 	out.merge(WEAPONS[id].get("wall", {}) as Dictionary, true)
+	out.merge(WEAPONS[id].get("ads", {}) as Dictionary, true)
 	return out
 
 
