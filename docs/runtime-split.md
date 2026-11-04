@@ -10,6 +10,8 @@
 
 ## Remaining
 
+**Migration:** operator overrides under `cfg/addons/zee_weapons/` are ignored now; move them to `cfg/addons/arena_weapons/`.
+
 0. **Done: `headless_viewarms` 221/0 on the Aw runtime.** The 219/2 was not weapon order (the two failures reproduced alone and in any order): dot-menu declared `viewmodel_fov` only when a `ZeeViewModel` class existed, so without zee linked `AwViewModel` kept its 90-degree `hands_fov` instead of the 54-degree setting. dot-menu 7f65e7d counts `AwViewModel` too (`DotMenuStock.VIEW_MODEL_CLASSES`); game-arena needs a dot-menu with it, so lock dot-menu past 7f65e7d in step 1.
 1. **Tag and lock.** arena-weapons and game-arena need a tag and an `addons.lock` bump: the deployed shell pins arena-weapons v1.4.22, which predates level 8. After that, republish the arena packs to dev and prod and rebuild and upload the web shell.
 2. **Vendored base art.** The base rows still point at CC0 models vendored in game-arena's `assets/` (`low-poly-guns/*_magazine.glb`, `ammo/`, `arms/`). Move the ones the rows need into `addons/arena_weapons/assets/` and repoint the rows; game-arena's copies can then go.
