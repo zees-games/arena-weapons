@@ -220,6 +220,14 @@ func simulate_tick(
 	return outcome
 
 
+## A basis looking along [param direction] with an up that is never colinear with it; identity for a zero or non-finite direction. Basis.looking_at errors on either.
+static func _look_basis(direction: Vector3) -> Basis:
+	if not direction.is_finite() or direction.length_squared() < 0.000001:
+		return Basis.IDENTITY
+	var dir := direction.normalized()
+	return Basis.looking_at(dir, Vector3.UP if absf(dir.dot(Vector3.UP)) < 0.999 else Vector3.FORWARD)
+
+
 ## Turns [member DotWeaponContext.direction] to where the sprint carry points the barrel (full blend, from the art, so a server and a replay agree without reading the rendered pose). The origin stays the eye.
 func _aim_along_sprint_barrel(context: DotWeaponContext) -> void:
 	if not (context.sprinting and context.sprint_shot_follows_barrel):
@@ -230,7 +238,7 @@ func _aim_along_sprint_barrel(context: DotWeaponContext) -> void:
 	var rot: Vector3 = art.sprint_rotation if art.sprint_rotation.is_finite() \
 		else AwWeaponArtTable.sprint_view(art.pose)[1]
 	var hand := Basis.from_euler(Vector3(deg_to_rad(rot.x), deg_to_rad(rot.y), deg_to_rad(rot.z)))
-	var aim := Basis.looking_at(context.direction, Vector3.UP)
+	var aim := _look_basis(context.direction)
 	context.direction = (aim * (hand * Vector3.FORWARD)).normalized()
 
 
@@ -246,7 +254,7 @@ func _aim_along_wall_barrel(context: DotWeaponContext) -> void:
 		return
 	var turn := wall_barrel(context.origin, context.direction, art, context.speed, ads_progress(), float(context.extra.get(&"strafe", _drive_strafe)))
 	if turn != Basis.IDENTITY:
-		var aim := Basis.looking_at(context.direction, Vector3.UP if absf(context.direction.dot(Vector3.UP)) < 0.999 else Vector3.FORWARD)
+		var aim := _look_basis(context.direction)
 		context.direction = (aim * (turn * Vector3.FORWARD)).normalized()
 
 
@@ -255,8 +263,7 @@ func wall_barrel(origin: Vector3, direction: Vector3, art: AwWeaponVisual, speed
 	var node := _player as Node3D
 	if node == null or not node.is_inside_tree() or node.get_world_3d() == null:
 		return Basis.IDENTITY
-	var up := Vector3.UP if absf(direction.dot(Vector3.UP)) < 0.999 else Vector3.FORWARD
-	var eye := Transform3D(Basis.looking_at(direction, up), origin)
+	var eye := Transform3D(_look_basis(direction), origin)
 	var exclude: Array[RID] = []
 	if node is CollisionObject3D:
 		exclude.append((node as CollisionObject3D).get_rid())

@@ -149,10 +149,29 @@ var _marks: Array[Dictionary] = []
 var _last_body_at := Vector3.INF
 var _last_body_msec: int = -100000
 
+## Reused flash lights and quads (dot-fx), so a shot builds and frees no node.
+var _lights: DotFxLightPool = null
+var _meshes: DotFxMeshPool = null
+
 func _ready() -> void:
 	top_level = true
 	# Placed at the world origin and never moved: every effect is written in world space.
 	global_transform = Transform3D.IDENTITY
+	_lights = DotFxLightPool.new()
+	_lights.name = "Lights"
+	add_child(_lights)
+	_meshes = DotFxMeshPool.new()
+	_meshes.name = "Meshes"
+	add_child(_meshes)
+	prewarm_pools()
+
+
+## Builds the pooled lights and impact quads now, so the first shot compiles nothing. Runs from [method _ready]; call it again under a loading cover if the effect is made later.
+func prewarm_pools() -> void:
+	if _lights == null or _meshes == null:
+		return
+	_lights.prewarm()
+	_meshes.prewarm(_quad_mesh(), _flash_mat())
 
 
 ## Stops every report on the way out.
@@ -458,7 +477,7 @@ func advance(delta: float) -> void:
 		var through := float(fx["age"]) / float(fx["life"])
 
 		if through >= 1.0:
-			node.queue_free()
+			_dispose(node)
 			continue
 
 		_animate(fx, node, through)
@@ -523,7 +542,7 @@ func _advance_marks(delta: float) -> void:
 		mark["age"] = float(mark["age"]) + delta
 		var through := float(mark["age"]) / MARK_LIFE
 		if through >= 1.0:
-			node.queue_free()
+			_dispose(node)
 			continue
 		# Holds, then fades over its last quarter: a mark that fades from the start is gone
 		# before anybody looks at the wall.
@@ -664,19 +683,12 @@ func _flash(muzzle: Transform3D, size: float, weapon_class: StringName = AwWeapo
 
 
 ## The dynamic muzzle light: short, shadowless, capped by [member max_flash_lights]. Null when off or at the cap.
-func _flash_light(muzzle: Transform3D, size: float, profile: Dictionary, parent: Node3D) -> OmniLight3D:
-	if flash_light_scale <= 0.0 or _lights_live() >= max_flash_lights:
+func _flash_light(muzzle: Transform3D, size: float, profile: Dictionary, _parent: Node3D) -> OmniLight3D:
+	if _lights == null or flash_light_scale <= 0.0 or _lights_live() >= max_flash_lights:
 		return null
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.72, 0.38)
-	light.omni_range = 4.5 * size
-	light.light_energy = 2.2 * size * float(profile["light"]) / maxf(0.01, float(profile["size"])) \
-		* flash_light_scale
-	light.shadow_enabled = false
-	parent.add_child(light)
-	light.top_level = true
-	light.global_position = muzzle.origin - (-muzzle.basis.z.normalized()) * 0.05
-	return light
+	var energy := 2.2 * size * float(profile["light"]) / maxf(0.01, float(profile["size"])) * flash_light_scale
+	var at := muzzle.origin - (-muzzle.basis.z.normalized()) * 0.05
+	return _lights.flash(at, Color(1.0, 0.72, 0.38), energy, 4.5 * size, 0.06)
 
 
 ## Pack flashes draw no light of their own: ours is the one that is capped and cvar-controlled.
@@ -775,7 +787,7 @@ func _mark(at: Vector3, facing: Vector3) -> void:
 		var oldest: Dictionary = _marks.pop_front()
 		var old: Node3D = oldest["node"]
 		if is_instance_valid(old):
-			old.queue_free()
+			_dispose(old)
 
 	var node := _mesh(_quad_mesh(), _mark_mat())
 	# A quad faces +Z: turn +Z onto the surface's normal, any roll.
@@ -796,7 +808,7 @@ func _add(node: Node3D, fx: Dictionary) -> void:
 		var oldest: Dictionary = _live.pop_front()
 		var old: Node3D = oldest["node"]
 		if is_instance_valid(old):
-			old.queue_free()
+			_dispose(old)
 
 	fx["node"] = node
 	fx["age"] = 0.0
@@ -804,13 +816,30 @@ func _add(node: Node3D, fx: Dictionary) -> void:
 
 
 func _mesh(mesh: Mesh, material: Material) -> MeshInstance3D:
-	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.material_override = material
-	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if _meshes == null:
+		var plain := MeshInstance3D.new()
+		plain.mesh = mesh
+		plain.material_override = material
+		plain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		plain.top_level = true
+		add_child(plain)
+		return plain
+	var node := _meshes.acquire(mesh, Transform3D.IDENTITY, material)
 	node.top_level = true
-	add_child(node)
+	node.transparency = 0.0
 	return node
+
+
+## Gives a finished effect node back: a pooled quad or light is reused, anything else is freed.
+func _dispose(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+	if node is MeshInstance3D and node.get_parent() == _meshes:
+		_meshes.release(node as MeshInstance3D)
+	elif node is OmniLight3D and node.get_parent() == _lights:
+		return  # the light pool's own timer takes it back
+	else:
+		node.queue_free()
 
 
 func _collect_bodies(node: Node, depth: int) -> void:
