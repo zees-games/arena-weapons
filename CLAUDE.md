@@ -13,3 +13,4 @@ Arena's own weapon set (definitions and CC0 models), required by game-arena, usa
 - Utility glue (level 5): `AwUtilityZones` (fire zones, victims, line of sight, damage through host callables), `AwBlindLedger` (seconds and strength), client `AwGrenadeFx` (needs dot-fx; its cloud scenes are in `addons/arena_weapons/fx/`). A game keeps only its adapters.
 - Update `CHECKS` in `examples/aw_selftest.gd` with a new check. The hold and aim numbers are placement: look at them with game-arena's `tools/render_weapons.sh`.
 - No other game or engine is named in anything public here.
+- Publish the pack with `tools/publish.sh VERSION --lock FILE --token-file ...` (wraps `dot-cloud/tools/publish_pack.sh`; the repo's own lock pins the art store, so give `--lock` a file outside it).
