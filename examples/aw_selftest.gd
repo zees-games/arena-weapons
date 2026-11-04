@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a base art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 223
+const CHECKS := 224
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -127,6 +127,7 @@ func _defs() -> void:
 	_check("each has exactly one tier tag", tiered)
 	_check("the rifle is a primary with a magazine", _def(defs, &"aw_rifle").slot == AwWeaponPack.SLOT_PRIMARY and _def(defs, &"aw_rifle").magazine > 0)
 	_check("the quad launcher fires the launcher's ammunition", _def(defs, &"aw_quad_launcher").ammo_type == _def(defs, &"aw_launcher").ammo_type)
+	_check("default layout: the frag is on the thrown slot, the sniper on the heavy slot", _def(defs, &"aw_frag").slot == AwWeaponIds.thrown_slot() and _def(defs, &"aw_sniper").slot == AwWeaponIds.heavy_slot() and AwWeaponIds.thrown_slot() == AwWeaponIds.SLOT_THROWN)
 	_check("one weapon per slot at least", [1, 2, 3, 4, 5].all(func(s: int) -> bool: return defs.any(func(d: DotWeaponDef) -> bool: return d.slot == s)))
 	var rifle_modes := _def(defs, &"aw_rifle").allowed_fire_modes()
 	_check("the rifle's selector offers semi, burst and auto", rifle_modes.size() == 3 and rifle_modes.has(DotWeaponDef.Fire.AUTO) and rifle_modes.has(DotWeaponDef.Fire.SEMI))

@@ -61,12 +61,19 @@ const BLURB := {
 	&"sticky": "Sticks where it lands, on a shorter fuse.",
 }
 
+## The slot's label, honouring the game's heavy/thrown layout.
+static func kind_of(slot: int) -> String:
+	if slot == AwWeaponIds.heavy_slot():
+		return "Heavy"
+	if slot == AwWeaponIds.thrown_slot():
+		return "Grenade"
+	return str(KIND.get(slot, ""))
+
+
 const KIND := {
 	AwWeaponIds.SLOT_MELEE: "Melee",
 	AwWeaponIds.SLOT_SIDEARM: "Sidearm",
 	AwWeaponIds.SLOT_PRIMARY: "Primary",
-	AwWeaponIds.SLOT_HEAVY: "Heavy",
-	AwWeaponIds.SLOT_THROWN: "Grenade",
 }
 
 
@@ -75,7 +82,7 @@ const KIND := {
 static func card(def: DotWeaponDef) -> Dictionary:
 	if def == null:
 		return {}
-	return {"detail": str(BLURB.get(def.id, def.description)), "kind": str(KIND.get(def.slot, "")), "stats": stats(def)}
+	return {"detail": str(BLURB.get(def.id, def.description)), "kind": kind_of(def.slot), "stats": stats(def)}
 
 
 ## The bars for [param def]: what matters for its kind. A gun: damage per trigger pull, fire rate,
@@ -89,7 +96,7 @@ static func stats(def: DotWeaponDef) -> Array:
 	if def.fire_mode == DotWeaponDef.Fire.BURST:
 		# A press fires burst_count rounds; the interval is between presses.
 		per_min *= float(maxi(def.burst_count, 1))
-	if def.slot == AwWeaponIds.SLOT_THROWN:
+	if def.slot == AwWeaponIds.thrown_slot():
 		var blast := b.splash_damage if b != null else 0.0
 		var radius := b.splash_radius if b != null else 0.0
 		return [

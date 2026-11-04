@@ -98,6 +98,32 @@ const SLOT_PRIMARY := 3
 const SLOT_HEAVY := 4
 const SLOT_THROWN := 5
 
+## Default layout is heavy on 4 and thrown on 5. A game that wants grenades on 4, specials on 5 and the sniper and launchers in the primary slot calls this before any weapon table is built, and reads slots through the accessors below.
+static var _thrown_before_heavy := false
+
+
+static func use_thrown_before_heavy(on: bool = true) -> void:
+	_thrown_before_heavy = on
+
+
+## The slot of the remaining specials (minigun, beamer, rail rifle).
+static func heavy_slot() -> int:
+	return SLOT_THROWN if _thrown_before_heavy else SLOT_HEAVY
+
+
+static func thrown_slot() -> int:
+	return SLOT_HEAVY if _thrown_before_heavy else SLOT_THROWN
+
+
+## The slot of the sniper and the launchers: the primary slot when grenades are moved up, else the heavy slot.
+static func big_gun_slot() -> int:
+	return SLOT_PRIMARY if _thrown_before_heavy else SLOT_HEAVY
+
+
+## The highest slot the pack uses.
+static func max_slot() -> int:
+	return SLOT_THROWN
+
 # --- Weapons ----------------------------------------------------------------
 
 ## Melee. Always carried, never runs out, and always loses to anything with a barrel.

@@ -324,7 +324,7 @@ static func lmg(t: Dictionary = {}) -> DotWeaponDef:
 
 
 static func sniper(t: Dictionary = {}) -> DotWeaponDef:
-	var def := _gun(&"sniper", "Sniper Rifle", SLOT_HEAVY, DotWeaponDef.Fire.SEMI, rpm_ticks(45.0), [&"heavy", &"scoped"], AMMO_HEAVY, 5, 25, 3.2)
+	var def := _gun(&"sniper", "Sniper Rifle", AwWeaponIds.big_gun_slot(), DotWeaponDef.Fire.SEMI, rpm_ticks(45.0), [&"heavy", &"scoped"], AMMO_HEAVY, 5, 25, 3.2)
 	def.deploy_ticks = sec_ticks(0.7)
 	def.holster_ticks = sec_ticks(0.5)
 	_art(def, "bolt")
@@ -340,7 +340,7 @@ static func sniper(t: Dictionary = {}) -> DotWeaponDef:
 
 ## No magazine: dot-weapon reads zero as "feeds from the reserve", so it never reloads and simply runs dry.
 static func minigun(t: Dictionary = {}) -> DotWeaponDef:
-	var def := _gun(&"minigun", "Minigun", SLOT_HEAVY, DotWeaponDef.Fire.AUTO, rpm_ticks(1100.0), [&"heavy", &"automatic"], AMMO_BELT, 0, 200, 0.0)
+	var def := _gun(&"minigun", "Minigun", AwWeaponIds.heavy_slot(), DotWeaponDef.Fire.AUTO, rpm_ticks(1100.0), [&"heavy", &"automatic"], AMMO_BELT, 0, 200, 0.0)
 	def.reserve_max = 400
 	def.auto_reload = false
 	def.deploy_ticks = sec_ticks(1.1)
@@ -387,7 +387,7 @@ static func grenade_launcher(t: Dictionary = {}) -> DotWeaponDef:
 
 ## Damage while held on a target and nothing for a flick: it ramps from 45% to full over half a second.
 static func beamer(t: Dictionary = {}) -> DotWeaponDef:
-	var def := _gun(&"beamer", "Plasma Beamer", SLOT_HEAVY, DotWeaponDef.Fire.HOLD, 4, [&"heavy", &"energy"], AMMO_CELL, 0, 260, 0.0)
+	var def := _gun(&"beamer", "Plasma Beamer", AwWeaponIds.heavy_slot(), DotWeaponDef.Fire.HOLD, 4, [&"heavy", &"energy"], AMMO_CELL, 0, 260, 0.0)
 	def.behaviour_path = BEAM
 	def.reserve_max = 520
 	def.auto_reload = false
@@ -404,7 +404,7 @@ static func beamer(t: Dictionary = {}) -> DotWeaponDef:
 
 ## Hold to charge, release to fire; refuses to release below a third of a charge.
 static func charge_rifle(t: Dictionary = {}) -> DotWeaponDef:
-	var def := _gun(&"charge_rifle", "Rail Rifle", SLOT_HEAVY, DotWeaponDef.Fire.CHARGE, rpm_ticks(90.0), [&"heavy", &"energy", &"scoped"], AMMO_CELL, 4, 24, 2.6)
+	var def := _gun(&"charge_rifle", "Rail Rifle", AwWeaponIds.heavy_slot(), DotWeaponDef.Fire.CHARGE, rpm_ticks(90.0), [&"heavy", &"energy", &"scoped"], AMMO_CELL, 4, 24, 2.6)
 	def.charge_ticks = sec_ticks(1.1)
 	def.charge_requires_min = true
 	def.min_charge = 0.34
@@ -504,7 +504,7 @@ static func _gun(id: StringName, name: String, slot: int, fire: DotWeaponDef.Fir
 
 
 static func _rocket(t: Dictionary, id: StringName, name: String, interval: int, magazine: int, reserve: int, reload_sec: float) -> DotWeaponDef:
-	var def := _gun(id, name, SLOT_HEAVY, DotWeaponDef.Fire.SEMI, interval, [&"heavy", &"explosive"], AMMO_ORDNANCE, magazine, reserve, reload_sec)
+	var def := _gun(id, name, AwWeaponIds.big_gun_slot(), DotWeaponDef.Fire.SEMI, interval, [&"heavy", &"explosive"], AMMO_ORDNANCE, magazine, reserve, reload_sec)
 	def.behaviour_path = PROJECTILE
 	def.deploy_ticks = sec_ticks(0.5)
 	def.holster_ticks = sec_ticks(0.34)
@@ -561,7 +561,7 @@ static func _thrown(t: Dictionary, id: StringName, name: String, fuse_seconds: f
 	def.id = id
 	def.display_name = name
 	def.behaviour_path = THROWN
-	def.slot = SLOT_THROWN
+	def.slot = AwWeaponIds.thrown_slot()
 	def.fire_mode = DotWeaponDef.Fire.CHARGE
 	def.use_interval_ticks = sec_ticks(1.0)
 	def.tags = [&"thrown", &"explosive"]

@@ -51,14 +51,15 @@ static func _base_for(def: DotWeaponDef) -> AwWeaponVisual:
 	if def.tags.has(&"primary"):
 		return AwWeaponArtTable.rifle()
 
+	if def.slot == AwWeaponIds.heavy_slot():
+		return AwWeaponArtTable.launcher()
+	if def.slot == AwWeaponIds.thrown_slot():
+		return AwWeaponArtTable.frag()
+
 	match def.slot:
 		AwWeaponIds.SLOT_SIDEARM:
 			return AwWeaponArtTable.pistol()
-		AwWeaponIds.SLOT_HEAVY:
-			return AwWeaponArtTable.launcher()
 		AwWeaponIds.SLOT_MELEE:
 			return AwWeaponArtTable.knife()
-		AwWeaponIds.SLOT_THROWN:
-			return AwWeaponArtTable.frag()
 
 	return AwWeaponArtTable.rifle()
