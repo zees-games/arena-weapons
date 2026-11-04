@@ -11,6 +11,8 @@ const MAX_BACK := 0.3
 const TILT_DEG_PER_M := 120.0
 ## Approach speed (m/s) at which the response is all push-back and no nudge.
 const FAST_SPEED := 5.0
+## A floor-like surface this near below the eye (metres) is a step, crate or stair the gun can run into, so it counts at any look angle; the floor underfoot is further than any gun reaches.
+const FLOOR_NEAR := 0.8
 
 ## Strafe speed (m/s, view space, right positive) of the last frame: a sideways approach shoves the gun round the wall.
 var lateral: float = 0.0
@@ -106,9 +108,7 @@ static func probe_from(space: PhysicsDirectSpaceState3D, eye: Transform3D, reach
 				query.exclude.append(found["rid"])
 				continue
 			var n: Vector3 = found["normal"]
-			var floor_like := n.y > 0.7 and pitch_down < floor_look
-			var ceiling_like := n.y < -0.7 and -pitch_down < floor_look
-			if floor_like or ceiling_like:
+			if _ignored_surface(n, found["position"].y - from.y, pitch_down, floor_look):
 				break
 			var d := from.distance_to(found["position"])
 			if d < best:
@@ -120,7 +120,7 @@ static func probe_from(space: PhysicsDirectSpaceState3D, eye: Transform3D, reach
 		if swept["distance"] < best:
 			best = swept["distance"]
 			var sn: Vector3 = swept["normal"]
-			if sn != Vector3.ZERO and not ((sn.y > 0.7 and pitch_down < floor_look) or (sn.y < -0.7 and -pitch_down < floor_look)):
+			if sn != Vector3.ZERO and not _ignored_surface(sn, swept["height"], pitch_down, floor_look):
 				best_normal = sn
 			elif best_normal == Vector3.ZERO:
 				best = INF
@@ -142,7 +142,7 @@ static func probe_from(space: PhysicsDirectSpaceState3D, eye: Transform3D, reach
 					q.exclude.append(f["rid"])
 					continue
 				var fn: Vector3 = f["normal"]
-				if (fn.y > 0.7 and pitch_down < floor_look) or (fn.y < -0.7 and -pitch_down < floor_look):
+				if _ignored_surface(fn, f["position"].y - from.y, pitch_down, floor_look):
 					break
 				d = from.distance_to(f["position"])
 				break
@@ -152,11 +152,18 @@ static func probe_from(space: PhysicsDirectSpaceState3D, eye: Transform3D, reach
 	return out
 
 
+## True for a floor or ceiling the gun is not meant to react to: the ground underfoot while looking level, the ceiling overhead. [param rise] is the surface's height above the eye; a floor-like surface within [constant FLOOR_NEAR] below it always counts.
+static func _ignored_surface(n: Vector3, rise: float, pitch_down: float, floor_look: float) -> bool:
+	if n.y > 0.7:
+		return pitch_down < floor_look and rise < -FLOOR_NEAR
+	return n.y < -0.7 and -pitch_down < floor_look
+
+
 ## A sphere of [param radius] swept from [param from] along [param dir]: `{distance, normal}` to the surface it stops against
 ## (INF and zero for none). The gun has thickness, so a wall its tip would miss by a hair still catches its body.
 static func _sweep(space: PhysicsDirectSpaceState3D, from: Vector3, dir: Vector3, length: float, radius: float, mask: int,
 		exclude: Array[RID], ignore_characters: bool) -> Dictionary:
-	var out := {"distance": INF, "normal": Vector3.ZERO}
+	var out := {"distance": INF, "normal": Vector3.ZERO, "height": 0.0}
 	var sphere := SphereShape3D.new()
 	sphere.radius = radius
 	var q := PhysicsShapeQueryParameters3D.new()
@@ -184,6 +191,7 @@ static func _sweep(space: PhysicsDirectSpaceState3D, from: Vector3, dir: Vector3
 				q.exclude.append(rest["rid"])
 				continue
 		out["distance"] = (q.motion * fractions[0]).length() + radius
+		out["height"] = at.y - from.y
 		if not rest.is_empty():
 			out["normal"] = rest["normal"]
 		return out
