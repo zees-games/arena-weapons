@@ -167,6 +167,9 @@ extends Resource
 
 ## Size of the first-person hands on this weapon (a small gun wants smaller hands); 0 keeps the arms' own.
 @export var hand_scale: float = 0.0
+## How the first-person hands close on this weapon: `curl` and `support_curl` (finger bend, degrees), `support`
+## (`under` the fore-end, palm up, or `side`, palm in, as on a pistol). Empty keeps the game's defaults.
+@export var hand_grip: Dictionary = {}
 ## Aim fraction at which this weapon's arms hide behind a scope; below 0 keeps [member AwViewModel.scope_arms_hide].
 @export var scope_arms_hide: float = -1.0
 ## Most the first-person arms lean toward an out-of-reach hand with this weapon; below 0 keeps the arms' own.
