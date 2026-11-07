@@ -466,6 +466,9 @@ func on_reload_begin(left: int, magazine: int, start_share: float = 0.0) -> void
 		return
 	var to_aim := _holder.transform
 	var well: Variant = _well if _has_well and _art.reload.is_empty() else null
+	var own := _own_magazine()
+	if own != null and not (_art.reload.get("anchors", {}) as Dictionary).has("well"):
+		well = to_aim * _in_holder(own) * HandReach.bounds_in(own, own).get_center()
 	var anchors := ReloadSequence.anchors_for(_grip_at, _fore_at, to_aim * (_weapon.transform * _muzzle), well, _art.reload.get("anchors", {}), to_aim)
 	var seq := ReloadSequence.new()
 	seq.compose(_art, anchors, magazine, left, start_share)
@@ -477,8 +480,28 @@ func on_reload_begin(left: int, magazine: int, start_share: float = 0.0) -> void
 	var props := ReloadProps.new()
 	props.name = "ReloadProps"
 	props.on_top = _set_on_top
+	if own != null:
+		props.use_own(own, _in_holder(own))
 	_holder.add_child(props)
 	_props = props
+
+
+## The gun's own magazine node (the row's `mag_node`), which the reload carries out and back in, or null.
+func _own_magazine() -> Node3D:
+	if _art.hide_during_reload == &"" or _weapon == null:
+		return null
+	return _weapon.find_child(String(_art.hide_during_reload), true, false) as Node3D
+
+
+## [param node]'s transform in the holder's space.
+func _in_holder(node: Node3D) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	var walk: Node = node
+	while walk != null and walk != _holder:
+		if walk is Node3D:
+			t = (walk as Node3D).transform * t
+		walk = walk.get_parent()
+	return t
 
 
 ## The sequence playing now, or null.
@@ -935,6 +958,18 @@ func _add_part(path: String, at: Transform3D) -> Node3D:
 ## The held weapon art's first-person hand size, 0 when it keeps the arms' own.
 func art_hand_scale() -> float:
 	return _art.hand_scale if _art != null else 0.0
+
+
+## How the hands close on the held weapon: its `hand_grip` row plus `pose` and the world `forward` and `up` of the drawn gun.
+func art_hand_grip() -> Dictionary:
+	if _art == null or _weapon == null:
+		return {}
+	var out := _art.hand_grip.duplicate()
+	var b := _weapon.global_transform.basis.orthonormalized()
+	out["pose"] = _art.pose
+	out["forward"] = (b * _art.model_forward).normalized()
+	out["up"] = b.y if _art.pose != &"melee" else -b.z
+	return out
 
 
 func art_forearm_scale() -> float:

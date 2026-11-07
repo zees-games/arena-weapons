@@ -19,6 +19,7 @@ static func apply(art: AwWeaponVisual, row: Dictionary) -> void:
 	var motion := str(row.get("motion", "gun"))
 	art.model_path = model
 	art.magazine_path = ""
+	art.hide_during_reload = StringName(str(row.get("mag_node", "")))
 	art.attachments = []
 	art.reload = (row.get("reload", {}) as Dictionary).duplicate(true)
 
@@ -81,5 +82,6 @@ static func _sockets(art: AwWeaponVisual, row: Dictionary) -> void:
 	for key: String in ["fore_along", "fore_up", "grip_along", "grip_up", "hand_scale", "forearm_scale", "scope_arms_hide", "max_lean", "eject_speed"]:
 		if row.has(key):
 			art.set(key, float(row[key]))
+	art.hand_grip = (row.get("hand_grip", {}) as Dictionary).duplicate()
 	if row.has("belt_feed"):
 		art.belt_feed = bool(row["belt_feed"])

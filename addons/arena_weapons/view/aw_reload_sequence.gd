@@ -165,14 +165,14 @@ func _magazine(part: StringName, pistol: bool) -> void:
 			_add(&"charge_back", 0.07, &"cant", &"fore", Vector3.ZERO, &"bolt", Vector3(0.0, 0.0, 0.08))
 	_add(&"return", 0.10, &"settle", &"fore")
 	_add(&"rest", 0.06, &"rest", &"fore")
-	own_out = [_t0(&"grab"), _t1(&"seat")]
+	own_out = [_t0(&"mag_out"), _t1(&"seat")]
 	var old_track: Array = [[_t0(&"mag_out"), _t1(&"mag_out"), "hand", Vector3.ZERO, 0]]
 	if empty:
 		old_track = [[_t0(&"mag_out"), _t1(&"mag_out") + 0.08, "fall", _anchors[&"well"], 0]]
 	else:
 		old_track.append([_t0(&"pouch"), _mid(&"pouch"), "hand", Vector3.ZERO, 0])
-	props.append({"part": part, "segments": old_track})
-	props.append({"part": part, "segments": [[_mid(&"pouch") + 0.02, _t1(&"seat"), "hand", Vector3.ZERO, 0]]})
+	props.append({"part": part, "own": true, "segments": old_track})
+	props.append({"part": part, "own": true, "segments": [[_mid(&"pouch") + 0.02, _t1(&"seat"), "hand", Vector3.ZERO, 0]]})
 
 
 func _revolver(eject: int, missing: int) -> void:
@@ -380,7 +380,7 @@ func props_at(f: float) -> Array:
 	var right: Vector3 = _anchors.get(&"right", Vector3.RIGHT)
 	for k in props.size():
 		var prop: Dictionary = props[k]
-		var entry := {"part": prop.part, "index": k, "shown": false, "at": Vector3.ZERO, "turn": Vector3.ZERO}
+		var entry := {"part": prop.part, "own": prop.get("own", false), "index": k, "shown": false, "at": Vector3.ZERO, "turn": Vector3.ZERO}
 		for s: Array in prop.segments:
 			var t0 := float(s[0])
 			var t1 := float(s[1])
