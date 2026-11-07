@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a base art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 224
+const CHECKS := 228
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -22,6 +22,7 @@ func _ready() -> void:
 	_defs()
 	_dress()
 	_own_sights()
+	await _floor_clip()
 	_grenades()
 	_utility()
 	await _finish()
@@ -216,6 +217,59 @@ func _aim_clear(view: AwViewModel, role: StringName, blocked: Array[StringName])
 	var cone: Dictionary = AwViewModel.SightFit.cone_for(view._art, view.ads_rules, roots, view._holder, view._aim_target(), view._sight_line)
 	if cone.is_empty() or AwViewModel.SightFit.Cut.occluders(view._weapon, view._holder, cone) > 0:
 		blocked.append(role)
+
+
+## Looking steeply down at a flat floor, no part of the drawn gun may be seen going through it: its lowest vertex stays above the floor plane, or the wall-free pass that draws it over the world is on.
+## The lens draws the gun larger and farther from the eye than the wall probe assumes, so a barrel can be through a floor the probe never reaches.
+func _floor_clip() -> void:
+	_begin("the gun at the floor when looking down")
+	var eye_height := 1.6
+	var camera := Camera3D.new()
+	camera.fov = 100.0
+	add_child(camera)
+	var floor_body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(60.0, 0.4, 60.0)
+	shape.shape = box
+	floor_body.add_child(shape)
+	floor_body.position = Vector3(0.0, -eye_height - 0.2, 0.0)
+	add_child(floor_body)
+	var view := AwViewModel.new()
+	view.show_arms = false
+	# The player's lens: a narrower field of view for the hands than for the world makes the gun larger and flatter.
+	view.hands_fov = 55.0
+	camera.add_child(view)
+	var art := AwWeaponVisual.make(&"rifle")
+	AwArtDress.apply(art, AwWeaponArt.weapon_rows("")[&"rifle"])
+	view.equip(art)
+	for _i in 3:
+		await get_tree().physics_frame
+	var floor_y := -eye_height
+	for pitch: float in [0.0, -45.0, -70.0, -89.0]:
+		camera.rotation_degrees = Vector3(pitch, 0.0, 0.0)
+		for _i in 60:
+			await get_tree().physics_frame
+			view.advance(0.02)
+		var lowest := INF
+		for mesh in AwViewModel.HandReach.meshes(view._animated):
+			if mesh.mesh == null or not mesh.is_visible_in_tree():
+				continue
+			for surface in mesh.mesh.get_surface_count():
+				var vertices: Variant = mesh.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
+				if vertices == null:
+					continue
+				for v: Vector3 in vertices:
+					lowest = minf(lowest, (mesh.global_transform * v).y)
+		var covered: bool = view._overlay != null and view._overlay.is_active()
+		if pitch < -40.0:
+			_check("pitch %d: the gun's lowest vertex is %.2f m from the floor plane, or the wall-free pass draws it (pass %s)" % [pitch, lowest - floor_y, covered], lowest >= floor_y or covered)
+		else:
+			_check("pitch %d: looking level the gun is not pulled back or tipped (wall %.3f)" % [pitch, view.wall_amount()], view.wall_amount() < 0.05)
+	view.queue_free()
+	camera.queue_free()
+	floor_body.queue_free()
+	_end()
 
 
 func _grenades() -> void:
