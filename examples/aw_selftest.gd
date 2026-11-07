@@ -4,7 +4,7 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a base art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 228
+const CHECKS := 238
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -23,6 +23,7 @@ func _ready() -> void:
 	_dress()
 	_own_sights()
 	await _floor_clip()
+	await _shot_fx_pool()
 	_grenades()
 	_utility()
 	await _finish()
@@ -267,6 +268,115 @@ func _floor_clip() -> void:
 		else:
 			_check("pitch %d: looking level the gun is not pulled back or tipped (wall %.3f)" % [pitch, view.wall_amount()], view.wall_amount() < 0.05)
 	view.queue_free()
+	camera.queue_free()
+	floor_body.queue_free()
+	_end()
+
+
+## 32 shooters (bots) each fire; counts the nodes the effects cost and the time per shot.
+## The "BENCH" lines are the before/after record in the commit message.
+func _shot_fx_pool() -> void:
+	_begin("shot fx pool: 32 shooters, 100 shots")
+	var camera := Camera3D.new()
+	add_child(camera)
+	camera.current = true
+	var floor_body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(400.0, 0.4, 400.0)
+	shape.shape = box
+	floor_body.add_child(shape)
+	floor_body.position = Vector3(0.0, -1.8, 0.0)
+	add_child(floor_body)
+	await get_tree().process_frame
+	var base := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+	var holder := Node3D.new()
+	add_child(holder)
+	var fxs: Array[AwShotFx] = []
+	for i in 32:
+		var fx := AwShotFx.new()
+		fx.name = "ShotFx%d" % i
+		holder.add_child(fx)
+		fxs.append(fx)
+	for _i in 3:
+		await get_tree().process_frame
+	var built := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) - base
+	var peak := built
+	var spent := 0
+	var voices_max := 0
+	var lights_max := 0
+	for s in 100:
+		var i := s % 32
+		var angle := float(i) / 32.0 * TAU
+		var spot := Vector3(cos(angle), 0.0, sin(angle)) * (4.0 + float(i) * 2.0)
+		var muzzle := Transform3D(Basis.looking_at(Vector3(0.0, -0.5, -1.0)), spot)
+		var t0 := Time.get_ticks_usec()
+		fxs[i].play_remote(AwWeaponNet.KIND_SHOT, muzzle, Vector3(0.0, -0.5, -1.0), &"rifle")
+		spent += Time.get_ticks_usec() - t0
+		if s % 4 == 3:
+			await get_tree().process_frame
+			peak = maxi(peak, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) - base)
+	var in_flight := 0
+	for fx in fxs:
+		voices_max = maxi(voices_max, int(fx.describe()["voices"]))
+		lights_max = maxi(lights_max, fx.lights_built())
+		in_flight += fx.live_count()
+	for _i in 90:
+		await get_tree().process_frame
+	var after := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) - base
+	print("BENCH shotfx: 32 shooters build %d nodes; 100 shots peak %d, settled %d; %.4f ms/shot; max voices/shooter %d, max lights/shooter %d; effects alive after the burst %d" % [
+		built, peak, after, float(spent) / 100.0 / 1000.0, voices_max, lights_max, in_flight])
+	_check("a burst of 100 shots from 32 shooters leaves the effects settling back", after <= peak)
+	_check("every shooter keeps its effects bounded", in_flight <= 32 * AwShotFx.MAX_LIVE)
+	for fx in fxs:
+		fx.advance(5.0)
+	var warm := 0
+	for s in 100:
+		var spot := Vector3(float(s % 32) + 4.0, 0.0, -6.0)
+		var t1 := Time.get_ticks_usec()
+		fxs[s % 32].play_remote(AwWeaponNet.KIND_SHOT, Transform3D(Basis.looking_at(Vector3(0.0, -0.5, -1.0)), spot), Vector3(0.0, -0.5, -1.0), &"rifle")
+		warm += Time.get_ticks_usec() - t1
+	print("BENCH shotfx: warm second burst %.4f ms/shot" % (float(warm) / 100.0 / 1000.0))
+	for fx in fxs:
+		fx.advance(5.0)
+
+	# Limits: a far shooter draws nothing, a mid-range one draws no light, the local gun is never limited.
+	var rules := AwShotFx.rules
+	var lone := AwShotFx.new()
+	lone.binbun_flash = false
+	holder.add_child(lone)
+	var near_at := Transform3D(Basis.looking_at(Vector3(0.0, -0.5, -1.0)), Vector3(0.0, 0.0, -10.0))
+	var mid_at := Transform3D(near_at.basis, Vector3(0.0, 0.0, -60.0))
+	var far_at := Transform3D(near_at.basis, Vector3(0.0, 0.0, -300.0))
+	var aim := Vector3(0.0, -0.5, -1.0)
+	DotFxLightBudget.reset()
+	lone.play_remote(AwWeaponNet.KIND_SHOT, far_at, aim, &"rifle")
+	_check("a shot farther than cl_shotfx_fx_distance draws nothing", lone.live_count() == 0 and rules.fx_distance < 300.0)
+	lone.play_remote(AwWeaponNet.KIND_SHOT, mid_at, aim, &"rifle")
+	_check("a shot beyond cl_shotfx_light_distance still draws but carries no light", lone.live_count() > 0 and lone._lights_live() == 0)
+	lone.advance(5.0)
+	DotFxLightBudget.reset()
+	lone.play_remote(AwWeaponNet.KIND_SHOT, near_at, aim, &"rifle")
+	_check("a near shot carries one light, and never more than cl_shotfx_remote_lights", lone._lights_live() == 1)
+	lone.advance(5.0)
+	var mine := AwShotFx.new()
+	mine.first_person = true
+	mine.binbun_flash = false
+	holder.add_child(mine)
+	DotFxLightBudget.reset()
+	mine.play_remote(AwWeaponNet.KIND_SHOT, mid_at, aim, &"rifle")
+	_check("the local gun keeps its light at the same distance", mine.live_count() > 0 and mine._lights_live() == 1)
+	for _i in 12:
+		lone.play_remote(AwWeaponNet.KIND_SHOT, near_at, aim, &"rifle")
+		mine.play_remote(AwWeaponNet.KIND_SHOT, near_at, aim, &"rifle")
+	_check("another shooter holds at most cl_shotfx_remote_voices voices", int(lone.describe()["voices"]) <= rules.remote_voices)
+	_check("another shooter keeps at most cl_shotfx_remote_live effects", lone.live_count() <= rules.remote_live)
+	_check("the local gun holds more than that (%d voices, %d effects)" % [int(mine.describe()["voices"]), mine.live_count()], mine.live_count() > rules.remote_live)
+	var deaf := AwShotFx.new()
+	holder.add_child(deaf)
+	deaf.play_remote(AwWeaponNet.KIND_SHOT, far_at, aim, &"rifle")
+	_check("a report beyond cl_shotfx_voice_distance makes no voice", int(deaf.describe()["voices"]) == 0)
+	holder.queue_free()
 	camera.queue_free()
 	floor_body.queue_free()
 	_end()

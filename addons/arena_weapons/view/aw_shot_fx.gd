@@ -35,6 +35,10 @@ const MAX_TRACERS_PER_USE := 6
 ## Most effects alive at once, per carrier.
 const MAX_LIVE := 48
 
+## Pooled nodes built up front for a gun that is not the local one (a flash, its petals, a tracer and an impact).
+const REMOTE_PREWARM_LIGHTS := 1
+const REMOTE_PREWARM_MESHES := 6
+
 ## Most marks left on the world at once, per carrier. A mark outlives every other effect, so
 ## it has its own budget: sharing [constant MAX_LIVE] let a held minigun evict its own tracers.
 const MAX_MARKS := 32
@@ -170,8 +174,14 @@ func _ready() -> void:
 func prewarm_pools() -> void:
 	if _lights == null or _meshes == null:
 		return
-	_lights.prewarm()
-	_meshes.prewarm(_quad_mesh(), _flash_mat())
+	# Somebody else's gun needs a light and a few meshes, not the local gun's whole pool: with thirty-two shooters
+	# the full prewarm was most of what the effects cost before a single shot.
+	if first_person:
+		_lights.prewarm()
+		_meshes.prewarm(_quad_mesh(), _flash_mat())
+	else:
+		_lights.prewarm(mini(rules.remote_lights, REMOTE_PREWARM_LIGHTS))
+		_meshes.prewarm(_quad_mesh(), _flash_mat(), REMOTE_PREWARM_MESHES)
 
 
 ## Stops every report on the way out.
@@ -214,7 +224,7 @@ func play_use(outcome: DotWeaponOutcome, muzzle: Transform3D, id: StringName) ->
 	var kind := outcome.kind
 	_report(id, kind, muzzle.origin)
 
-	if not visuals:
+	if not visuals or _too_far(muzzle.origin, rules.fx_distance):
 		return
 
 	match kind:
@@ -253,7 +263,7 @@ func play_remote(
 
 	_report(id, AwWeaponNet.kind_name(kind), muzzle.origin)
 
-	if not visuals:
+	if not visuals or _too_far(muzzle.origin, rules.fx_distance):
 		return
 
 	match kind:
@@ -310,6 +320,11 @@ func _lights_live() -> int:
 
 
 ## Spent cases in the air, for a suite and [method describe].
+## Light nodes this shooter has ever built (its pool's size).
+func lights_built() -> int:
+	return _lights.built() if _lights != null else 0
+
+
 func shell_count() -> int:
 	return _shells.size()
 
@@ -684,7 +699,9 @@ func _flash(muzzle: Transform3D, size: float, weapon_class: StringName = AwWeapo
 
 ## The dynamic muzzle light: short, shadowless, capped by [member max_flash_lights]. Null when off or at the cap.
 func _flash_light(muzzle: Transform3D, size: float, profile: Dictionary, _parent: Node3D) -> OmniLight3D:
-	if _lights == null or flash_light_scale <= 0.0 or _lights_live() >= max_flash_lights:
+	var cap := max_flash_lights if first_person else mini(max_flash_lights, rules.remote_lights)
+	if _lights == null or flash_light_scale <= 0.0 or _lights_live() >= cap \
+			or _too_far(muzzle.origin, rules.light_distance):
 		return null
 	var energy := 2.2 * size * float(profile["light"]) / maxf(0.01, float(profile["size"])) * flash_light_scale
 	var at := muzzle.origin - (-muzzle.basis.z.normalized()) * 0.05
@@ -734,7 +751,7 @@ func _pack_flash(muzzle: Transform3D, size: float, weapon_class: StringName, id:
 
 
 func _impact(at: Vector3, normal: Vector3, kind: StringName, mark: bool) -> void:
-	if _live.size() > MAX_LIVE - 2:
+	if _live.size() > _live_cap() - 2 or _too_far(at, rules.fx_distance):
 		return
 
 	var facing := normal.normalized() if normal.is_finite() and not normal.is_zero_approx() else Vector3.UP
@@ -803,8 +820,13 @@ func _mark(at: Vector3, facing: Vector3) -> void:
 	_marks.append({"node": node, "age": 0.0})
 
 
+## Effects this shooter may keep alive at once.
+func _live_cap() -> int:
+	return MAX_LIVE if first_person else clampi(rules.remote_live, 2, MAX_LIVE)
+
+
 func _add(node: Node3D, fx: Dictionary) -> void:
-	if _live.size() >= MAX_LIVE:
+	if _live.size() >= _live_cap():
 		var oldest: Dictionary = _live.pop_front()
 		var old: Node3D = oldest["node"]
 		if is_instance_valid(old):
