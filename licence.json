@@ -26,5 +26,19 @@
         "author": "Mateusz Sadek",
         "url": "https://polyhaven.com/a/service_pistol",
         "title": "Service Pistol and Bolt Action Rifle 7.62 (Poly Haven, CC0; 2K PBR)"
+    },
+    {
+        "paths": ["addons/arena_weapons/assets/models/stick_grenade.glb"],
+        "licence": "CC0-1.0",
+        "author": "singaii",
+        "url": "https://polyhaven.com/a/stick_grenade",
+        "title": "Stick Grenade (Poly Haven, CC0; baked to 1K by tools/bake_polyhaven_small.py)"
+    },
+    {
+        "paths": ["addons/arena_weapons/assets/models/knife_ph.glb"],
+        "licence": "CC0-1.0",
+        "author": "Mateusz Sadek",
+        "url": "https://polyhaven.com/a/fish_knife",
+        "title": "Fish Knife (Poly Haven, CC0; baked to 1K by tools/bake_polyhaven_small.py)"
     }
 ]

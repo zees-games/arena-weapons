@@ -7,6 +7,8 @@
 | `minigun`, `lmg`, `grenade_launcher`, `plasma_rifle`, `rail_rifle` (the same treatment) | Polyy | CC0 1.0 | https://polyyai.itch.io/3d-low-poly-guns-pack-2 |
 | `knife` (OBJ converted to GLB, rescaled) | Vinrax | CC0 1.0 | https://opengameart.org/content/knife-low-poly |
 | `pistol`, `sniper` (the Styloo models they replaced stay in the pack unused: `pistol`, `sniper_rifle`) | Mateusz Sadek | CC0 1.0 (Poly Haven) | https://polyhaven.com/a/service_pistol, https://polyhaven.com/a/bolt_action_rifle_7_62 (2K textures untouched, one weapon state kept, re-oriented and rescaled by `tools/bake_polyhaven.py`) |
+| `frag` (stick grenade) | singaii | CC0 1.0 (Poly Haven) | https://polyhaven.com/a/stick_grenade (maps 1K, mesh decimated, by `tools/bake_polyhaven_small.py`) |
+| `knife` (fish knife; replaces Vinrax's, which stays in the pack unused) | Mateusz Sadek | CC0 1.0 (Poly Haven) | https://polyhaven.com/a/fish_knife (same bake) |
 
 The page's Asset license statement is CC0 1.0 and says no generative AI was used; the zip carries a Read Me about materials and no licence file, so the page is the record. CC0 asks for no credit; it is given anyway. The paid zip with the blend files and paint layers is not used.
 

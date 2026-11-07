@@ -54,6 +54,7 @@ const CREDITS: Array[Dictionary] = [
 	{"id": "polyy-2", "model": "minigun, lmg, grenade_launcher, plasma_rifle, rail_rifle", "author": "Polyy", "licence": "CC0-1.0", "url": "https://polyyai.itch.io/3d-low-poly-guns-pack-2"},
 	{"id": "ambientcg-metal", "model": "surface detail on every gun (Metal038, Metal027)", "author": "ambientCG", "licence": "CC0-1.0", "url": "https://ambientcg.com/view?id=Metal038"},
 	{"id": "polyhaven-guns", "model": "pistol, sniper (service_pistol, bolt_action_rifle_7_62; 2K PBR)", "author": "Mateusz Sadek (Poly Haven)", "licence": "CC0-1.0", "url": "https://polyhaven.com/a/service_pistol"},
+	{"id": "polyhaven-small", "model": "frag (stick_grenade), knife (fish_knife); 1K", "author": "singaii, Mateusz Sadek (Poly Haven)", "licence": "CC0-1.0", "url": "https://polyhaven.com/a/stick_grenade"},
 	{"id": "vinrax-knife", "model": "knife", "author": "Vinrax", "licence": "CC0-1.0", "url": "https://opengameart.org/content/knife-low-poly"},
 ]
 
