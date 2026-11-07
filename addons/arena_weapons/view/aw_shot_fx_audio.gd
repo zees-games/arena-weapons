@@ -22,6 +22,12 @@ var shot_sound: Callable = Callable()
 
 var _layers: AwShotLayers = null
 
+## What other people's shots may cost (`cl_shotfx_*`); shared by every AwShotFx. Bind it with [method DotWeaponCvarRules.bind_cvars].
+static var rules: AwShotFxRules = AwShotFxRules.new()
+
+## True for the local player's own gun, which none of [member rules] limits. Set before adding to the tree.
+@export var first_person: bool = false
+
 ## Play reports.
 @export var sounds: bool = true
 
@@ -97,7 +103,7 @@ func _play_casing(at: Vector3) -> void:
 
 
 func _report(id: StringName, kind: StringName, at: Vector3) -> void:
-	if not sounds or kind == DotWeaponOutcome.KIND_NONE:
+	if not sounds or kind == DotWeaponOutcome.KIND_NONE or _too_far(at, rules.voice_distance):
 		return
 	if shot_sound.is_valid() and bool(shot_sound.call(id, kind, at, roof != null and bool(roof.get(&"roofed")))):
 		return
@@ -147,8 +153,21 @@ func _play_tail(id: StringName, kind: StringName, at: Vector3) -> void:
 		_play(tail, at, DotWeaponSound.TAIL_GAIN_DB)
 
 
+## True when this is somebody else's gun and [param at] is farther than [param limit] metres from the camera (0 never).
+func _too_far(at: Vector3, limit: float) -> bool:
+	if first_person or limit <= 0.0 or not is_inside_tree():
+		return false
+	var camera := get_viewport().get_camera_3d() if get_viewport() != null else null
+	return camera != null and camera.global_position.distance_to(at) > limit
+
+
+## Voices this shooter may hold at once.
+func _voice_cap() -> int:
+	return MAX_VOICES if first_person else mini(MAX_VOICES, rules.remote_voices)
+
+
 func _play(stream: AudioStream, at: Vector3, extra_db: float) -> void:
-	if not sounds or stream == null:
+	if not sounds or stream == null or _too_far(at, rules.voice_distance):
 		return
 
 	var voice: AudioStreamPlayer3D = null
@@ -161,7 +180,7 @@ func _play(stream: AudioStream, at: Vector3, extra_db: float) -> void:
 			voice = candidate
 			break
 
-	if voice == null and _voices.size() < MAX_VOICES:
+	if voice == null and _voices.size() < _voice_cap():
 		voice = AudioStreamPlayer3D.new()
 		voice.name = "Voice%d" % _voices.size()
 		voice.top_level = true
