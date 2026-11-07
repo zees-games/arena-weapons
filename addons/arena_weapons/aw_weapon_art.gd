@@ -12,10 +12,10 @@ const _LONG := {"hold": Vector3(0.16, -0.16, -0.38), "rot": Vector3(0, 10, 30), 
 const _HEAVY := {"hold": Vector3(0.19, -0.21, -0.42), "rot": Vector3(0, 10, 26), "scale": 0.55, "zoom": 0.8}
 
 ## weapon id -> {model, muzzle, motion, tier, reload, view}; `reload` is the view model's reload phases (style and parts). `aim` is tools/measure_sights.py's: the sight 0.32 ahead of the eye,
-## further out when the stock would otherwise fill the screen. `view` without hold/rot/scale/zoom takes its tier's.
+## further out when the stock would otherwise fill the screen. `view` without hold/rot/scale/zoom takes its tier's (a melee or thrown row's hold/rot/scale go over the stand-in's own).
 ## `mag_node` names the model's own magazine, which a reload hides and carries out and back in; `hand_grip` is AwWeaponVisual.hand_grip.
 const WEAPONS := {
-	&"knife": {"model": "knife_ph", "world_scale": 1.6, "hands_life": 1.0, "muzzle": 0.0, "motion": "melee", "tier": "melee", "view": {}},
+	&"knife": {"model": "knife_ph", "world_scale": 1.6, "hands_life": 1.0, "muzzle": 0.0, "motion": "melee", "tier": "melee", "view": {"rot": Vector3(55, 80, 75), "scale": 1.5, "hold": Vector3(0.20, -0.22, -0.40)}},
 	&"pistol": {"model": "pistol_ph", "mag_node": "magazine", "muzzle": 0.151, "tier": "sidearm", "reload": {"style": "pistol"}, "support_grip": Vector3(-0.03, -0.06, 0.02), "hand_scale": 0.4, "forearm_scale": 0.85, "view": {"hold": Vector3(0.12, -0.06, -0.36), "scale": 1.4, "aim": Vector3(0.002, -0.063, -0.332)}},
 	&"revolver": {"model": "revolver", "measured_grip": true, "muzzle": 0.231, "tier": "sidearm", "reload": {"style": "revolver"}, "view": {"scale": 0.8, "aim": Vector3(0.000, -0.150, -0.350)}},
 	&"machine_pistol": {"model": "machine_pistol", "measured_grip": true, "muzzle": 0.274, "tier": "sidearm", "reload": {"style": "pistol"}, "support_grip": Vector3(-0.03, -0.06, 0.05), "hand_scale": 0.4, "view": {"scale": 0.8, "aim": Vector3(0.000, -0.184, -0.309)}},

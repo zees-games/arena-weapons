@@ -28,6 +28,7 @@ static func apply(art: AwWeaponVisual, row: Dictionary) -> void:
 	art.hands_life = float(row.get("hands_life", 0.0))
 	if motion != "gun":
 		art.model_forward = Vector3.UP if motion == "melee" else art.model_forward
+		_loose_hold(art, view)
 		return
 
 	art.model_forward = Vector3.FORWARD
@@ -64,6 +65,16 @@ static func apply(art: AwWeaponVisual, row: Dictionary) -> void:
 		art.aim_zoom = float(view["zoom"])
 
 	art.aim_scoped = bool(view.get("scoped", false))
+
+
+## A melee or thrown row's own hip hold (`hold`, `rot`, `scale`), over the stand-in's shared one; a row without them keeps the stand-in's.
+static func _loose_hold(art: AwWeaponVisual, view: Dictionary) -> void:
+	if view.has("rot"):
+		art.view_rotation = view["rot"]
+	if view.has("scale"):
+		art.view_scale = float(view["scale"])
+	if view.has("hold"):
+		art.view_offset = view["hold"]
 
 
 ## A row's declared sockets (model space, 3-number arrays or vectors) and hand fractions, where the mesh bounds would be measured.
