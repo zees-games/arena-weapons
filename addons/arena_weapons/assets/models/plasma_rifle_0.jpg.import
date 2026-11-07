@@ -20,7 +20,7 @@ dest_files=["res://.godot/imported/plasma_rifle_0.jpg-85780cf4a27d4516df7deb723f
 
 compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.85
+compress/lossy_quality=0.95
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

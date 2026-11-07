@@ -20,7 +20,7 @@ dest_files=["res://.godot/imported/rifle_akmat.png-c378376b07f0b3f35aa6d347bc1f5
 
 compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.85
+compress/lossy_quality=0.95
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
