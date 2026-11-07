@@ -19,5 +19,12 @@
         "author": "ambientCG",
         "url": "https://ambientcg.com/view?id=Metal038",
         "title": "Metal038 and Metal027 (ambientCG), baked into the gun maps by tools/detail_models.py"
+    },
+    {
+        "paths": ["addons/arena_weapons/assets/models/pistol_ph.glb", "addons/arena_weapons/assets/models/pistol_ph_service_pistol_diff.jpg", "addons/arena_weapons/assets/models/pistol_ph_service_pistol_metal-service_pistol_rough.jpg", "addons/arena_weapons/assets/models/pistol_ph_service_pistol_nor_gl.jpg", "addons/arena_weapons/assets/models/sniper_ph.glb", "addons/arena_weapons/assets/models/sniper_ph_bolt_action_rifle_7_62_accesories_diff-bolt_action_rifle_7_62_accesories_alpha.jpg", "addons/arena_weapons/assets/models/sniper_ph_bolt_action_rifle_7_62_accesories_diff.jpg", "addons/arena_weapons/assets/models/sniper_ph_bolt_action_rifle_7_62_accesories_metal-bolt_action_rifle_7_62_accesories_rough.jpg", "addons/arena_weapons/assets/models/sniper_ph_bolt_action_rifle_7_62_accesories_nor_gl.jpg", "addons/arena_weapons/assets/models/sniper_ph_bolt_action_rifle_7_62_diff.jpg", "addons/arena_weapons/assets/models/sniper_ph_bolt_action_rifle_7_62_metal-bolt_action_rifle_7_62_rough.jpg", "addons/arena_weapons/assets/models/sniper_ph_bolt_action_rifle_7_62_nor_gl.jpg"],
+        "licence": "CC0-1.0",
+        "author": "Mateusz Sadek",
+        "url": "https://polyhaven.com/a/service_pistol",
+        "title": "Service Pistol and Bolt Action Rifle 7.62 (Poly Haven, CC0; 2K PBR)"
     }
 ]
