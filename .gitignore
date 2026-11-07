@@ -44,3 +44,4 @@ art-src/reference/
 # Opt-in 2K Poly Haven weapon glbs (tools/bake_polyhaven.py output) and the textures Godot extracts from them.
 /addons/arena_weapons/assets/models/*_2k.glb*
 /addons/arena_weapons/assets/models/*_ph_*.jpg*
+/addons/arena_weapons/assets/models/*_2k.jpg*

@@ -15,7 +15,7 @@ const _HEAVY := {"hold": Vector3(0.19, -0.21, -0.42), "rot": Vector3(0, 10, 26),
 ## further out when the stock would otherwise fill the screen. `view` without hold/rot/scale/zoom takes its tier's.
 ## `mag_node` names the model's own magazine, which a reload hides and carries out and back in; `hand_grip` is AwWeaponVisual.hand_grip.
 const WEAPONS := {
-	&"knife": {"model": "knife", "world_scale": 1.6, "hands_life": 1.0, "muzzle": 0.0, "motion": "melee", "tier": "melee", "view": {}},
+	&"knife": {"model": "knife_ph", "world_scale": 1.6, "hands_life": 1.0, "muzzle": 0.0, "motion": "melee", "tier": "melee", "view": {}},
 	&"pistol": {"model": "pistol_ph", "mag_node": "magazine", "muzzle": 0.151, "tier": "sidearm", "reload": {"style": "pistol"}, "support_grip": Vector3(-0.03, -0.06, 0.02), "hand_scale": 0.4, "forearm_scale": 0.85, "view": {"hold": Vector3(0.12, -0.06, -0.36), "scale": 1.4, "aim": Vector3(0.002, -0.063, -0.332)}},
 	&"revolver": {"model": "revolver", "measured_grip": true, "muzzle": 0.231, "tier": "sidearm", "reload": {"style": "revolver"}, "view": {"scale": 0.8, "aim": Vector3(0.000, -0.150, -0.350)}},
 	&"machine_pistol": {"model": "machine_pistol", "measured_grip": true, "muzzle": 0.274, "tier": "sidearm", "reload": {"style": "pistol"}, "support_grip": Vector3(-0.03, -0.06, 0.05), "hand_scale": 0.4, "view": {"scale": 0.8, "aim": Vector3(0.000, -0.184, -0.309)}},
@@ -37,7 +37,7 @@ const WEAPONS := {
 	&"grenade_launcher": {"model": "grenade_launcher", "measured_grip": true, "forearm_scale": 1.0, "muzzle": 0.522, "fore_along": 0.31, "fore_up": 0.3, "tier": "heavy", "reload": {"style": "launcher", "anchors": {"breech": [0.0, 0.1, -0.05], "pouch": [-0.08, -0.25, 0.0], "near": [-0.04, -0.15, 0.0]}}, "view": {"sight": "red_dot", "rot": Vector3(0, 4, 2), "hold": Vector3(0.17, -0.22, -0.5), "scale": 0.42, "aim": Vector3(0.000, -0.330, -0.431)}},
 	&"beamer": {"model": "plasma_rifle", "measured_grip": true, "muzzle": 0.597, "fore_along": 0.32, "tier": "heavy", "reload": {"style": "cell"}, "view": {"sight": "red_dot", "aim": Vector3(0.000, -0.274, -0.407)}},
 	&"charge_rifle": {"model": "rail_rifle", "measured_grip": true, "muzzle": 0.830, "fore_along": 0.34, "wall": {"wall_max": 0.45}, "tier": "heavy", "reload": {"style": "cell", "anchors": {"well": [0.0, 0.0, -0.1], "below": [0.0, -0.2, -0.1], "pouch": [-0.08, -0.25, -0.2]}}, "view": {"aim": Vector3(0.016, -0.296, -0.474), "zoom": 0.4, "scale": 0.8, "scoped": true}},
-	&"frag": {"model": "frag_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
+	&"frag": {"model": "stick_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
 	&"sticky": {"model": "frag_grenade_alt", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
 	&"flash": {"model": "flash_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
 	&"smoke": {"model": "smoke_grenade", "muzzle": 0.0, "motion": "throw", "tier": "thrown", "view": {}},
