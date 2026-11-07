@@ -558,7 +558,7 @@ func _thrown() -> bool:
 	var art := AwWeaponVisual.make(&"frag")
 	art.model_forward = Vector3.UP
 	AwArtDress.apply(art, AwSpawnProvider.role_art()[&"frag"])
-	return art.model_path == AwWeaponArt.model_path("frag_grenade") and art.model_forward == Vector3.UP
+	return art.model_path == AwWeaponArt.model_path("stick_grenade") and art.model_forward == Vector3.UP
 
 
 func _def(defs: Array[DotWeaponDef], id: StringName) -> DotWeaponDef:
