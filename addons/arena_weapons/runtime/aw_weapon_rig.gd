@@ -130,6 +130,7 @@ func _resolve_presentation() -> void:
 	if effects and _view != null:
 		_fx = AwShotFx.new()
 		_fx.name = "ShotFx"
+		_fx.first_person = true
 		_fx.catalogue = catalogue
 		add_child(_fx)
 		_fx.exclude_carrier(_player)
