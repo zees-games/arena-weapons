@@ -13,6 +13,59 @@ var _strafe_now: float = 0.0
 
 var _overlay: AwViewOverlay = null
 
+## Seconds the wall-free pass stays on after the drawn gun last reached into the world, so it does not flicker at the edge of contact.
+const CLIP_HOLD := 0.25
+
+var _clip_left: float = 0.0
+
+## Whether the gun as it is drawn reaches into the world, held for [constant CLIP_HOLD] after the last contact.
+## The lens draws the gun larger and farther from the eye than its real size, and [method _advance_wall] probes the real size, so looking steeply down puts the drawn barrel through a floor the probe never reaches (and a wall or crate likewise).
+## The wall-free pass hides that, so it must run whenever the drawn gun is in the world, not only while the wall response is pulling the gun back.
+func _drawn_gun_in_world(delta: float) -> bool:
+	if _animated != null and _animated.visible and is_inside_tree() and get_world_3d() != null and _drawn_gun_touches_world():
+		_clip_left = CLIP_HOLD
+	else:
+		_clip_left = maxf(_clip_left - delta, 0.0)
+	return _clip_left > 0.0
+
+
+## A ray from the eye to each corner of the box round the drawn gun's meshes, and to the muzzle, stopped short of the point: a hit means the world is in front of part of the gun.
+func _drawn_gun_touches_world() -> bool:
+	var camera := get_parent() as Node3D
+	if camera == null:
+		return false
+	var box := AABB()
+	var first := true
+	for mesh in HandReach.meshes(_animated):
+		if mesh.mesh == null or not mesh.is_visible_in_tree():
+			continue
+		var bounds := mesh.global_transform * mesh.get_aabb()
+		box = bounds if first else box.merge(bounds)
+		first = false
+	if first:
+		return false
+	var space := get_world_3d().direct_space_state
+	var eye := camera.global_position
+	var points: Array[Vector3] = [muzzle_transform().origin]
+	for corner in 8:
+		points.append(box.get_endpoint(corner))
+	for point in points:
+		var gap := point - eye
+		var length := gap.length()
+		if length < 0.05:
+			continue
+		var query := PhysicsRayQueryParameters3D.create(eye, point - gap / length * 0.02, wall_mask, _wall_exclude().duplicate())
+		query.collide_with_areas = false
+		for _hop in 4:
+			var found := space.intersect_ray(query)
+			if found.is_empty():
+				break
+			if wall_ignore_characters and found["collider"] is CharacterBody3D:
+				query.exclude.append(found["rid"])
+				continue
+			return true
+	return false
+
 ## Pulls the weapon back and up when its muzzle would be inside a wall. The probe is cast against the un-retracted pose, so the answer does not feed back into itself.
 func _advance_wall(delta: float) -> void:
 	var on := feel_rules.wall_retract > 0.0 and _weapon != null and is_inside_tree()
