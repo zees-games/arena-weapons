@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c87bi7ihpmyi0"
-path="res://.godot/imported/marksman_Image_1.jpg-6020665ca193278bc57bc03d759e81a1.ctex"
+path.s3tc="res://.godot/imported/marksman_Image_1.jpg-6020665ca193278bc57bc03d759e81a1.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "906cbba9dd012b329697cefd28a64d75"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/marksman_Image_1.jpg"
-dest_files=["res://.godot/imported/marksman_Image_1.jpg-6020665ca193278bc57bc03d759e81a1.ctex"]
+dest_files=["res://.godot/imported/marksman_Image_1.jpg-6020665ca193278bc57bc03d759e81a1.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

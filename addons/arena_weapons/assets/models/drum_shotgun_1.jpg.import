@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://k1wii8q1584e"
-path="res://.godot/imported/drum_shotgun_1.jpg-71aedc4e7eded13120c000242f2a34c1.ctex"
+path.s3tc="res://.godot/imported/drum_shotgun_1.jpg-71aedc4e7eded13120c000242f2a34c1.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "92e7b439f096717f8375d065248f1885"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/drum_shotgun_1.jpg"
-dest_files=["res://.godot/imported/drum_shotgun_1.jpg-71aedc4e7eded13120c000242f2a34c1.ctex"]
+dest_files=["res://.godot/imported/drum_shotgun_1.jpg-71aedc4e7eded13120c000242f2a34c1.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

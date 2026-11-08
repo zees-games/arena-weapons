@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cqro7om7vnlco"
-path="res://.godot/imported/rifle_akmat.png-c378376b07f0b3f35aa6d347bc1f5349.ctex"
+path.s3tc="res://.godot/imported/rifle_akmat.png-c378376b07f0b3f35aa6d347bc1f5349.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "fe95ba70898b55b9bb26cf83aa3c0341"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/rifle_akmat.png"
-dest_files=["res://.godot/imported/rifle_akmat.png-c378376b07f0b3f35aa6d347bc1f5349.ctex"]
+dest_files=["res://.godot/imported/rifle_akmat.png-c378376b07f0b3f35aa6d347bc1f5349.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

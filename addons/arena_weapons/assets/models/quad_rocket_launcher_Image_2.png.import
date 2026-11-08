@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bvk5v61cbeho6"
-path="res://.godot/imported/quad_rocket_launcher_Image_2.png-8ae402d9f40a07abccb38c80e85792d6.ctex"
+path.s3tc="res://.godot/imported/quad_rocket_launcher_Image_2.png-8ae402d9f40a07abccb38c80e85792d6.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "2a0069c06d6c4b8ad997135f5f41333a"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/quad_rocket_launcher_Image_2.png"
-dest_files=["res://.godot/imported/quad_rocket_launcher_Image_2.png-8ae402d9f40a07abccb38c80e85792d6.ctex"]
+dest_files=["res://.godot/imported/quad_rocket_launcher_Image_2.png-8ae402d9f40a07abccb38c80e85792d6.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

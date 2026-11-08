@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b153dg4fysgv"
-path="res://.godot/imported/smoke_grenade_smokemat_color.png-992cac70e4f3c7c07b2309ccf0c9ff92.ctex"
+path.s3tc="res://.godot/imported/smoke_grenade_smokemat_color.png-992cac70e4f3c7c07b2309ccf0c9ff92.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "21f82063ca5eee488b9a49f7a6a6f21a"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/smoke_grenade_smokemat_color.png"
-dest_files=["res://.godot/imported/smoke_grenade_smokemat_color.png-992cac70e4f3c7c07b2309ccf0c9ff92.ctex"]
+dest_files=["res://.godot/imported/smoke_grenade_smokemat_color.png-992cac70e4f3c7c07b2309ccf0c9ff92.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

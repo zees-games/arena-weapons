@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://barcj7lhfrkrd"
-path="res://.godot/imported/derringer_1.jpg-7b5ab6a302104663ac716cedd2d13c2a.ctex"
+path.s3tc="res://.godot/imported/derringer_1.jpg-7b5ab6a302104663ac716cedd2d13c2a.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "1371c98f13e523a3562aa5d2b701e6f0"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/derringer_1.jpg"
-dest_files=["res://.godot/imported/derringer_1.jpg-7b5ab6a302104663ac716cedd2d13c2a.ctex"]
+dest_files=["res://.godot/imported/derringer_1.jpg-7b5ab6a302104663ac716cedd2d13c2a.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

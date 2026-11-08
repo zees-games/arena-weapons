@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://eefs2k8mbty0"
-path="res://.godot/imported/round_rifle_bulletmat_color.png-8dc530d3e0b0637e621d93a864a78d72.ctex"
+path.s3tc="res://.godot/imported/round_rifle_bulletmat_color.png-8dc530d3e0b0637e621d93a864a78d72.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "91955dc2bfa16963a27aff7de5fb9216"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/round_rifle_bulletmat_color.png"
-dest_files=["res://.godot/imported/round_rifle_bulletmat_color.png-8dc530d3e0b0637e621d93a864a78d72.ctex"]
+dest_files=["res://.godot/imported/round_rifle_bulletmat_color.png-8dc530d3e0b0637e621d93a864a78d72.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

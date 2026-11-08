@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c7rckve1780ta"
-path="res://.godot/imported/bullpup_0.jpg-6a53e4510651fba97d54475cfeb2f412.ctex"
+path.s3tc="res://.godot/imported/bullpup_0.jpg-6a53e4510651fba97d54475cfeb2f412.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "cd63e7cc587c0e4e4aad0129cfc2b84a"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/bullpup_0.jpg"
-dest_files=["res://.godot/imported/bullpup_0.jpg-6a53e4510651fba97d54475cfeb2f412.ctex"]
+dest_files=["res://.godot/imported/bullpup_0.jpg-6a53e4510651fba97d54475cfeb2f412.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

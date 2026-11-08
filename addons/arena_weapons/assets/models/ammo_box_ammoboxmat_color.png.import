@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bgdk8qv7djloo"
-path="res://.godot/imported/ammo_box_ammoboxmat_color.png-2e3f2950c2c8b114de44608d7f65fbee.ctex"
+path.s3tc="res://.godot/imported/ammo_box_ammoboxmat_color.png-2e3f2950c2c8b114de44608d7f65fbee.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a79bd966e485dcd1de567a2a35e9178a"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/ammo_box_ammoboxmat_color.png"
-dest_files=["res://.godot/imported/ammo_box_ammoboxmat_color.png-2e3f2950c2c8b114de44608d7f65fbee.ctex"]
+dest_files=["res://.godot/imported/ammo_box_ammoboxmat_color.png-2e3f2950c2c8b114de44608d7f65fbee.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

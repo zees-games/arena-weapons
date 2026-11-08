@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://yfqxqbfryouu"
-path="res://.godot/imported/minigun_Image_0.jpg-070f03cb8c106892638980a8e581ed3e.ctex"
+path.s3tc="res://.godot/imported/minigun_Image_0.jpg-070f03cb8c106892638980a8e581ed3e.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "24ec6c32393d4f5143bdaf216eaf8866"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/minigun_Image_0.jpg"
-dest_files=["res://.godot/imported/minigun_Image_0.jpg-070f03cb8c106892638980a8e581ed3e.ctex"]
+dest_files=["res://.godot/imported/minigun_Image_0.jpg-070f03cb8c106892638980a8e581ed3e.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

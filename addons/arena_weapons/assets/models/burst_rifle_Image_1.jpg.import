@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cvghu0cg7fvps"
-path="res://.godot/imported/burst_rifle_Image_1.jpg-4e72c6270b530f44c9e54db3daf9c050.ctex"
+path.s3tc="res://.godot/imported/burst_rifle_Image_1.jpg-4e72c6270b530f44c9e54db3daf9c050.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "fa6f3e45f8f0d179492c1bebf565a39f"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/burst_rifle_Image_1.jpg"
-dest_files=["res://.godot/imported/burst_rifle_Image_1.jpg-4e72c6270b530f44c9e54db3daf9c050.ctex"]
+dest_files=["res://.godot/imported/burst_rifle_Image_1.jpg-4e72c6270b530f44c9e54db3daf9c050.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0
