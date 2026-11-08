@@ -249,20 +249,8 @@ func equip(art: AwWeaponVisual) -> DotResult:
 	_holder.add_child(_weapon)
 	_set_on_top(_weapon)
 
-	_dress()
-	_muzzle = _measure_muzzle(art)
-	_build_belt(art)
-	_fit_sight(art)
-
-	if art.has_magazine():
-		if art.magazine_path != "":
-			_magazine = _add_part(art.magazine_path, art.magazine_transform())
-		else:
-			_magazine = _add_built(ReloadParts.build(art.magazine_part), art.magazine_transform())
-
-	for part in Dress.art_parts(art, _holder):
-		_set_on_top(part)
-		_attachments.append(part)
+	for stage in EQUIP_STAGES:
+		_equip_stage(art, stage)
 
 	_reach_for(art)
 	model_ready.emit(_id, _weapon)
@@ -995,12 +983,82 @@ func _measure_muzzle(art: AwWeaponVisual) -> Vector3:
 	return art.model_forward.normalized() * distance + art.muzzle_offset
 
 
+## The stages the tail of [method equip] runs in, after the model is in the holder; [method prewarm_step] runs them one a call.
+const EQUIP_STAGES := 4
+
+
+func _equip_stage(art: AwWeaponVisual, stage: int) -> void:
+	match stage:
+		0:
+			_dress()
+			_muzzle = _measure_muzzle(art)
+		1:
+			_build_belt(art)
+			_fit_sight(art)
+		2:
+			if art.has_magazine():
+				if art.magazine_path != "":
+					_magazine = _add_part(art.magazine_path, art.magazine_transform())
+				else:
+					_magazine = _add_built(ReloadParts.build(art.magazine_part), art.magazine_transform())
+		3:
+			for part in Dress.art_parts(art, _holder):
+				_set_on_top(part)
+				_attachments.append(part)
+
+
+var _prewarm_art: AwWeaponVisual = null
+var _prewarm_stage := -1
+
+
+## Starts [method prewarm] over several calls: the head of the equip (structure, model load) now, the rest one stage per [method prewarm_step].
+## Returns false when there is nothing to step (no art, no model, or the load failed); the weapon is then already as warm as it gets.
+func prewarm_begin(art: AwWeaponVisual) -> bool:
+	_prewarm_art = null
+	_prewarm_stage = -1
+	_build_structure()
+	if art == null or not art.has_model():
+		prewarm(art)
+		return false
+	_clear_models()
+	_end_sequence()
+	_art = HipHold.sized(art, ads_rules, position.z)
+	_weapon = AwModelCache.instantiate(_art.model_path)
+	if _weapon == null:
+		return false
+	_weapon.name = "Weapon"
+	_holder.add_child(_weapon)
+	_set_on_top(_weapon)
+	_prewarm_art = _art
+	_prewarm_stage = 0
+	return true
+
+
+## One more stage of the weapon begun by [method prewarm_begin] (the cold sight fit, cuts and red dot are in stages 0-1). True while more remain; on the last call the weapon is dropped again and the shared reload parts are warmed.
+func prewarm_step() -> bool:
+	if _prewarm_art == null:
+		return false
+	_equip_stage(_prewarm_art, _prewarm_stage)
+	_prewarm_stage += 1
+	if _prewarm_stage < EQUIP_STAGES:
+		return true
+	_prewarm_art = null
+	_prewarm_stage = -1
+	clear()
+	_warm_parts()
+	return false
+
+
 ## Builds [param art]'s view of the weapon once and drops it again, so the model is loaded,
 ## its materials made and its hand spans measured before the weapon is first drawn in play.
 ## Call it on a spare view model under a loading cover, one weapon a frame.
 func prewarm(art: AwWeaponVisual) -> void:
 	var _r := equip(art)
 	clear()
+	_warm_parts()
+
+
+func _warm_parts() -> void:
 	if not _parts_warmed:
 		_parts_warmed = true
 		for node in ReloadParts.build_all():
