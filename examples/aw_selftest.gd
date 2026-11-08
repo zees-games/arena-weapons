@@ -215,7 +215,31 @@ func _dress() -> void:
 	_check("the base art itself is untouched until a game applies it", before.model_path != art.model_path)
 	_check("a grenade dressed keeps the throw carry", _thrown())
 	_check("every gun row names its own reload style: %s" % ", ".join(_unstyled()), _unstyled().is_empty())
+	var belt_bad := _style_mismatch("belt", "belt_feed", true)
+	_check("every belt-reload gun draws a moving belt (belt_feed): %s" % ", ".join(belt_bad), belt_bad.is_empty())
+	var feed_bad := _style_mismatch("belt", "belt_feed", false)
+	_check("and nothing else is marked belt_feed: %s" % ", ".join(feed_bad), feed_bad.is_empty())
+	var rev_bad: Array[String] = []
+	var all_rows := AwWeaponArt.weapon_rows("")
+	for role: StringName in all_rows:
+		var reload: Dictionary = (all_rows[role] as Dictionary).get("reload", {})
+		if str(reload.get("style", "")) == "revolver" and all_rows[role].get("tier", "") != "sidearm":
+			rev_bad.append(String(role))
+	_check("revolver-style reloads are sidearms: %s" % ", ".join(rev_bad), rev_bad.is_empty())
 	_end()
+
+
+## Roles breaking "reload style [param style] iff [param key] is set"; [param want] picks the direction checked.
+func _style_mismatch(style: String, key: String, want: bool) -> Array[String]:
+	var out: Array[String] = []
+	var rows := AwWeaponArt.weapon_rows("")
+	for role: StringName in rows:
+		var row: Dictionary = rows[role]
+		var is_style := str((row.get("reload", {}) as Dictionary).get("style", "")) == style
+		var has_key := bool(row.get(key, false))
+		if (want and is_style and not has_key) or (not want and has_key and not is_style):
+			out.append(String(role))
+	return out
 
 
 ## Gun rows whose `reload` names no known style (the view model would play the generic reload).
