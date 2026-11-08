@@ -397,7 +397,30 @@ func _own_sights() -> void:
 	_check("%d guns aim down a notch, aperture or post of their own" % own, own >= OWN_SIGHTED)
 	_check("each own sight line runs through the screen's centre (worst %.4f m)" % worst, worst < 0.002)
 	_check("no gun has any of its model inside the see-through cone round the aim line (%s)" % str(blocked), blocked.is_empty())
+	_check_stepped_prewarm()
 	_end()
+
+
+## A weapon prewarmed a stage at a time ends dropped again, in as many calls as it has stages.
+func _check_stepped_prewarm() -> void:
+	var view := AwViewModel.new()
+	view.show_arms = false
+	add_child(view)
+	var rows := AwWeaponArt.weapon_rows("")
+	var role: StringName = &""
+	for r: StringName in rows:
+		if rows[r]["motion"] == "gun":
+			role = r
+			break
+	var art := AwWeaponVisual.make(role)
+	AwArtDress.apply(art, rows[role])
+	var steps := 0
+	var began := view.prewarm_begin(art)
+	var weapon_loaded := view.weapon_node() != null
+	while began and view.prewarm_step():
+		steps += 1
+	view.queue_free()
+	_check("stepped prewarm loads the model, then runs %d stages and drops the weapon" % AwViewModel.EQUIP_STAGES, began and weapon_loaded and steps == AwViewModel.EQUIP_STAGES - 1 and view.weapon_node() == null)
 
 
 ## Rays from the aimed eye inside the sight cone, as far as the front post, hit nothing of the gun.
