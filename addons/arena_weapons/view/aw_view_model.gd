@@ -462,6 +462,18 @@ var _carved: Node3D = null
 
 ## Makes the magazine of a gun whose model draws it welded into the body a node of its own, from the triangles in the
 ## magazine well's box (the row's `reload.mag_box`, six numbers in Aim space, or one measured from the well).
+## Where the magazine sits in each welded model, in the holder's space: x0, y0, z0, x1, y1, z1. Read off rendered side views
+## (tools/render_reload.gd --probe). An empty array means the mesh holds no magazine to take out.
+const MAG_BOXES := {
+	"machine_pistol.glb": [-0.12, -0.175, -0.067, 0.12, -0.012, 0.031],
+	"burst_rifle.glb": [-0.12, -0.16, -0.19, 0.12, 0.02, -0.07],
+	"drum_shotgun.glb": [-0.12, -0.11, 0.20, 0.12, 0.05, 0.37],
+	"marksman.glb": [-0.12, -0.03, -0.245, 0.12, 0.03, -0.14],
+	"sniper_ph.glb": [-0.12, -0.01, -0.17, 0.12, 0.04, -0.095],
+	"bullpup.glb": [],
+	"battle_rifle.glb": [],
+}
+
 func _carve_magazine(art: AwWeaponVisual) -> void:
 	_carved = null
 	if art.hide_during_reload != &"" or art.has_magazine() or _weapon == null or feel_rules.reload_detail <= 0.0:
@@ -476,7 +488,18 @@ func _carve_magazine(art: AwWeaponVisual) -> void:
 	seq.compose(art, anchors, 30, 15)
 	var ps: float = seq.prop_scale
 	var box := AABB()
+	var held: Variant = MAG_BOXES.get(art.model_path.get_file(), null)
+	if held is Array and (held as Array).is_empty():
+		return
 	var given: Variant = art.reload.get("mag_box", null)
+	if held is Array and given == null:
+		var h: Array = held
+		box = AABB(Vector3(h[0], h[1], h[2]), Vector3(h[3] - h[0], h[4] - h[1], h[5] - h[2]))
+		MagCarve.remember(art.model_path, box)
+		_carved = MagCarve.carve(_weapon, _holder, Transform3D.IDENTITY, box, "%s|%s" % [art.model_path, box])
+		if _carved != null:
+			_set_on_top(_carved)
+		return
 	if given is Array and (given as Array).size() == 6:
 		var g: Array = given
 		box = AABB(Vector3(g[0], g[1], g[2]), Vector3(g[3] - g[0], g[4] - g[1], g[5] - g[2]))

@@ -132,7 +132,40 @@ static func _add_surface(into: ArrayMesh, from: Mesh, s: int, arrays: Array, idx
 	if idx.is_empty():
 		# Nothing of this material here; the slot is not needed, a mesh with no surface for it draws the same.
 		return
+	# Only the vertices these triangles use, so each half has its own bounds and no dead vertices.
+	var remap := {}
+	var order := PackedInt32Array()
+	var fresh := PackedInt32Array()
+	fresh.resize(idx.size())
+	for i in idx.size():
+		var v: int = idx[i]
+		if not remap.has(v):
+			remap[v] = order.size()
+			order.append(v)
+		fresh[i] = remap[v]
 	var out := arrays.duplicate()
-	out[Mesh.ARRAY_INDEX] = idx
+	for k in out.size():
+		if k == Mesh.ARRAY_INDEX or out[k] == null:
+			continue
+		out[k] = _pick(out[k], order, k)
+	out[Mesh.ARRAY_INDEX] = fresh
 	into.add_surface_from_arrays(from.surface_get_primitive_type(s), out)
 	into.surface_set_material(into.get_surface_count() - 1, from.surface_get_material(s))
+
+
+## The entries of one vertex array at [param order]; per-vertex arrays only (tangents and bone weights have several floats a vertex).
+static func _pick(arr: Variant, order: PackedInt32Array, kind: int) -> Variant:
+	var size: int = int(arr.size())
+	if size == 0:
+		return arr
+	var per := 1
+	if kind == Mesh.ARRAY_TANGENT:
+		per = 4
+	elif kind == Mesh.ARRAY_BONES or kind == Mesh.ARRAY_WEIGHTS:
+		per = 4 if size % 4 == 0 else 8
+	var out: Variant = arr.duplicate()
+	out.resize(order.size() * per)
+	for i in order.size():
+		for j in per:
+			out[i * per + j] = arr[order[i] * per + j]
+	return out
