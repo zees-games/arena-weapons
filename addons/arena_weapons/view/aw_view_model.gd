@@ -7,6 +7,7 @@ const Dress := preload("aw_attachment_dress.gd")
 const HipHold := preload("aw_hip_hold.gd")
 const ReloadProps := preload("aw_reload_props.gd")
 const MagCarve := preload("aw_mag_carve.gd")
+const ReloadCues := preload("aw_reload_cues.gd")
 
 ## The weapon you see in your own hands. Parent it to the camera; it is told what happened (on_used, on_reload_started)
 ## and never reads a device, a clock or the arsenal, so it draws a remote player's gun the same way.
@@ -17,6 +18,10 @@ const CHANNEL := "aw.view"
 ## Emitted once the weapon model for [param id] is in the tree and placed.
 ## For a muzzle flash, laser or scope overlay that cannot be hung before the model exists.
 signal model_ready(id: StringName, weapon: Node3D)
+
+## A handling sound is due: the reload reached the part of the animation that makes it (see AwReloadCues).
+## Emitted once per cue, on the first update at or after its moment, so it is at most one update late.
+signal reload_cue(cue: StringName, db: float)
 
 
 @export_group("Wiring")
@@ -32,6 +37,8 @@ signal model_ready(id: StringName, weapon: Node3D)
 ## A game's setting (a cvar) that beats the weapon's art and [member scope_arms_hide]; below 0 is off.
 const ChargeFx := preload("aw_charge_fx.gd")
 const BeltFeed := preload("aw_belt_feed.gd")
+## The [method scope_fraction] from which the gun model is no longer drawn: the lens is up and the gun would show through it.
+const SCOPE_GUN_HIDE_FRACTION := 0.5
 var _belt: Node3D = null
 var _charge_fx: Node3D = null
 
@@ -451,10 +458,32 @@ func on_reload(fraction: float) -> void:
 			_end_sequence()
 	_pose.set_reload(_reload_fraction)
 	_animate_magazine(_reload_fraction)
+	_fire_cues(_reload_fraction)
+
+
+## True while a reload plays its handling sounds from the animation: the rig then leaves the two fixed reload sounds out.
+func has_reload_cues() -> bool:
+	return not _cue_plan.is_empty()
+
+
+## The cue plan of the reload playing now (see [method AwReloadCues.plan]).
+func reload_cue_plan() -> Array:
+	return _cue_plan
+
+
+func _fire_cues(f: float) -> void:
+	if _cue_plan.is_empty() or f <= 0.0:
+		return
+	var step: Dictionary = ReloadCues.due(_cue_plan, _cue_next, f)
+	_cue_next = int(step.next)
+	for c: Dictionary in step.due:
+		reload_cue.emit(c.cue, float(c.db))
 
 
 static var _parts_warmed := false
 var _seq_ran := false
+var _cue_plan: Array = []
+var _cue_next := 0
 var _props: ReloadProps = null
 ## The magazine split out of a one-mesh model (MagCarve), a node of the weapon; null when the model has its own or none.
 var _carved: Node3D = null
@@ -535,6 +564,8 @@ func on_reload_begin(left: int, magazine: int, start_share: float = 0.0) -> void
 		return
 	_seq = seq
 	_seq_ran = false
+	_cue_plan = ReloadCues.plan(seq)
+	_cue_next = 0
 	_pose.tunables.reload_keys = seq.gun_keys
 	var props := ReloadProps.new()
 	props.name = "ReloadProps"
@@ -584,6 +615,8 @@ func reload_parts_shown(part: StringName = &"") -> int:
 
 func _end_sequence() -> void:
 	_seq = null
+	_cue_plan = []
+	_cue_next = 0
 	_seq_ran = false
 	if _props != null:
 		_props.restore_own()
@@ -688,7 +721,9 @@ func advance(delta: float) -> void:
 	# Through a scope the weapon is not drawn: the scope is the view. The built arms go with Animated;
 	# a game's own arms (arms_ref) may live anywhere, so they are hidden by name too.
 	var scoped := is_scoped()
-	_animated.visible = not scoped
+	# The gun goes when the scope's picture is half up, not at full aim: from there to full aim the lens already
+	# shows the zoomed world, and a gun still drawn then is seen through the glass (owner: "you can still see through the scope").
+	_animated.visible = not (scoped or scope_picture_up())
 	if _arms != null:
 		_arms.visible = not (scoped or arms_hidden_by_scope())
 
@@ -791,6 +826,11 @@ func scope_fraction() -> float:
 		return 0.0
 	var start := 0.6 if ads_rules == null else ads_rules.scope_fade_start_for(_art.id)
 	return smoothstep(start, 1.0, _aim_fraction)
+
+
+## Whether the scope's picture is up enough that the 3D gun must not show through it: the surround is at least half in.
+func scope_picture_up() -> bool:
+	return has_scope() and scope_fraction() >= SCOPE_GUN_HIDE_FRACTION
 
 
 ## The scope lens's size, a share of its full size: small at the start of the aim-in, growing toward the eye.

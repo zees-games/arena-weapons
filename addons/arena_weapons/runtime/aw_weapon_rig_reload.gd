@@ -9,6 +9,9 @@ signal reload_sound(stage: StringName)
 ## The fire-mode selector clicked (the sound id); never on a server or in a replay.
 signal mode_click(sound: StringName)
 
+## A handling sound of a reload played, at the animation moment that makes it; never on a server or in a replay.
+signal reload_cue_played(cue: StringName, weapon_id: StringName)
+
 
 func _on_reload_started(slot: int) -> void:
 	var carried := arsenal.slot_at(slot)
@@ -16,15 +19,29 @@ func _on_reload_started(slot: int) -> void:
 	if carried == null:
 		return
 
-	# A tube magazine has no magazine to drop: its shells are heard one by one.
-	if not carried.def.reload_per_round:
-		_reload_sound(AwWeaponSound.RELOAD_OUT, carried.def.id)
-
 	_reload_started = _last_tick
 	_reload_ticks = reload_motion_ticks(carried.def, carried.magazine_space())
+	_cued_reload = false
 	if _view != null and not _replaying:
 		var start := float(arsenal.ticks_for(carried.def, carried.def.reload_start_ticks)) if carried.def.reload_per_round else 0.0
 		_view.on_reload_begin(carried.magazine, carried.def.magazine, start / float(_reload_ticks))
+		# With a plan the sounds come from the animation (see _on_reload_cue); the two fixed ones would double them.
+		_cued_reload = _view.has_reload_cues()
+		if _cued_reload and not _view.reload_cue.is_connected(_on_reload_cue):
+			_view.reload_cue.connect(_on_reload_cue)
+		_cue_weapon = carried.def.id
+
+	# A tube magazine has no magazine to drop: its shells are heard one by one.
+	if not carried.def.reload_per_round and not _cued_reload:
+		_reload_sound(AwWeaponSound.RELOAD_OUT, carried.def.id)
+
+
+## A handling sound the reload animation reached; never on a server or in a replay.
+func _on_reload_cue(cue: StringName, db: float) -> void:
+	if _replaying or role == Role.SERVER or _fx == null:
+		return
+	_fx.play_cue(cue, _listen_at(), db)
+	reload_cue_played.emit(cue, _cue_weapon)
 
 
 ## Ticks the reload motion spans: a per-round reload is the start plus one round time per missing
@@ -74,6 +91,9 @@ func _listen_at() -> Vector3:
 func _on_reload_finished(slot: int, _rounds: int) -> void:
 	_reload_started = -1
 	var finished := arsenal.slot_at(slot)
+	if _cued_reload:
+		_cued_reload = false
+		return
 	_reload_sound(AwWeaponSound.RELOAD_IN, finished.def.id if finished != null else &"")
 
 
