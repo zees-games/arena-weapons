@@ -179,6 +179,7 @@ func prewarm_pools() -> void:
 	if first_person:
 		_lights.prewarm()
 		_meshes.prewarm(_quad_mesh(), _flash_mat())
+		prewarm_voices()
 	else:
 		_lights.prewarm(mini(rules.remote_lights, REMOTE_PREWARM_LIGHTS))
 		_meshes.prewarm(_quad_mesh(), _flash_mat(), REMOTE_PREWARM_MESHES)

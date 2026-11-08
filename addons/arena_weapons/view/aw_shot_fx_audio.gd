@@ -166,6 +166,29 @@ func _voice_cap() -> int:
 	return MAX_VOICES if first_person else mini(MAX_VOICES, rules.remote_voices)
 
 
+## Builds one report voice, idle and parked. Also what [method prewarm_voices] calls.
+func _make_voice() -> AudioStreamPlayer3D:
+	var voice := AudioStreamPlayer3D.new()
+	voice.name = "Voice%d" % _voices.size()
+	voice.top_level = true
+	# Heard across a map rather than across a room, and falling off gently: a shot is
+	# the loudest thing in the game, and the default attenuation makes one at forty
+	# metres inaudible.
+	voice.unit_size = 12.0
+	voice.max_distance = 260.0
+	voice.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+	add_child(voice)
+	_voices.append(voice)
+	return voice
+
+
+## Builds [param count] voices now (default: this shooter's cap), so the first shots and impacts create no AudioStreamPlayer3D.
+func prewarm_voices(count: int = -1) -> void:
+	var want := _voice_cap() if count < 0 else mini(count, _voice_cap())
+	while _voices.size() < want:
+		var _made := _make_voice()
+
+
 func _play(stream: AudioStream, at: Vector3, extra_db: float) -> void:
 	if not sounds or stream == null or _too_far(at, rules.voice_distance):
 		return
@@ -181,17 +204,7 @@ func _play(stream: AudioStream, at: Vector3, extra_db: float) -> void:
 			break
 
 	if voice == null and _voices.size() < _voice_cap():
-		voice = AudioStreamPlayer3D.new()
-		voice.name = "Voice%d" % _voices.size()
-		voice.top_level = true
-		# Heard across a map rather than across a room, and falling off gently: a shot is
-		# the loudest thing in the game, and the default attenuation makes one at forty
-		# metres inaudible.
-		voice.unit_size = 12.0
-		voice.max_distance = 260.0
-		voice.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
-		add_child(voice)
-		_voices.append(voice)
+		voice = _make_voice()
 
 	if voice == null:
 		voice = _voices.pop_front()
