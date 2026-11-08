@@ -5,7 +5,7 @@ extends SceneTree
 ## Views: side (whole profile), q34 (front three-quarter from above), q34b (rear three-quarter from below), detail (receiver, 0.30 m away, a
 ## first-person distance), muzzle (front end close up). Env RENDER_DIR points at another models folder (to render a before build).
 
-const VIEWS := ["side", "q34", "q34b", "detail", "muzzle"]
+const VIEWS := ["side", "q34", "q34b", "detail", "muzzle", "fp"]
 
 
 func _initialize() -> void:
@@ -35,11 +35,19 @@ func _initialize() -> void:
 	await process_frame
 	for i in range(1, a.size()):
 		var n := a[i]
-		var ps := load("%s/%s.glb" % [dir, n]) as PackedScene
-		if ps == null:
+		var m: Node3D = null
+		if dir.begins_with("/"):
+			var gd := GLTFDocument.new()
+			var gs := GLTFState.new()
+			if gd.append_from_file("%s/%s.glb" % [dir, n], gs) == OK:
+				m = gd.generate_scene(gs) as Node3D
+		else:
+			var ps := load("%s/%s.glb" % [dir, n]) as PackedScene
+			if ps != null:
+				m = ps.instantiate() as Node3D
+		if m == null:
 			print("MISSING ", n)
 			continue
-		var m := ps.instantiate() as Node3D
 		root.add_child(m)
 		var box := _bounds(m)
 		var c := box.get_center()
@@ -59,6 +67,11 @@ func _initialize() -> void:
 				"detail":
 					pos = c + Vector3(0.30, 0.10, 0.0)
 					f = 50.0
+				"fp":
+					# hand-held: eye behind the stock, weapon low right of centre, in-game hands fov (~74 deg vertical)
+					pos = Vector3(c.x - 0.13, c.y + 0.13, box.end.z + 0.10)
+					look = Vector3(c.x - 0.04, c.y - 0.01, box.position.z + box.size.z * 0.45)
+					f = 74.0
 				"muzzle":
 					var mz := Vector3(c.x, c.y, box.position.z + minf(box.size.z * 0.12, 0.12))
 					pos = mz + Vector3(0.22, 0.09, -0.18)

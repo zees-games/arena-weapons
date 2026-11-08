@@ -22,12 +22,30 @@ world = bpy.data.worlds.new('w')
 world.use_nodes = False
 sc.world = world
 
+# Glass primitives (alpha-blended lens) stay as they are: split them off multi-material nodes and treat them like sights.
+for o in [o for o in bpy.data.objects if o.type == 'MESH']:
+    ms = [m.name for m in o.data.materials if m]
+    if len(ms) > 1 and any(n.endswith('_glass') for n in ms):
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = o
+        o.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='DESELECT')
+        base = o.name
+        before = set(bpy.data.objects)
+        bpy.ops.mesh.separate(type='MATERIAL')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        for p_ in [o] + sorted(set(bpy.data.objects) - before, key=lambda x: x.name):
+            p_.name = ('glass_' if all(m and m.name.endswith('_glass') for m in p_.data.materials) else '') + base + '__tmp'
+        for p_ in bpy.data.objects:
+            if p_.name.endswith('__tmp'):
+                p_.name = p_.name[:-5]
 targets = []
 for o in bpy.data.objects:
     if o.type != 'MESH':
         continue
     mats = [m.name for m in o.data.materials if m]
-    if mats and all(n == 'sight_metal' for n in mats):
+    if mats and all(n == 'sight_metal' or n.endswith('_glass') for n in mats):
         continue
     targets.append(o)
 targets.sort(key=lambda o: o.name)

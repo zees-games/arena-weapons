@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw
 from scipy.ndimage import gaussian_filter
 
 src, bake, dst = sys.argv[1:4]
+KW = dict(a.lstrip('-').split('=') if '=' in a else (a.lstrip('-'), '1') for a in sys.argv[4:])
 ALB_Q, ORM_Q = 88, 90
 
 
@@ -73,30 +74,6 @@ def scratches(size, rng, count, minlen, maxlen):
     return blur(np.asarray(im, np.float32) / 255, 0.6) * 1.8
 
 
-def classify(a):
-    """Per-texel class weights from the painted colour: metal, polymer, wood, brass."""
-    s0 = a.shape[0]
-    af = np.stack([blur(a[..., i], 1.5 * s0 / 1024) for i in range(3)], 2)
-    mx, mn = af.max(2), af.min(2)
-    sat = (mx - mn) / np.maximum(mx, 1e-3)
-    r, g, b = af[..., 0], af[..., 1], af[..., 2]
-    hue = np.zeros_like(mx)
-    d = np.maximum(mx - mn, 1e-4)
-    hue = np.where(mx == r, ((g - b) / d) % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) / 6.0
-    warm = ((hue < 0.11) | (hue > 0.93))
-    wood = warm & (sat > 0.33) & (mx > 0.16)
-    brass = (hue >= 0.09) & (hue < 0.2) & (sat > 0.42) & (mx > 0.4)
-    poly = (mx < 0.19) & ~wood
-    metal = ~(wood | brass | poly)
-    oh = np.stack([metal, poly, wood, brass], 0).astype(np.float32)
-    sm = np.stack([blur(o, 2.5 * s0 / 1024) for o in oh], 0)
-    lab = sm.argmax(0)
-    oh = np.stack([(lab == k) for k in range(4)], 0).astype(np.float32)
-    w = np.stack([blur(o, 0.8 * s0 / 1024) for o in oh], 0)
-    w /= np.maximum(w.sum(0, keepdims=True), 1e-4)
-    return w
-
-
 def height_to_normal(h, strength):
     gx = np.gradient(h, axis=1) * strength
     gy = np.gradient(h, axis=0) * strength
@@ -123,70 +100,167 @@ def gray(name, size):
 
 
 # ---------------------------------------------------------------- the surfaces
+# classes: 0 metal, 1 polymer, 2 wood, 3 brass, 4 coat (painted / cerakote, keeps the artist's colour)
+WOOD_MODELS = {'derringer', 'rifle', 'pump_shotgun', 'battle_rifle', 'revolver', 'pistol_ph', 'sniper_ph', 'knife', 'knife_ph', 'rocket_launcher', 'rocket_launcher_alt', 'carbine', 'smg'}
+
+
+def classify(a, allow_wood=True):
+    s0 = a.shape[0]
+    af = np.stack([blur(a[..., i], 1.5 * s0 / 1024) for i in range(3)], 2)
+    mx, mn = af.max(2), af.min(2)
+    sat = (mx - mn) / np.maximum(mx, 1e-3)
+    r, g, b = af[..., 0], af[..., 1], af[..., 2]
+    d = np.maximum(mx - mn, 1e-4)
+    hue = np.where(mx == r, ((g - b) / d) % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) / 6.0
+    warm = ((hue < 0.11) | (hue > 0.93))
+    wood = warm & (sat > 0.33) & (mx > 0.16) & allow_wood
+    brass = (hue >= 0.09) & (hue < 0.2) & (sat > 0.42) & (mx > 0.4) & ~wood & allow_wood
+    bluish = (hue > 0.5) & (hue < 0.72)
+    coat = (sat > 0.17) & (mx > 0.12) & ~wood & ~brass & ~bluish
+    poly = (mx < 0.19) & ~wood & ~coat
+    metal = ~(wood | brass | poly | coat)
+    oh = np.stack([metal, poly, wood, brass, coat], 0).astype(np.float32)
+    sm = np.stack([blur(o, 2.5 * s0 / 1024) for o in oh], 0)
+    lab = sm.argmax(0)
+    oh = np.stack([(lab == k) for k in range(5)], 0).astype(np.float32)
+    w = np.stack([blur(o, 0.8 * s0 / 1024) for o in oh], 0)
+    w /= np.maximum(w.sum(0, keepdims=True), 1e-4)
+    return w
+
+
+def voronoi_cells(size, rng, spacing):
+    """Distance (px) to the nearest of randomly jittered points: pebble / stipple height."""
+    from scipy.ndimage import distance_transform_edt
+    pts = np.ones((size, size), bool)
+    n = int((size / spacing) ** 2)
+    ys, xs = rng.integers(0, size, n), rng.integers(0, size, n)
+    pts[ys, xs] = False
+    return distance_transform_edt(pts).astype(np.float32)
+
+
+def lum(a):
+    return a[..., 0] * 0.2126 + a[..., 1] * 0.7152 + a[..., 2] * 0.0722
+
+
+# metal finishes: linear base colour, roughness, how much the wear reveals bare steel
+#            blued              parkerized         satin steel        black anodised     gunmetal
+FIN_ALB = np.array([[0.065, 0.075, 0.100], [0.165, 0.175, 0.160], [0.30, 0.305, 0.31], [0.050, 0.052, 0.058], [0.22, 0.225, 0.235]], np.float32)
+FIN_ROU = np.array([0.40, 0.62, 0.42, 0.50, 0.46], np.float32)
+FIN_WEAR = np.array([0.95, 0.80, 0.25, 0.75, 0.55], np.float32)
+FIN_PICK = [0, 0, 0, 0, 1, 1, 1, 2, 3, 4]
+
+
+def part_map(size):
+    p = np.asarray(Image.open(os.path.join(bake, 'pid.png')).convert('L').resize((size, size), Image.NEAREST), np.float32) / 255
+    return np.rint(p * 32).astype(np.int32)
+
+
 def build(name, size, rng):
-    a = np.asarray(Image.open(os.path.join(bake, 'albedo_src.png')).convert('RGB'), np.float32) / 255
+    a = np.asarray(Image.open(os.path.join(bake, 'albedo_src.png')).convert('RGB').resize((size, size), Image.LANCZOS), np.float32) / 255
     cover = gray('cover', size) > 0.5
     edge = blur(gray('edge', size), 1.0 * size / 1024)
     ao_big, ao_small = gray('ao_big', size), gray('ao_small', size)
     k = size / 1024.0
-    W = classify(a)
-    wm, wp, ww, wb = W
-    # shared fields
+    W = classify(a, os.path.basename(name).replace('.glb', '') in WOOD_MODELS)
+    wm, wp, ww, wb, wc = W
+    L = lum(a)
+    # fine detail the old painted albedo carried (magazine ribs, panel lines, grip checkering): high-pass -> height + cavity
+    hp = blur(L, 0.9 * k) - blur(L, 4.5 * k)
+    det = np.clip(hp / 0.12, -1, 1)
+    groove = sstep(-hp, 0.02, 0.11)
+    ridge = sstep(hp, 0.02, 0.11)
+    # shared noise
     low = fbm(size, rng, 5, octaves=4)
-    mid = fbm(size, rng, 24 * 1, octaves=4)
+    mid = fbm(size, rng, 22, octaves=4)
     fine = fbm(size, rng, size // 3, octaves=1)
-    pits = (rng.random((size, size)) > 0.9985).astype(np.float32)
-    pits = blur(pits, 1.1) * 18
-    scr = scratches(size, rng, int(260 * k * k), 6 * k, 40 * k) * 0.6
-    dirt = np.clip((1 - ao_small) * 1.4 + (1 - ao_big) * 0.5, 0, 1) * (0.55 + 0.45 * low)
-    handling = sstep(low + (mid - 0.5) * 0.4, 0.7, 0.9) * ao_small * 0.7
-    chip = sstep(edge * 1.5 + (mid - 0.5) * 0.9, 0.55, 0.85)
-    # ---- blued / parkerized steel
-    blue = np.array([0.020, 0.022, 0.027], np.float32)
-    steel = np.array([0.30, 0.30, 0.315], np.float32)
-    m_alb = blue[None, None, :] * (0.75 + 0.5 * low[..., None]) * (0.9 + 0.2 * mid[..., None])
-    bare = np.clip(chip + handling * 0.55 + scr * 0.5 * (0.4 + low), 0, 1)
-    m_alb = lerp(m_alb, steel[None, None, :] * (0.8 + 0.3 * mid[..., None]), bare[..., None])
-    m_rough = lerp(0.34 + 0.2 * mid + 0.1 * fine, 0.26 + 0.12 * mid, bare)
-    m_met = np.clip(1.0 - dirt * 0.35, 0, 1)
-    m_h = (fine - 0.5) * 0.05 + (low - 0.5) * 0.25 - pits * 0.25 - scr * 0.25 - chip * 0.3
-    # ---- polymer
-    stip = fbm(size, rng, size // 2, octaves=1)
-    grey = np.array([0.011, 0.0115, 0.012], np.float32)
-    p_wear = np.clip(chip * 0.7 + scr * 0.35 + handling * 0.5, 0, 1)
-    p_alb = grey[None, None, :] * (0.8 + 0.5 * low[..., None]) * (0.9 + 0.2 * stip[..., None])
-    p_alb = lerp(p_alb, np.array([0.05, 0.05, 0.052], np.float32)[None, None, :], p_wear[..., None] * 0.8)
-    p_rough = np.clip(0.6 + 0.2 * stip + 0.1 * low - p_wear * 0.18, 0, 1)
-    p_h = (stip - 0.5) * 0.35 + (low - 0.5) * 0.2 - scr * 0.15 - chip * 0.25
-    # ---- wood: grain runs along V (the islands keep the artist's orientation)
-    warp = fbm(size, rng, 6, 3, octaves=3) * 3.0
+    wn = fbm(size, rng, 14, octaves=5)
+    pits = blur((rng.random((size, size)) > 0.9985).astype(np.float32), 1.1) * 18
+    scr = np.clip(scratches(size, rng, int(320 * k * k), 6 * k, 46 * k) * 0.7, 0, 1)
+    dirt = np.clip((1 - ao_small) * 1.5 + (1 - ao_big) * 0.6, 0, 1) * (0.5 + 0.5 * low)
+    handling = sstep(low + (mid - 0.5) * 0.4, 0.72, 0.92) * (0.4 + 0.6 * ao_small)
+    edgew = sstep(edge * 1.25 + (wn - 0.5) * 0.9, 0.55, 0.9)
+    # ---- metal: a finish per part (blued / parkerized / satin / anodised / gunmetal), each with its own wear
+    part = part_map(size)
+    seed = sum(map(ord, name))
+    fin_of = np.zeros(40, np.int32)
+    Lm = blur(L, 2 * k)
+    for i in range(40):
+        sel = (part == i) & (wm > 0.5) & cover
+        if sel.sum() < 50:
+            continue
+        ml = float(np.median(Lm[sel]))
+        r = (i * 7 + seed * 3 + i // 3) % 10
+        if ml < 0.16:
+            fin_of[i] = [3, 0, 0, 3, 0, 0, 3, 0, 0, 3][r]
+        elif ml < 0.30:
+            fin_of[i] = [0, 1, 1, 4, 1, 0, 1, 4, 1, 1][r]
+        else:
+            fin_of[i] = [2, 4, 2, 1, 4, 2, 2, 4, 1, 2][r]
+    fin = fin_of[np.clip(part, 0, 39)]
+    base = FIN_ALB[fin]
+    tone = (0.78 + 0.45 * low + (mid - 0.5) * 0.30)[..., None]
+    plum = (low > 0.55)[..., None] * np.array([0.03, 0.0, -0.03], np.float32)  # thin-film shift on blued parts
+    brush = fbm(size, rng, max(8, size // 2), 5, octaves=3)
+    m_alb = (base + plum * (fin == 0)[..., None]) * tone * (0.9 + 0.2 * brush[..., None] * (fin == 2)[..., None] + 0.1 * (fine[..., None] - 0.5))
+    wear_amt = FIN_WEAR[fin]
+    bare = np.clip((edgew * 0.95 + handling * 0.5 + scr * 0.45 * (0.5 + low) + ridge * 0.25 + pits * 0.1) * wear_amt, 0, 1)
+    steel = np.array([0.50, 0.505, 0.52], np.float32)[None, None, :] * (0.7 + 0.4 * mid[..., None])
+    m_alb = lerp(m_alb, steel, bare[..., None])
+    m_alb = m_alb * (1 - 0.55 * dirt[..., None]) * (1 - 0.35 * groove[..., None])
+    m_rough = FIN_ROU[fin] + (mid - 0.5) * 0.22 + (fine - 0.5) * 0.08 + (low - 0.5) * 0.1
+    m_rough = lerp(m_rough, 0.26 + 0.14 * mid, bare) + dirt * 0.18 + groove * 0.1
+    m_met = np.clip(1.0 - dirt * 0.4 - groove * 0.2, 0, 1)
+    m_h = (fine - 0.5) * 0.04 + (low - 0.5) * 0.15 - pits * 0.08 - scr * 0.15 + det * 0.22 - bare * 0.1 + (brush - 0.5) * 0.06 * (fin == 2)
+    # ---- polymer: grey-black, pebble stipple, lighter where handled
+    cell = voronoi_cells(size, rng, 4.2 * k)
+    stip = 1 - sstep(cell, 0.6 * k, 2.1 * k)
+    p_wear = np.clip(edgew * 0.7 + scr * 0.35 + handling * 0.6, 0, 1)
+    p_alb = np.array([0.050, 0.052, 0.056], np.float32)[None, None, :] * (0.7 + 0.7 * low[..., None]) * (0.85 + 0.3 * stip[..., None])
+    p_alb = lerp(p_alb, np.array([0.14, 0.14, 0.145], np.float32)[None, None, :], p_wear[..., None] * 0.75)
+    p_alb = p_alb * (1 - 0.4 * dirt[..., None]) * (1 - 0.4 * groove[..., None])
+    p_rough = np.clip(0.62 + 0.16 * (fine - 0.5) + 0.15 * (low - 0.5) - p_wear * 0.2 - stip * 0.08, 0, 1)
+    p_h = stip * 0.30 + (fine - 0.5) * 0.06 + (low - 0.5) * 0.08 + det * 0.3 - scr * 0.15 - edgew * 0.15
+    # ---- wood: warm figured grain (rings along V, pores, mid-tone from the old paint), satin lacquer, worn raw at edges
+    warp = fbm(size, rng, 6, 3, octaves=3) * 5.0
     cols = np.arange(size, dtype=np.float32)[None, :]
-    period = 8.0 * k
-    rings = 0.5 + 0.5 * np.sin(2 * np.pi * (cols / period + warp))
-    streak = fbm(size, rng, int(size / 3), 6, octaves=3)
-    g = np.clip(0.35 * rings ** 2.0 + 0.65 * streak, 0, 1)
-    dk = np.array([0.030, 0.012, 0.006], np.float32)
-    lt = np.array([0.120, 0.058, 0.026], np.float32)
-    w_alb = lerp(dk[None, None, :], lt[None, None, :], g[..., None]) * (0.85 + 0.3 * low[..., None])
-    wscr = np.clip(chip * 0.9 + scr * 0.5, 0, 1)
-    w_alb = lerp(w_alb, np.array([0.16, 0.09, 0.045], np.float32)[None, None, :], wscr[..., None] * 0.6)
-    w_alb *= (1 - 0.5 * dirt[..., None])
-    w_rough = np.clip(0.40 + 0.18 * (1 - g) + 0.1 * fine + wscr * 0.2 + dirt * 0.15, 0, 1)
-    w_h = (g - 0.5) * 0.28 + (streak - 0.5) * 0.15 - chip * 0.3 - scr * 0.3
+    rings = 0.5 + 0.5 * np.sin(2 * np.pi * (cols / (9.0 * k) + warp))
+    ring2 = 0.5 + 0.5 * np.sin(2 * np.pi * (cols / (3.3 * k) + warp * 1.7 + 0.3))
+    streak = fbm(size, rng, int(size / 2.5), 5, octaves=3)
+    pore = fbm(size, rng, int(size / 1.5), 12, octaves=2)
+    g = np.clip(0.26 * rings ** 1.5 + 0.12 * ring2 + 0.62 * streak, 0, 1)
+    dk = np.array([0.065, 0.024, 0.009], np.float32)
+    lt = np.array([0.34, 0.185, 0.085], np.float32)
+    tint = np.clip(blur(L, 6 * k) / 0.45, 0.55, 1.5)[..., None]
+    w_alb = lerp(dk[None, None, :], lt[None, None, :], g[..., None]) * (0.78 + 0.45 * low[..., None]) * tint ** 0.8
+    w_alb = w_alb * (1 - 0.35 * pore[..., None] * (g[..., None] < 0.5))
+    wraw = np.clip(edgew * 0.9 + scr * 0.5, 0, 1)
+    w_alb = lerp(w_alb, np.array([0.42, 0.25, 0.12], np.float32)[None, None, :] * (0.8 + 0.3 * streak[..., None]), wraw[..., None] * 0.65)
+    w_alb = w_alb * (1 - 0.6 * dirt[..., None]) * (1 - 0.4 * groove[..., None])
+    w_rough = np.clip(0.34 + 0.22 * (1 - g) + 0.12 * fine + wraw * 0.28 + dirt * 0.2, 0, 1)
+    w_h = (g - 0.5) * 0.30 + (streak - 0.5) * 0.18 - pore * 0.1 - edgew * 0.2 - scr * 0.3 + det * 0.2
     # ---- brass
-    b_alb = np.array([0.46, 0.27, 0.06], np.float32)[None, None, :] * (0.7 + 0.5 * low[..., None]) * (1 - 0.45 * dirt[..., None])
-    b_rough = np.clip(0.3 + 0.25 * mid + dirt * 0.2, 0, 1)
-    b_h = (fine - 0.5) * 0.06 - scr * 0.2 - chip * 0.3
+    b_alb = np.array([0.55, 0.33, 0.085], np.float32)[None, None, :] * (0.65 + 0.6 * low[..., None]) * (1 - 0.5 * dirt[..., None])
+    b_rough = np.clip(0.26 + 0.25 * mid + dirt * 0.25, 0, 1)
+    b_h = (fine - 0.5) * 0.06 - scr * 0.2 - edgew * 0.15 + det * 0.3
+    # ---- coat (paint / cerakote): the artist's colour, matte, chipped to bare steel on edges and handled spots
+    ca = np.clip(a, 0, 1) ** 2.2
+    cl = lum(ca)[..., None]
+    c_alb = lerp(cl, ca, 0.8) * np.clip(blur(ca, 3 * k) / np.maximum(cl, 1e-3), 0, 2) ** 0 * (0.75 + 0.5 * low[..., None]) * (0.92 + 0.16 * fine[..., None])
+    c_alb = np.clip(c_alb * 0.9, 0, 1) * (1 - 0.45 * dirt[..., None]) * (1 - 0.35 * groove[..., None])
+    chip = np.clip(edgew * 0.9 + scr * 0.4 + handling * 0.4, 0, 1)
+    c_alb = lerp(c_alb, steel * 0.9, chip[..., None])
+    c_rough = np.clip(0.55 + 0.2 * (mid - 0.5) + 0.1 * fine - chip * 0.25 + dirt * 0.1, 0, 1)
+    c_met = chip * 0.95
+    c_h = (fine - 0.5) * 0.15 + (low - 0.5) * 0.1 + det * 0.25 - chip * 0.15 - scr * 0.2
     # ---- blend by class weight
-    wr = W[..., None]
-    alb = (wm[..., None] * m_alb + wp[..., None] * p_alb + ww[..., None] * w_alb + wb[..., None] * b_alb)
+    wr = lambda w: w[..., None]
+    alb = wr(wm) * m_alb + wr(wp) * p_alb + wr(ww) * w_alb + wr(wb) * b_alb + wr(wc) * c_alb
     alb = alb * (0.55 + 0.45 * ao_small[..., None]) * (0.8 + 0.2 * ao_big[..., None])
-    rough = wm * m_rough + wp * p_rough + ww * w_rough + wb * b_rough
-    metal = wm * m_met + wb * 1.0
-    h = wm * m_h + wp * p_h + ww * w_h + wb * b_h
-    # rounded edge (a convex bevel catches light): a dip along the baked edge mask
-    h = h - edge * 1.5
-    occl = np.clip(0.25 + 0.75 * (ao_small * 0.6 + ao_big * 0.4), 0, 1)
+    rough = wm * m_rough + wp * p_rough + ww * w_rough + wb * b_rough + wc * c_rough
+    metal = wm * m_met + wb * 1.0 + wc * c_met
+    h = wm * m_h + wp * p_h + ww * w_h + wb * b_h + wc * c_h
+    h = h - edge * 1.4 - groove * 0.25
+    occl = np.clip(0.2 + 0.8 * (ao_small * 0.6 + ao_big * 0.4), 0, 1) * (1 - 0.35 * groove)
     return alb, rough, metal, occl, h, cover, W
 
 
@@ -206,7 +280,7 @@ def main():
     rng = np.random.default_rng(sum(map(ord, os.path.basename(src))))
     alb, rough, metal, occl, h, cover, W = build(os.path.basename(src), size, rng)
     # normal: strength in "pixels of height" so the look is independent of the texture size
-    n = height_to_normal(h * (size / 1024.0) * 1.2, 1.0)
+    n = height_to_normal(h * (size / 1024.0) * float(KW.get('nstr', 1.0)), 1.0)
     nrm = ((n * 0.5 + 0.5) * 255 + 0.5).astype(np.uint8)
     albu = (np.clip(alb, 0, 1) ** (1 / 2.2) * 255 + 0.5).astype(np.uint8)
     orm = (np.stack([occl, rough, metal], 2) * 255 + 0.5).astype(np.uint8)
@@ -238,9 +312,10 @@ def main():
             print('NO NODE', nm)
             continue
         mesh = j['meshes'][node_of[nm]['mesh']]
-        prim0 = mesh['primitives'][0]
-        mat_idx.add(prim0.get('material'))
-        for p in mesh['primitives'][1:]:
+        glassy = [p for p in mesh['primitives'] if 'glass' in (j['materials'][p['material']].get('name', '') if 'material' in p else '')]
+        solid_p = [p for p in mesh['primitives'] if p not in glassy]
+        prim0 = solid_p[0]
+        for p in solid_p:
             mat_idx.add(p.get('material'))
         pos, nr, uv, idx = (npz[nm + '__' + k] for k in ('pos', 'nrm', 'uv', 'idx'))
         vp = add_view(pos.astype('<f4').tobytes(), 34962)
@@ -257,11 +332,14 @@ def main():
             'NORMAL': add_acc(vn, 5126, len(pos), 'VEC3'),
             'TEXCOORD_0': add_acc(vu, 5126, len(pos), 'VEC2')}
         prim0['indices'] = ia
-        mesh['primitives'] = [prim0]
+        mesh['primitives'] = [prim0] + glassy
     mat_idx.discard(None)
-    if len(mat_idx) != 1:
-        raise SystemExit('materials differ across baked meshes: %s' % mat_idx)
-    mat = j['materials'][mat_idx.pop()]
+    keep_mat = min(mat_idx)
+    for nm in names:
+        if nm in node_of:
+            for p in j['meshes'][node_of[nm]['mesh']]['primitives'][:1]:
+                p['material'] = keep_mat
+    mat = j['materials'][keep_mat]
     imgs = []
     for data, mime in ((enc(albu, 'JPEG', quality=ALB_Q, subsampling=0), 'image/jpeg'), (enc(orm, 'JPEG', quality=ORM_Q, subsampling=0), 'image/jpeg'), (enc(nrm, 'PNG', optimize=True), 'image/png')):
         v = add_view(data)

@@ -10,3 +10,5 @@ for n in "$@"; do
 	AW_MODE=${AW_MODE:-orig} blender -b -P "$here/tools/tex_bake.py" -- "$srcd/$n.glb" "$work/$n" "$size" "$samples" > "$work/$n.bake.log" 2>&1 || { echo "BAKE FAILED $n"; tail -5 "$work/$n.bake.log"; continue; }
 	"$py" -I "$here/tools/tex_gen.py" "$srcd/$n.glb" "$work/$n" "$here/addons/arena_weapons/assets/models/$n.glb" ${AW_DEBUG:+--debug}
 done
+# Sizes used for the shipped set: 512 for derringer knife knife_ph pistol pistol_ph revolver, 1024 for the rest (tex_gen resamples the bake).
+# blender needs numpy: add a site-packages dir with --python-expr "import sys; sys.path.append(...)" if its python lacks it.
