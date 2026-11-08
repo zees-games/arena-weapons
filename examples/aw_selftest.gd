@@ -5,7 +5,7 @@ extends Node
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 239
+const CHECKS := 245
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -26,6 +26,7 @@ func _ready() -> void:
 	_own_sights()
 	await _floor_clip()
 	await _shot_fx_pool()
+	await _previews()
 	_grenades()
 	_utility()
 	await _finish()
@@ -652,6 +653,52 @@ func _aabb(n: Node, parent: Transform3D) -> AABB:
 		out = b if first else out.merge(b)
 		first = false
 	return out
+
+
+## The menu pictures: warm() draws them a frame each through one viewport (a viewport apiece headless, which has no pixels to read back), and a
+## cached id costs nothing after. Pressing B used to make 27 MSAA viewports at once.
+func _previews() -> void:
+	_begin("weapon previews, warmed through one viewport")
+	# Six of the pack's own models, registered as art the way a game does.
+	var ids: Array = []
+	var arts: Array[AwWeaponVisual] = []
+	var rows := AwWeaponArt.weapon_rows("")
+	for role: StringName in rows:
+		if ids.size() < 6 and load(str((rows[role] as Dictionary)["model"])) is PackedScene:
+			var art := AwWeaponVisual.new()
+			art.id = StringName("preview_" + str(role))
+			art.model_path = str((rows[role] as Dictionary)["model"])
+			arts.append(art)
+			ids.append(art.id)
+	AwWeaponArtTable.add_source(&"aw_selftest_previews", func() -> Array[AwWeaponVisual]: return arts)
+	var previews := AwWeaponPreview.new()
+	add_child(previews)
+	var done := [0]
+	var _c := previews.warmed.connect(func() -> void: done[0] += 1)
+	previews.warm(ids)
+	_check("the warm-up is spread over frames, not done in the call (%d ids)" % ids.size(), previews.is_warming() and previews.cached_count() == 0)
+	var frames := 0
+	while done[0] == 0 and frames < 600:
+		await get_tree().process_frame
+		frames += 1
+	var headless := DisplayServer.get_name() == "headless"
+	_check("every id has a picture after %d frames" % frames, previews.cached_count() == ids.size() and not previews.is_warming())
+	var drawn := true
+	for id: Variant in ids:
+		drawn = drawn and previews.texture(StringName(id)) != null
+	_check("and each is a texture", drawn)
+	_check("one viewport for all of them on a display, one each headless (%d made)" % previews.ports_made(), previews.ports_made() == (ids.size() if headless else 1))
+	var made := previews.ports_made()
+	previews.warm(ids)
+	_check("warming the same ids again does nothing", done[0] == 2 and previews.ports_made() == made and not previews.is_warming())
+	await get_tree().process_frame
+	var again := 0
+	for child in previews.get_children():
+		again += 1 if child is SubViewport else 0
+	_check("the shared viewport is gone once done (%d left)" % again, again == (ids.size() if headless else 0))
+	previews.queue_free()
+	AwWeaponArtTable.remove_source(&"aw_selftest_previews")
+	_end()
 
 
 func _begin(name: String) -> void:
