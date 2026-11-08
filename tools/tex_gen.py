@@ -101,6 +101,12 @@ def gray(name, size):
 
 # ---------------------------------------------------------------- the surfaces
 # classes: 0 metal, 1 polymer, 2 wood, 3 brass, 4 coat (painted / cerakote, keeps the artist's colour)
+# a part (the baked node's pass index, nodes sorted by name) that is fabric wrap, not whatever its painted colour classifies as
+CLOTH_PARTS = {'sniper_ph': 5}
+# glowing parts: hue range (0..1) of the painted colour that lights up; those texels become emission
+GLOW_HUE = {'plasma_rifle': (0.22, 0.48), 'rail_rifle': (0.02, 0.13)}
+# stray geometry that sits in the wrong place in the source (a lens ring floating under the sniper's receiver)
+DROP_GLASS = {'sniper_ph'}
 WOOD_MODELS = {'derringer', 'rifle', 'pump_shotgun', 'battle_rifle', 'revolver', 'pistol_ph', 'sniper_ph', 'knife', 'knife_ph', 'rocket_launcher', 'rocket_launcher_alt', 'carbine', 'smg'}
 
 
@@ -144,8 +150,9 @@ def lum(a):
 
 # metal finishes: linear base colour, roughness, how much the wear reveals bare steel
 #            blued              parkerized         satin steel        black anodised     gunmetal
-FIN_ALB = np.array([[0.065, 0.075, 0.100], [0.165, 0.175, 0.160], [0.30, 0.305, 0.31], [0.050, 0.052, 0.058], [0.22, 0.225, 0.235]], np.float32)
-FIN_ROU = np.array([0.40, 0.62, 0.42, 0.50, 0.46], np.float32)
+# Neutral to warm greys, never blue: a metal texel reflects the sky tinted by its own colour, so a bluish albedo read as an icy cast under any sky.
+FIN_ALB = np.array([[0.090, 0.088, 0.094], [0.215, 0.205, 0.180], [0.440, 0.430, 0.415], [0.078, 0.078, 0.082], [0.320, 0.310, 0.295]], np.float32)
+FIN_ROU = np.array([0.46, 0.68, 0.50, 0.56, 0.54], np.float32)
 FIN_WEAR = np.array([0.95, 0.80, 0.25, 0.75, 0.55], np.float32)
 FIN_PICK = [0, 0, 0, 0, 1, 1, 1, 2, 3, 4]
 
@@ -164,6 +171,28 @@ def build(name, size, rng):
     W = classify(a, os.path.basename(name).replace('.glb', '') in WOOD_MODELS)
     wm, wp, ww, wb, wc = W
     L = lum(a)
+    mname = os.path.basename(name).replace('.glb', '')
+    part = part_map(size)
+    seed = sum(map(ord, name))
+    cloth = np.zeros((size, size), np.float32)
+    if mname in CLOTH_PARTS:
+        cloth = blur((part == CLOTH_PARTS[mname]).astype(np.float32) * (cover.astype(np.float32)), 0.7 * k)
+        W = W * (1 - cloth[None])
+        wm, wp, ww, wb, wc = W
+    glow = np.zeros((size, size), np.float32)
+    ecol = np.zeros((size, size, 3), np.float32)
+    if mname in GLOW_HUE:
+        lo, hi = GLOW_HUE[mname]
+        af2 = np.stack([blur(a[..., i], 0.6 * k) for i in range(3)], 2)
+        mx2, mn2 = af2.max(2), af2.min(2)
+        sat2 = (mx2 - mn2) / np.maximum(mx2, 1e-3)
+        d2 = np.maximum(mx2 - mn2, 1e-4)
+        r2, g2, b2 = af2[..., 0], af2[..., 1], af2[..., 2]
+        hue2 = np.where(mx2 == r2, ((g2 - b2) / d2) % 6, np.where(mx2 == g2, (b2 - r2) / d2 + 2, (r2 - g2) / d2 + 4)) / 6.0
+        hit = (hue2 > lo) & (hue2 < hi) & (sat2 > 0.5) & (mx2 > 0.4) & cover
+        glow = blur(hit.astype(np.float32), 0.7 * k)
+        glow = np.clip(glow * 1.15, 0, 1)
+        ecol = np.clip(af2 / np.maximum(mx2, 1e-3)[..., None], 0, 1)
     # fine detail the old painted albedo carried (magazine ribs, panel lines, grip checkering): high-pass -> height + cavity
     hp = blur(L, 0.9 * k) - blur(L, 4.5 * k)
     det = np.clip(hp / 0.12, -1, 1)
@@ -180,8 +209,6 @@ def build(name, size, rng):
     handling = sstep(low + (mid - 0.5) * 0.4, 0.72, 0.92) * (0.4 + 0.6 * ao_small)
     edgew = sstep(edge * 1.25 + (wn - 0.5) * 0.9, 0.55, 0.9)
     # ---- metal: a finish per part (blued / parkerized / satin / anodised / gunmetal), each with its own wear
-    part = part_map(size)
-    seed = sum(map(ord, name))
     fin_of = np.zeros(40, np.int32)
     Lm = blur(L, 2 * k)
     for i in range(40):
@@ -198,18 +225,20 @@ def build(name, size, rng):
             fin_of[i] = [2, 4, 2, 1, 4, 2, 2, 4, 1, 2][r]
     fin = fin_of[np.clip(part, 0, 39)]
     base = FIN_ALB[fin]
-    tone = (0.78 + 0.45 * low + (mid - 0.5) * 0.30)[..., None]
-    plum = (low > 0.55)[..., None] * np.array([0.03, 0.0, -0.03], np.float32)  # thin-film shift on blued parts
+    # broad tonal patches (oil, handling, light rust bloom) plus brushed streaks, so a part is never one flat dark value
+    tone = (0.62 + 0.80 * low + (mid - 0.5) * 0.55)[..., None]
+    plum = (low > 0.55)[..., None] * np.array([0.03, 0.006, -0.02], np.float32)  # warm straw / plum shift on blued parts
     brush = fbm(size, rng, max(8, size // 2), 5, octaves=3)
-    m_alb = (base + plum * (fin == 0)[..., None]) * tone * (0.9 + 0.2 * brush[..., None] * (fin == 2)[..., None] + 0.1 * (fine[..., None] - 0.5))
+    m_alb = (base + plum * (fin == 0)[..., None]) * tone * (0.88 + 0.30 * (brush[..., None] - 0.5) * (0.5 + 0.5 * (fin == 2)[..., None]) + 0.12 * (fine[..., None] - 0.5))
     wear_amt = FIN_WEAR[fin]
     bare = np.clip((edgew * 0.95 + handling * 0.5 + scr * 0.45 * (0.5 + low) + ridge * 0.25 + pits * 0.1) * wear_amt, 0, 1)
-    steel = np.array([0.50, 0.505, 0.52], np.float32)[None, None, :] * (0.7 + 0.4 * mid[..., None])
+    steel = np.array([0.56, 0.545, 0.525], np.float32)[None, None, :] * (0.7 + 0.4 * mid[..., None])
     m_alb = lerp(m_alb, steel, bare[..., None])
     m_alb = m_alb * (1 - 0.55 * dirt[..., None]) * (1 - 0.35 * groove[..., None])
     m_rough = FIN_ROU[fin] + (mid - 0.5) * 0.22 + (fine - 0.5) * 0.08 + (low - 0.5) * 0.1
     m_rough = lerp(m_rough, 0.26 + 0.14 * mid, bare) + dirt * 0.18 + groove * 0.1
-    m_met = np.clip(1.0 - dirt * 0.4 - groove * 0.2, 0, 1)
+    # not a perfect mirror: oil / grime patches are dielectric, so some diffuse albedo always shows and the sky does not own the colour
+    m_met = np.clip(0.93 - dirt * 0.5 - groove * 0.3 - 0.25 * sstep(low, 0.5, 0.8) * (1 - bare), 0, 1)
     m_h = (fine - 0.5) * 0.04 + (low - 0.5) * 0.15 - pits * 0.08 - scr * 0.15 + det * 0.22 - bare * 0.1 + (brush - 0.5) * 0.06 * (fin == 2)
     # ---- polymer: grey-black, pebble stipple, lighter where handled
     cell = voronoi_cells(size, rng, 4.2 * k)
@@ -221,23 +250,30 @@ def build(name, size, rng):
     p_rough = np.clip(0.62 + 0.16 * (fine - 0.5) + 0.15 * (low - 0.5) - p_wear * 0.2 - stip * 0.08, 0, 1)
     p_h = stip * 0.30 + (fine - 0.5) * 0.06 + (low - 0.5) * 0.08 + det * 0.3 - scr * 0.15 - edgew * 0.15
     # ---- wood: warm figured grain (rings along V, pores, mid-tone from the old paint), satin lacquer, worn raw at edges
-    warp = fbm(size, rng, 6, 3, octaves=3) * 5.0
+    # grain: long irregular streaks (not a regular sine, that read as stripes), wavy cathedral rings of changing pitch, low contrast;
+    # a palette per part (walnut / dark walnut / beech) so the stock and the handguard are not one colour
+    warp = fbm(size, rng, 4, 3, octaves=4) * 9.0
+    pitch = 8.0 + 7.0 * fbm(size, rng, 3, 3, octaves=2)
     cols = np.arange(size, dtype=np.float32)[None, :]
-    rings = 0.5 + 0.5 * np.sin(2 * np.pi * (cols / (9.0 * k) + warp))
-    ring2 = 0.5 + 0.5 * np.sin(2 * np.pi * (cols / (3.3 * k) + warp * 1.7 + 0.3))
-    streak = fbm(size, rng, int(size / 2.5), 5, octaves=3)
+    rings = 0.5 + 0.5 * np.sin(2 * np.pi * (cols / (pitch * k) + warp))
+    streak = fbm(size, rng, int(size / 2.5), 4, octaves=4)
+    fibre = fbm(size, rng, int(size / 1.2), 24, octaves=2)
     pore = fbm(size, rng, int(size / 1.5), 12, octaves=2)
-    g = np.clip(0.26 * rings ** 1.5 + 0.12 * ring2 + 0.62 * streak, 0, 1)
-    dk = np.array([0.065, 0.024, 0.009], np.float32)
-    lt = np.array([0.34, 0.185, 0.085], np.float32)
-    tint = np.clip(blur(L, 6 * k) / 0.45, 0.55, 1.5)[..., None]
-    w_alb = lerp(dk[None, None, :], lt[None, None, :], g[..., None]) * (0.78 + 0.45 * low[..., None]) * tint ** 0.8
-    w_alb = w_alb * (1 - 0.35 * pore[..., None] * (g[..., None] < 0.5))
+    g = np.clip(0.5 + (0.30 * (rings - 0.5) ** 1 + 0.55 * (streak - 0.5) + 0.20 * (fibre - 0.5)), 0, 1)
+    pal = np.array([[[0.050, 0.030, 0.020], [0.215, 0.130, 0.078]], [[0.030, 0.020, 0.015], [0.130, 0.080, 0.052]], [[0.135, 0.092, 0.058], [0.340, 0.245, 0.155]]], np.float32)
+    wsel = np.zeros((size, size), np.int32)
+    for i in range(1, 40):
+        wsel[part == i] = (i * 5 + seed) % 3
+    dk = pal[:, 0, :][wsel]
+    lt = pal[:, 1, :][wsel]
+    tint = np.clip(blur(L, 6 * k) / 0.45, 0.65, 1.4)[..., None]
+    w_alb = lerp(dk, lt, g[..., None]) * (0.78 + 0.45 * low[..., None]) * tint ** 0.6
+    w_alb = w_alb * (1 - 0.30 * pore[..., None] * (g[..., None] < 0.5))
     wraw = np.clip(edgew * 0.9 + scr * 0.5, 0, 1)
-    w_alb = lerp(w_alb, np.array([0.42, 0.25, 0.12], np.float32)[None, None, :] * (0.8 + 0.3 * streak[..., None]), wraw[..., None] * 0.65)
+    w_alb = lerp(w_alb, np.array([0.30, 0.205, 0.125], np.float32)[None, None, :] * (0.8 + 0.3 * streak[..., None]), wraw[..., None] * 0.6)
     w_alb = w_alb * (1 - 0.6 * dirt[..., None]) * (1 - 0.4 * groove[..., None])
     w_rough = np.clip(0.34 + 0.22 * (1 - g) + 0.12 * fine + wraw * 0.28 + dirt * 0.2, 0, 1)
-    w_h = (g - 0.5) * 0.30 + (streak - 0.5) * 0.18 - pore * 0.1 - edgew * 0.2 - scr * 0.3 + det * 0.2
+    w_h = (g - 0.5) * 0.20 + (streak - 0.5) * 0.12 - pore * 0.1 - edgew * 0.2 - scr * 0.3 + det * 0.2
     # ---- brass
     b_alb = np.array([0.55, 0.33, 0.085], np.float32)[None, None, :] * (0.65 + 0.6 * low[..., None]) * (1 - 0.5 * dirt[..., None])
     b_rough = np.clip(0.26 + 0.25 * mid + dirt * 0.25, 0, 1)
@@ -252,16 +288,33 @@ def build(name, size, rng):
     c_rough = np.clip(0.55 + 0.2 * (mid - 0.5) + 0.1 * fine - chip * 0.25 + dirt * 0.1, 0, 1)
     c_met = chip * 0.95
     c_h = (fine - 0.5) * 0.15 + (low - 0.5) * 0.1 + det * 0.25 - chip * 0.15 - scr * 0.2
+    # ---- cloth wrap: woven olive-khaki tape, matte, low contrast (the source's stripes were a UV accident)
+    wu = np.arange(size, dtype=np.float32)[None, :]
+    wv = np.arange(size, dtype=np.float32)[:, None]
+    weave = (0.5 + 0.5 * np.sin(2 * np.pi * wu / (2.6 * k))) * (0.5 + 0.5 * np.sin(2 * np.pi * wv / (2.6 * k)))
+    thread = fbm(size, rng, size // 2, size // 6, octaves=2)
+    cl_alb = np.array([0.135, 0.115, 0.070], np.float32)[None, None, :] * (0.72 + 0.5 * low[..., None]) * (0.86 + 0.28 * weave[..., None]) * (0.92 + 0.16 * thread[..., None])
+    cl_alb = cl_alb * (1 - 0.5 * dirt[..., None]) * (1 - 0.3 * edgew[..., None])
+    cl_rough = np.clip(0.86 + 0.1 * (fine - 0.5), 0, 1)
+    cl_h = (weave - 0.5) * 0.35 + (thread - 0.5) * 0.12 - dirt * 0.05
+    # ---- glow parts (cells of the plasma rifle, rail strips): a dark glassy housing with the light coming from inside
+    ge = glow[..., None]
     # ---- blend by class weight
     wr = lambda w: w[..., None]
-    alb = wr(wm) * m_alb + wr(wp) * p_alb + wr(ww) * w_alb + wr(wb) * b_alb + wr(wc) * c_alb
+    alb = wr(wm) * m_alb + wr(wp) * p_alb + wr(ww) * w_alb + wr(wb) * b_alb + wr(wc) * c_alb + cloth[..., None] * cl_alb
     alb = alb * (0.55 + 0.45 * ao_small[..., None]) * (0.8 + 0.2 * ao_big[..., None])
-    rough = wm * m_rough + wp * p_rough + ww * w_rough + wb * b_rough + wc * c_rough
+    rough = wm * m_rough + wp * p_rough + ww * w_rough + wb * b_rough + wc * c_rough + cloth * cl_rough
     metal = wm * m_met + wb * 1.0 + wc * c_met
-    h = wm * m_h + wp * p_h + ww * w_h + wb * b_h + wc * c_h
+    h = wm * m_h + wp * p_h + ww * w_h + wb * b_h + wc * c_h + cloth * cl_h
+    alb = lerp(alb, alb * 0.25, ge)
+    rough = lerp(rough, 0.28 + 0.1 * fine, glow)
+    metal = lerp(metal, 0.0, glow)
+    h = lerp(h, 0.1 + (fine - 0.5) * 0.04, glow)
+    emis = ecol * glow[..., None] * (0.82 + 0.3 * fine[..., None] + 0.25 * sstep(blur(glow, 2.5 * k), 0.5, 0.95)[..., None])
+    emis = np.clip(emis + 0.30 * sstep(blur(glow, 2.5 * k), 0.6, 1.0)[..., None] * glow[..., None], 0, 1)
     h = h - edge * 1.4 - groove * 0.25
     occl = np.clip(0.2 + 0.8 * (ao_small * 0.6 + ao_big * 0.4), 0, 1) * (1 - 0.35 * groove)
-    return alb, rough, metal, occl, h, cover, W
+    return alb, rough, metal, occl, h, cover, W, emis, float(glow.max())
 
 
 def fill_outside(arr, cover, size):
@@ -278,7 +331,7 @@ def main():
         if a.startswith('--size'):
             size = int(a.split('=')[1])
     rng = np.random.default_rng(sum(map(ord, os.path.basename(src))))
-    alb, rough, metal, occl, h, cover, W = build(os.path.basename(src), size, rng)
+    alb, rough, metal, occl, h, cover, W, emis, glowmax = build(os.path.basename(src), size, rng)
     # normal: strength in "pixels of height" so the look is independent of the texture size
     n = height_to_normal(h * (size / 1024.0) * float(KW.get('nstr', 1.0)), 1.0)
     nrm = ((n * 0.5 + 0.5) * 255 + 0.5).astype(np.uint8)
@@ -332,7 +385,7 @@ def main():
             'NORMAL': add_acc(vn, 5126, len(pos), 'VEC3'),
             'TEXCOORD_0': add_acc(vu, 5126, len(pos), 'VEC2')}
         prim0['indices'] = ia
-        mesh['primitives'] = [prim0] + glassy
+        mesh['primitives'] = [prim0] + ([] if os.path.basename(src).replace('.glb', '') in DROP_GLASS else glassy)
     mat_idx.discard(None)
     keep_mat = min(mat_idx)
     for nm in names:
@@ -341,7 +394,11 @@ def main():
                 p['material'] = keep_mat
     mat = j['materials'][keep_mat]
     imgs = []
-    for data, mime in ((enc(albu, 'JPEG', quality=ALB_Q, subsampling=0), 'image/jpeg'), (enc(orm, 'JPEG', quality=ORM_Q, subsampling=0), 'image/jpeg'), (enc(nrm, 'PNG', optimize=True), 'image/png')):
+    emu = (np.clip(emis, 0, 1) * 255 + 0.5).astype(np.uint8)
+    pics = [(enc(albu, 'JPEG', quality=ALB_Q, subsampling=0), 'image/jpeg'), (enc(orm, 'JPEG', quality=ORM_Q, subsampling=0), 'image/jpeg'), (enc(nrm, 'PNG', optimize=True), 'image/png')]
+    if glowmax > 0.05:
+        pics.append((enc(emu, 'JPEG', quality=88, subsampling=0), 'image/jpeg'))
+    for data, mime in pics:
         v = add_view(data)
         j['images'].append({'bufferView': v, 'mimeType': mime})
         j['textures'].append({'source': len(j['images']) - 1, 'sampler': 0})
@@ -352,6 +409,16 @@ def main():
     mat['normalTexture'] = {'index': imgs[2], 'scale': 1.0}
     mat.pop('emissiveTexture', None)
     mat.pop('emissiveFactor', None)
+    if glowmax > 0.05:
+        mat['emissiveTexture'] = {'index': imgs[3]}
+        mat['emissiveFactor'] = [1.0, 1.0, 1.0]
+        mat.setdefault('extensions', {})['KHR_materials_emissive_strength'] = {'emissiveStrength': float(KW.get('estr', 2.2))}
+        if 'KHR_materials_emissive_strength' not in j.setdefault('extensionsUsed', []):
+            j['extensionsUsed'].append('KHR_materials_emissive_strength')
+    for mi, om in enumerate(j['materials']):
+        if om is not mat:  # leftover source materials (scope glass etc.) must not keep the old textures alive
+            om.pop('normalTexture', None); om.pop('occlusionTexture', None); om.pop('emissiveTexture', None)
+            om.get('pbrMetallicRoughness', {}).pop('baseColorTexture', None); om.get('pbrMetallicRoughness', {}).pop('metallicRoughnessTexture', None)
     mat['extras'] = {'aw_detail': 'own procedural PBR (tools/tex_bake.py + tex_gen.py), CC0'}
     compact(j, binb)
     write_glb(dst, j, binb)
