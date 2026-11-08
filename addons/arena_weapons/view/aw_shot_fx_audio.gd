@@ -57,6 +57,14 @@ func play_reload(stage: StringName, at: Vector3, weapon_id: StringName = &"") ->
 	_play(AwWeaponSound.reload_stream(weapon_id, stage), at, -4.0)
 
 
+## One handling sound of a reload ([param cue] is a name from AwReloadCues, stock cue_NAME_N) at [param at]; [param db] is its
+## level in the plan. A cue with no stock file is silent.
+func play_cue(cue: StringName, at: Vector3, db: float = 0.0) -> void:
+	if not sounds or not is_inside_tree():
+		return
+	_play(DotWeaponSound.pick(StringName("cue_%s" % cue), randi()), at, db - 4.0)
+
+
 ## The selector switch of weapon [param weapon_id] at [param at]; the click differs per gun class.
 func play_mode_click(at: Vector3, weapon_id: StringName) -> void:
 	if not sounds or not is_inside_tree():
