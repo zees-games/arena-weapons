@@ -5,7 +5,7 @@ extends Node
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 257
+const CHECKS := 260
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -26,6 +26,7 @@ func _ready() -> void:
 	_defs()
 	_dress()
 	_own_sights()
+	_scope_hides_gun()
 	_reload_cues()
 	await _floor_clip()
 	await _shot_fx_pool()
@@ -333,6 +334,33 @@ func _unstyled() -> Array[String]:
 		if row["motion"] == "gun" and not style in ["magazine", "pistol", "revolver", "tube", "bolt", "belt", "launcher", "cell"]:
 			out.append(String(role))
 	return out
+
+
+func _scope_hides_gun() -> void:
+	_begin("scoped gun model hidden once the scope picture is up")
+	var view := AwViewModel.new()
+	view.show_arms = false
+	add_child(view)
+	var row: Dictionary = AwWeaponArt.weapon_rows("")[&"sniper"]
+	var art := AwWeaponVisual.make(&"sniper")
+	AwArtDress.apply(art, row)
+	view.equip(art)
+	view._process(0.02)
+	_check("hip: gun drawn, no scope picture", view._animated.visible and not view.scope_picture_up())
+	view.aim(true)
+	var hid_early := false
+	var shown_late := false
+	for _i in 80:
+		view._process(0.02)
+		var up := view.scope_picture_up()
+		if up and view._animated.visible:
+			hid_early = true
+		if not up and not view._animated.visible and not view.is_scoped():
+			shown_late = true
+	_check("gun never drawn while the scope picture is half up", not hid_early)
+	_check("gun not hidden before the picture is half up", not shown_late)
+	view.queue_free()
+	_end()
 
 
 func _own_sights() -> void:
