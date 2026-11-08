@@ -102,6 +102,10 @@ static func vertical_from_horizontal_4_3(horizontal: float) -> float:
 	return DotViewLens.vertical_from_horizontal_4_3(horizontal)
 
 
+## The see-through scope lens of a scoped weapon at the hip; null when there is none (headless, off, no lens in the art).
+var _pip: AwScopePip
+
+
 func _init() -> void:
 	add_to_group(&"dot_view_model")
 
@@ -253,6 +257,7 @@ func equip(art: AwWeaponVisual) -> DotResult:
 	_muzzle = _measure_muzzle(art)
 	_build_belt(art)
 	_fit_sight(art)
+	_build_scope_pip(art)
 
 	if art.has_magazine():
 		if art.magazine_path != "":
@@ -618,8 +623,27 @@ func advance(delta: float) -> void:
 	# a game's own arms (arms_ref) may live anywhere, so they are hidden by name too.
 	var scoped := is_scoped()
 	_animated.visible = not scoped
+	_advance_scope_pip(delta, scoped)
 	if _arms != null:
 		_arms.visible = not (scoped or arms_hidden_by_scope())
+
+
+## Builds the see-through lens of a scoped weapon's scope (see [AwScopePip]); nothing headless, with the setting off or without a lens in the art.
+func _build_scope_pip(art: AwWeaponVisual) -> void:
+	if _pip != null:
+		_pip.queue_free()
+		_pip = null
+	if art.aim_scoped and not art.scope_lens.is_empty():
+		_pip = AwScopePip.create(art.scope_lens, view_layer, art.aim_zoom)
+		if _pip != null:
+			_holder.add_child(_pip)
+
+
+func _advance_scope_pip(delta: float, scoped: bool) -> void:
+	if _pip == null:
+		return
+	var reloading := _reload_fraction > 0.0 and _reload_fraction < 1.0
+	_pip.tick(delta, get_parent() as Camera3D, not scoped and _sprint < 0.3 and not reloading and visible, _aim_fraction)
 
 
 ## The scale that draws the hands at [member hands_fov]. See there.
@@ -1016,6 +1040,9 @@ func _clear_models() -> void:
 	_sight_line = {}
 	_dressed = {}
 	_fitting = null
+	if _pip != null:
+		_pip.queue_free()
+		_pip = null
 
 	for node in _attachments:
 		node.queue_free()

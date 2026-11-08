@@ -5,7 +5,7 @@ extends Node
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 252
+const CHECKS := 256
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -24,6 +24,7 @@ func _ready() -> void:
 	_defs()
 	_dress()
 	_own_sights()
+	_scope_pip()
 	await _floor_clip()
 	await _shot_fx_pool()
 	await _previews()
@@ -252,6 +253,33 @@ func _unstyled() -> Array[String]:
 		if row["motion"] == "gun" and not style in ["magazine", "pistol", "revolver", "tube", "bolt", "belt", "launcher", "cell"]:
 			out.append(String(role))
 	return out
+
+
+## A scoped weapon's see-through lens (AwScopePip) is a render target and a second camera: it must never exist
+## headless (a server, a test run), whatever the setting says, and the art must still carry its lens data.
+func _scope_pip() -> void:
+	_begin("scope picture-in-picture")
+	var view := AwViewModel.new()
+	view.show_arms = false
+	add_child(view)
+	var lensed := 0
+	var rows := AwWeaponArt.weapon_rows("")
+	for role: StringName in [&"marksman", &"sniper", &"charge_rifle"]:
+		var art := AwWeaponVisual.make(role)
+		AwArtDress.apply(art, rows[role])
+		if not art.scope_lens.is_empty() and art.scope_lens.has("pos") and float(art.scope_lens.get("radius", 0.0)) > 0.0:
+			lensed += 1
+		view.equip(art)
+		for _i in 5:
+			view._process(0.02)
+	_check("every scoped weapon states its lens (%d of 3)" % lensed, lensed == 3)
+	_check("headless builds no scope lens", DisplayServer.get_name() != "headless" or AwScopePip.create({"pos": Vector3.ZERO, "radius": 0.02}, 20, 0.3) == null)
+	_check("headless has no SubViewport under the view model", DisplayServer.get_name() != "headless" or view.find_children("*", "SubViewport", true, false).is_empty())
+	AwScopePip.enabled = false
+	_check("the setting off builds no lens", AwScopePip.create({"pos": Vector3.ZERO, "radius": 0.02}, 20, 0.3) == null)
+	AwScopePip.enabled = true
+	view.queue_free()
+	_end()
 
 
 func _own_sights() -> void:

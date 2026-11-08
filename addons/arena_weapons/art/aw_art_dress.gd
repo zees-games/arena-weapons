@@ -65,6 +65,7 @@ static func apply(art: AwWeaponVisual, row: Dictionary) -> void:
 		art.aim_zoom = float(view["zoom"])
 
 	art.aim_scoped = bool(view.get("scoped", false))
+	art.scope_lens = view.get("lens", {})
 
 
 ## A melee or thrown row's own hip hold (`hold`, `rot`, `scale`), over the stand-in's shared one; a row without them keeps the stand-in's.

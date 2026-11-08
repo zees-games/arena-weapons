@@ -94,6 +94,9 @@ extends Resource
 ## over the screen ([AwScopeOverlay]). For the long-range weapons.
 @export var aim_scoped: bool = false
 
+## The scope's lens for the hip see-through picture (see [AwScopePip]): `{"pos": Vector3, "radius": float}` in the model's space. Empty draws none.
+@export var scope_lens: Dictionary = {}
+
 ## AwScopeOverlay properties this weapon sets over the default look (`{"glass_tint": Color(...), "mil_ticks": false}`).
 @export var scope_style: Dictionary = {}
 
