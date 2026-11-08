@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cfle7bd58drhl"
-path="res://.godot/imported/battle_rifle_2.png-d3e0f0a89823c09637bd98e801daceb9.ctex"
+path.s3tc="res://.godot/imported/battle_rifle_2.png-d3e0f0a89823c09637bd98e801daceb9.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "7e47c9b2a5adae6f2acb616c295941b1"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/battle_rifle_2.png"
-dest_files=["res://.godot/imported/battle_rifle_2.png-d3e0f0a89823c09637bd98e801daceb9.ctex"]
+dest_files=["res://.godot/imported/battle_rifle_2.png-d3e0f0a89823c09637bd98e801daceb9.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

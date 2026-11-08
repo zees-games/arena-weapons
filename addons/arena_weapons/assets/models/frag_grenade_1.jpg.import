@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dosa8lshaty27"
-path="res://.godot/imported/frag_grenade_1.jpg-49a02b7ca89d064d3ed00662496c49f0.ctex"
+path.s3tc="res://.godot/imported/frag_grenade_1.jpg-49a02b7ca89d064d3ed00662496c49f0.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "c868be5f6b9f632bbbdd792ff44a1662"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/frag_grenade_1.jpg"
-dest_files=["res://.godot/imported/frag_grenade_1.jpg-49a02b7ca89d064d3ed00662496c49f0.ctex"]
+dest_files=["res://.godot/imported/frag_grenade_1.jpg-49a02b7ca89d064d3ed00662496c49f0.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

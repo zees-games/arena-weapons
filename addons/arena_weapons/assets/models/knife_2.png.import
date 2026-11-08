@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dgf76spblfqa1"
-path="res://.godot/imported/knife_2.png-f1c0af6bbdc57a548b90a3eef6bb9386.ctex"
+path.s3tc="res://.godot/imported/knife_2.png-f1c0af6bbdc57a548b90a3eef6bb9386.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "cda1c6dcc57ee7a47bad17397082ba41"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/knife_2.png"
-dest_files=["res://.godot/imported/knife_2.png-f1c0af6bbdc57a548b90a3eef6bb9386.ctex"]
+dest_files=["res://.godot/imported/knife_2.png-f1c0af6bbdc57a548b90a3eef6bb9386.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

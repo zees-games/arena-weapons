@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c4ld4gf8d13ro"
-path="res://.godot/imported/pump_shotgun_shotgunfinal_color.png-c1fc7cde9137b49331cb04a79ec887d3.ctex"
+path.s3tc="res://.godot/imported/pump_shotgun_shotgunfinal_color.png-c1fc7cde9137b49331cb04a79ec887d3.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "bf3f2c7b12afbc5f21361ee2d0268b97"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/pump_shotgun_shotgunfinal_color.png"
-dest_files=["res://.godot/imported/pump_shotgun_shotgunfinal_color.png-c1fc7cde9137b49331cb04a79ec887d3.ctex"]
+dest_files=["res://.godot/imported/pump_shotgun_shotgunfinal_color.png-c1fc7cde9137b49331cb04a79ec887d3.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

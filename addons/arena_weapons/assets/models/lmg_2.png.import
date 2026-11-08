@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://8fkuqo6mfs0p"
-path="res://.godot/imported/lmg_2.png-9b2f2921826775c9cd691d5934b66ba8.ctex"
+path.s3tc="res://.godot/imported/lmg_2.png-9b2f2921826775c9cd691d5934b66ba8.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "9a4fb5055da16f4ddedb556c8f94e64c"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/lmg_2.png"
-dest_files=["res://.godot/imported/lmg_2.png-9b2f2921826775c9cd691d5934b66ba8.ctex"]
+dest_files=["res://.godot/imported/lmg_2.png-9b2f2921826775c9cd691d5934b66ba8.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

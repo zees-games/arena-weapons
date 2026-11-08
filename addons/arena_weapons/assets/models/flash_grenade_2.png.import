@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dt8tdp6hiofu"
-path="res://.godot/imported/flash_grenade_2.png-7bd3b8a42c21ddc927207fbf7dbde24c.ctex"
+path.s3tc="res://.godot/imported/flash_grenade_2.png-7bd3b8a42c21ddc927207fbf7dbde24c.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "3c15bddb68655c2b9cd759d5976c927b"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/flash_grenade_2.png"
-dest_files=["res://.godot/imported/flash_grenade_2.png-7bd3b8a42c21ddc927207fbf7dbde24c.ctex"]
+dest_files=["res://.godot/imported/flash_grenade_2.png-7bd3b8a42c21ddc927207fbf7dbde24c.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

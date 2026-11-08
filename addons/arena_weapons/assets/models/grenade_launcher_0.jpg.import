@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cwo0b4goo2vhf"
-path="res://.godot/imported/grenade_launcher_0.jpg-0d6eea6ec0c488777b7838205b891283.ctex"
+path.s3tc="res://.godot/imported/grenade_launcher_0.jpg-0d6eea6ec0c488777b7838205b891283.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "6383d6ec0c53f152d4566c035b66187a"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/grenade_launcher_0.jpg"
-dest_files=["res://.godot/imported/grenade_launcher_0.jpg-0d6eea6ec0c488777b7838205b891283.ctex"]
+dest_files=["res://.godot/imported/grenade_launcher_0.jpg-0d6eea6ec0c488777b7838205b891283.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

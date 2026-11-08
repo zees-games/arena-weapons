@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://87y262ettuer"
-path="res://.godot/imported/smoke_grenade_0.jpg-6fc0f946ebffeb07d257c6292253e56e.ctex"
+path.s3tc="res://.godot/imported/smoke_grenade_0.jpg-6fc0f946ebffeb07d257c6292253e56e.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "5011aba0e41771fd512da5e3776bdd6c"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/smoke_grenade_0.jpg"
-dest_files=["res://.godot/imported/smoke_grenade_0.jpg-6fc0f946ebffeb07d257c6292253e56e.ctex"]
+dest_files=["res://.godot/imported/smoke_grenade_0.jpg-6fc0f946ebffeb07d257c6292253e56e.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

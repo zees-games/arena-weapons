@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cd5xxq73dyu6w"
-path="res://.godot/imported/incendiary_grenade_1.jpg-a65f1add4de025e15b42d446834b0d64.ctex"
+path.s3tc="res://.godot/imported/incendiary_grenade_1.jpg-a65f1add4de025e15b42d446834b0d64.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "140fd86b94522f1f29f415ce0cf28f89"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/incendiary_grenade_1.jpg"
-dest_files=["res://.godot/imported/incendiary_grenade_1.jpg-a65f1add4de025e15b42d446834b0d64.ctex"]
+dest_files=["res://.godot/imported/incendiary_grenade_1.jpg-a65f1add4de025e15b42d446834b0d64.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

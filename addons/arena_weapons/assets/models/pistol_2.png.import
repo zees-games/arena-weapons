@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://buxhop3gvffol"
-path="res://.godot/imported/pistol_2.png-88f4aa40152a2483f7936dcc1025c2b2.ctex"
+path.s3tc="res://.godot/imported/pistol_2.png-88f4aa40152a2483f7936dcc1025c2b2.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "94df64cbbb3c4af36c85913590cbf2a3"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/pistol_2.png"
-dest_files=["res://.godot/imported/pistol_2.png-88f4aa40152a2483f7936dcc1025c2b2.ctex"]
+dest_files=["res://.godot/imported/pistol_2.png-88f4aa40152a2483f7936dcc1025c2b2.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dtdd6cc6j1sto"
-path="res://.godot/imported/rail_rifle_0.jpg-165cd532914e6b7d29ee1e41c14aec36.ctex"
+path.s3tc="res://.godot/imported/rail_rifle_0.jpg-165cd532914e6b7d29ee1e41c14aec36.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "ca408c4eea25703aa4126b2f57169aa5"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/rail_rifle_0.jpg"
-dest_files=["res://.godot/imported/rail_rifle_0.jpg-165cd532914e6b7d29ee1e41c14aec36.ctex"]
+dest_files=["res://.godot/imported/rail_rifle_0.jpg-165cd532914e6b7d29ee1e41c14aec36.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

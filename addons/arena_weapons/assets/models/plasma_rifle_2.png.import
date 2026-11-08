@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://qelv68doq5aa"
-path="res://.godot/imported/plasma_rifle_2.png-ff68cd6d652e24776789f01a8c262fd9.ctex"
+path.s3tc="res://.godot/imported/plasma_rifle_2.png-ff68cd6d652e24776789f01a8c262fd9.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "2bcf420246784a6ae3687ed5ef1a8a4d"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/plasma_rifle_2.png"
-dest_files=["res://.godot/imported/plasma_rifle_2.png-ff68cd6d652e24776789f01a8c262fd9.ctex"]
+dest_files=["res://.godot/imported/plasma_rifle_2.png-ff68cd6d652e24776789f01a8c262fd9.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0

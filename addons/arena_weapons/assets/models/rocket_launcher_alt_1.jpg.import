@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://daof4qfjk432u"
-path="res://.godot/imported/rocket_launcher_alt_1.jpg-d7b665b81b7fd4b2be588b431350a5f3.ctex"
+path.s3tc="res://.godot/imported/rocket_launcher_alt_1.jpg-d7b665b81b7fd4b2be588b431350a5f3.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a13e658c4975d2b35524129a7ff0e1df"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/rocket_launcher_alt_1.jpg"
-dest_files=["res://.godot/imported/rocket_launcher_alt_1.jpg-d7b665b81b7fd4b2be588b431350a5f3.ctex"]
+dest_files=["res://.godot/imported/rocket_launcher_alt_1.jpg-d7b665b81b7fd4b2be588b431350a5f3.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

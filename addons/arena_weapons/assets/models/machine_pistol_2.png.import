@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://gh2ad0vmh60x"
-path="res://.godot/imported/machine_pistol_2.png-c8c04827a76eec9dc95ca149105e323d.ctex"
+path.s3tc="res://.godot/imported/machine_pistol_2.png-c8c04827a76eec9dc95ca149105e323d.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "afe8c756337eef88a8e24e1c08682a74"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://addons/arena_weapons/assets/models/machine_pistol_2.png"
-dest_files=["res://.godot/imported/machine_pistol_2.png-c8c04827a76eec9dc95ca149105e323d.ctex"]
+dest_files=["res://.godot/imported/machine_pistol_2.png-c8c04827a76eec9dc95ca149105e323d.s3tc.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.95
 compress/uastc_level=0
