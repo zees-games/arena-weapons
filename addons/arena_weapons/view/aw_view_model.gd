@@ -6,6 +6,7 @@ const ReloadParts := preload("aw_reload_parts.gd")
 const Dress := preload("aw_attachment_dress.gd")
 const HipHold := preload("aw_hip_hold.gd")
 const ReloadProps := preload("aw_reload_props.gd")
+const ReloadCues := preload("aw_reload_cues.gd")
 
 ## The weapon you see in your own hands. Parent it to the camera; it is told what happened (on_used, on_reload_started)
 ## and never reads a device, a clock or the arsenal, so it draws a remote player's gun the same way.
@@ -16,6 +17,10 @@ const CHANNEL := "aw.view"
 ## Emitted once the weapon model for [param id] is in the tree and placed.
 ## For a muzzle flash, laser or scope overlay that cannot be hung before the model exists.
 signal model_ready(id: StringName, weapon: Node3D)
+
+## A handling sound is due: the reload reached the part of the animation that makes it (see AwReloadCues).
+## Emitted once per cue, on the first update at or after its moment, so it is at most one update late.
+signal reload_cue(cue: StringName, db: float)
 
 
 @export_group("Wiring")
@@ -449,10 +454,32 @@ func on_reload(fraction: float) -> void:
 			_end_sequence()
 	_pose.set_reload(_reload_fraction)
 	_animate_magazine(_reload_fraction)
+	_fire_cues(_reload_fraction)
+
+
+## True while a reload plays its handling sounds from the animation: the rig then leaves the two fixed reload sounds out.
+func has_reload_cues() -> bool:
+	return not _cue_plan.is_empty()
+
+
+## The cue plan of the reload playing now (see [method AwReloadCues.plan]).
+func reload_cue_plan() -> Array:
+	return _cue_plan
+
+
+func _fire_cues(f: float) -> void:
+	if _cue_plan.is_empty() or f <= 0.0:
+		return
+	var step: Dictionary = ReloadCues.due(_cue_plan, _cue_next, f)
+	_cue_next = int(step.next)
+	for c: Dictionary in step.due:
+		reload_cue.emit(c.cue, float(c.db))
 
 
 static var _parts_warmed := false
 var _seq_ran := false
+var _cue_plan: Array = []
+var _cue_next := 0
 var _props: ReloadProps = null
 
 
@@ -476,6 +503,8 @@ func on_reload_begin(left: int, magazine: int, start_share: float = 0.0) -> void
 		return
 	_seq = seq
 	_seq_ran = false
+	_cue_plan = ReloadCues.plan(seq)
+	_cue_next = 0
 	_pose.tunables.reload_keys = seq.gun_keys
 	var props := ReloadProps.new()
 	props.name = "ReloadProps"
@@ -516,6 +545,8 @@ func reload_parts_shown(part: StringName = &"") -> int:
 
 func _end_sequence() -> void:
 	_seq = null
+	_cue_plan = []
+	_cue_next = 0
 	_seq_ran = false
 	if _props != null:
 		_props.queue_free()

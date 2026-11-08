@@ -107,6 +107,10 @@ var _bash_ready_tick: int = 0
 ## Tick the current reload started on, and how long one round of it takes. -1 when not
 ## reloading.
 var _reload_started: int = -1
+
+## The running reload plays its sounds from AwReloadCues, not the two fixed ones; and the weapon it is for.
+var _cued_reload := false
+var _cue_weapon: StringName = &""
 var _reload_ticks: int = 0
 
 ## The current weapon's magazine last tick of a per-round reload, to hear each shell go in; -1 otherwise.

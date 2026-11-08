@@ -5,8 +5,10 @@ extends Node
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 252
+const CHECKS := 257
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
+const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
+const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
 const OWN_SIGHTED := 9
 
 var _entered := 0
@@ -24,6 +26,7 @@ func _ready() -> void:
 	_defs()
 	_dress()
 	_own_sights()
+	_reload_cues()
 	await _floor_clip()
 	await _shot_fx_pool()
 	await _previews()
@@ -32,6 +35,84 @@ func _ready() -> void:
 	_glove_cache()
 	_shared_catalogue()
 	await _finish()
+
+
+## Every gun's reload plays its handling sounds off the animation's own phases: each cue sits inside the phase that
+## makes it, they run in order, and a reload that ticks through fires each exactly once, at most one tick late.
+func _reload_cues() -> void:
+	_begin("reload sounds follow the reload animation")
+	var rows := AwWeaponArt.weapon_rows("")
+	var planned := 0
+	var unplanned: Array[StringName] = []
+	var off_phase: Array[String] = []
+	var unsorted: Array[StringName] = []
+	var late: Array[String] = []
+	var named: Array[StringName] = []
+	var empty_drop := 0
+	var empty_mags := 0
+	for role: StringName in rows:
+		var row: Dictionary = rows[role]
+		if row["motion"] != "gun":
+			continue
+		var art := AwWeaponVisual.make(role)
+		AwArtDress.apply(art, row)
+		var style := ReloadSequence.style_of(art)
+		if style == &"generic":
+			continue
+		for left in [30, 0]:
+			var seq := ReloadSequence.new()
+			var anchors := ReloadSequence.anchors_for(Vector3.ZERO, Vector3(0, 0, -0.3), Vector3(0, 0, -0.6), null, art.reload.get("anchors", {}), Transform3D.IDENTITY)
+			seq.compose(art, anchors, 30, left, 0.0)
+			var plan := ReloadCues.plan(seq)
+			if plan.is_empty():
+				# A tube with nothing to pump (a reload that only pushes shells in) has no handling sound of its own.
+				if not (style == &"tube" and left > 0):
+					unplanned.append(role)
+				continue
+			planned += 1
+			if left == 30 and "--plans" in OS.get_cmdline_user_args():
+				print("PLAN ", JSON.stringify({"role": role, "style": style, "plan": plan.map(func(c: Dictionary) -> Dictionary: return {"t": snappedf(float(c.t), 0.001), "cue": c.cue, "db": c.db})}))
+			var last := -1.0
+			for c: Dictionary in plan:
+				var ph := {}
+				for p: Dictionary in seq.phases:
+					if p.name == c.phase:
+						ph = p
+				if ph.is_empty() or float(c.t) < float(ph.t0) - 0.0001 or float(c.t) > float(ph.t1) + 0.0001:
+					off_phase.append("%s/%s" % [role, c.cue])
+				if float(c.t) < last or float(c.t) < 0.0 or float(c.t) > 1.0:
+					unsorted.append(role)
+				last = float(c.t)
+				if not named.has(c.cue):
+					named.append(c.cue)
+			if left == 0 and (style == &"magazine" or style == &"pistol"):
+				empty_mags += 1
+				if plan.any(func(c: Dictionary) -> bool: return c.cue == &"mag_drop"):
+					empty_drop += 1
+			# Tick through a 90-tick reload: each cue fires once, on the first tick at or after its moment.
+			var ticks := 90
+			var next := 0
+			var fired := 0
+			for k in range(1, ticks):
+				var step := ReloadCues.due(plan, next, float(k) / float(ticks))
+				next = int(step.next)
+				for c: Dictionary in step.due:
+					fired += 1
+					if float(k) / float(ticks) - float(c.t) >= 1.0 / float(ticks):
+						late.append("%s/%s" % [role, c.cue])
+			if fired != plan.filter(func(c: Dictionary) -> bool: return float(c.t) < float(ticks - 1) / float(ticks)).size():
+				late.append("%s count %d" % [role, fired])
+	_check("%d reloads (full and empty) of every non-generic gun have a cue plan (%s)" % [planned, str(unplanned)], planned > 0 and unplanned.is_empty())
+	_check("every cue lies inside the phase that makes it (%s)" % str(off_phase.slice(0, 5)), off_phase.is_empty())
+	_check("cues run in order inside 0..1 (%s)" % str(unsorted), unsorted.is_empty())
+	_check("ticking a reload fires each cue once, at most one tick late (%s)" % str(late.slice(0, 5)), late.is_empty())
+	var have := 0
+	for cue in ReloadCues.all_cues():
+		if DotWeaponSound.count(StringName("cue_%s" % cue)) > 0:
+			have += 1
+	_check("an empty magazine's reload drops it (%d of %d); stock has %d of %d cues (0 when dot-audio is not linked)" % [empty_drop, empty_mags, have, ReloadCues.all_cues().size()],
+		empty_drop == empty_mags and (have == 0 or have == ReloadCues.all_cues().size()))
+	_end()
 
 
 ## The hand spans of every model (IronSight.spans: bare faces and one TriangleMesh) equal the per-triangle
