@@ -36,6 +36,8 @@ signal reload_cue(cue: StringName, db: float)
 ## A game's setting (a cvar) that beats the weapon's art and [member scope_arms_hide]; below 0 is off.
 const ChargeFx := preload("aw_charge_fx.gd")
 const BeltFeed := preload("aw_belt_feed.gd")
+## The [method scope_fraction] from which the gun model is no longer drawn: the lens is up and the gun would show through it.
+const SCOPE_GUN_HIDE_FRACTION := 0.5
 var _belt: Node3D = null
 var _charge_fx: Node3D = null
 
@@ -648,7 +650,9 @@ func advance(delta: float) -> void:
 	# Through a scope the weapon is not drawn: the scope is the view. The built arms go with Animated;
 	# a game's own arms (arms_ref) may live anywhere, so they are hidden by name too.
 	var scoped := is_scoped()
-	_animated.visible = not scoped
+	# The gun goes when the scope's picture is half up, not at full aim: from there to full aim the lens already
+	# shows the zoomed world, and a gun still drawn then is seen through the glass (owner: "you can still see through the scope").
+	_animated.visible = not (scoped or scope_picture_up())
 	if _arms != null:
 		_arms.visible = not (scoped or arms_hidden_by_scope())
 
@@ -751,6 +755,11 @@ func scope_fraction() -> float:
 		return 0.0
 	var start := 0.6 if ads_rules == null else ads_rules.scope_fade_start_for(_art.id)
 	return smoothstep(start, 1.0, _aim_fraction)
+
+
+## Whether the scope's picture is up enough that the 3D gun must not show through it: the surround is at least half in.
+func scope_picture_up() -> bool:
+	return has_scope() and scope_fraction() >= SCOPE_GUN_HIDE_FRACTION
 
 
 ## The scope lens's size, a share of its full size: small at the start of the aim-in, growing toward the eye.
