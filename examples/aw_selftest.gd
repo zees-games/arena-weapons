@@ -4,7 +4,8 @@ extends Node
 ## the provider's contract, the pack's own weapon definitions, and a base art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
-const CHECKS := 238
+const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
+const CHECKS := 239
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -17,6 +18,7 @@ var _failures := 0
 func _ready() -> void:
 	print("arena-weapons self-test")
 	_models()
+	_spans()
 	_provider()
 	_sound_classes()
 	_defs()
@@ -27,6 +29,56 @@ func _ready() -> void:
 	_grenades()
 	_utility()
 	await _finish()
+
+
+## The hand spans of every model (IronSight.spans: bare faces and one TriangleMesh) equal the per-triangle
+## ray tests (IronSight.span) they replaced, which cost 60-400 ms a weapon of GDScript at load.
+func _spans() -> void:
+	_begin("hand spans, fast against reference")
+	var holder := Node3D.new()
+	add_child(holder)
+	var worst := 0.0
+	var compared := 0
+	var mismatched := PackedStringArray()
+	var ref_usec := 0
+	var fast_usec := 0
+	var all := AwWeaponArt.weapon_rows("")
+	for role: StringName in all:
+		var scene := load(str((all[role] as Dictionary)["model"])) as PackedScene
+		if scene == null:
+			continue
+		var model := scene.instantiate() as Node3D
+		holder.add_child(model)
+		var forward := Vector3(0, 0, -1)
+		var fractions := [0.62, 0.30]
+		var t0 := Time.get_ticks_usec()
+		var tris := IronSight.triangles_of(model, holder)
+		var want: Array = []
+		for fraction: float in fractions:
+			want.append(IronSight.span(model, holder, forward, fraction, tris))
+		var t1 := Time.get_ticks_usec()
+		var got := IronSight.spans(IronSight.faces_of(model, holder), forward, fractions)
+		var t2 := Time.get_ticks_usec()
+		ref_usec += t1 - t0
+		fast_usec += t2 - t1
+		for k in fractions.size():
+			var a: Dictionary = want[k]
+			var b: Dictionary = got[k]
+			compared += 1
+			if a.is_empty() != b.is_empty():
+				mismatched.append("%s[%d] empty %s vs %s" % [role, k, a.is_empty(), b.is_empty()])
+				continue
+			for key in a:
+				var d := absf(float(a[key]) - float(b[key]))
+				worst = maxf(worst, d)
+				if d > 0.0001:
+					mismatched.append("%s[%d].%s %f vs %f" % [role, k, key, a[key], b[key]])
+		holder.remove_child(model)
+		model.free()
+	holder.queue_free()
+	print("  spans: %d compared, worst difference %.7f m, reference %d ms, fast %d ms" % [compared, worst, ref_usec / 1000, fast_usec / 1000])
+	_check("hand spans: %d compared, none differs (%s)" % [compared, ", ".join(mismatched)], compared > 20 and mismatched.is_empty())
+	_end()
 
 
 func _sound_classes() -> void:

@@ -241,6 +241,119 @@ static func build(line: Dictionary, forward: Vector3) -> Node3D:
 ## Every triangle under [param node], in [param space], with its surface's material and the
 ## mean of its corners' UVs (the kit paints with one colour atlas, so a face's UVs sit in one
 ## swatch).
+## Every triangle of every mesh under [param node], in [param space]'s coordinates, as bare corners (three
+## to a triangle) with no per-triangle Dictionary: what [method spans] reads. Same walk and same skips as
+## [method triangles_of].
+static func faces_of(node: Node, space: Node3D) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var stack: Array[Node] = [node]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		stack.append_array(n.get_children())
+		var mi := n as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		var to_space := Transform3D.IDENTITY
+		var walk: Node = mi
+		while walk != null and walk != space:
+			if walk is Node3D:
+				to_space = (walk as Node3D).transform * to_space
+			walk = walk.get_parent()
+		for s in mi.mesh.get_surface_count():
+			if mi.mesh.surface_get_primitive_type(s) != Mesh.PRIMITIVE_TRIANGLES:
+				continue
+			var arrays := mi.mesh.surface_get_arrays(s)
+			if arrays.size() <= Mesh.ARRAY_INDEX:
+				continue
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			var moved := to_space * verts
+			if index.is_empty():
+				var whole := verts.size() / 3 * 3
+				out.append_array(moved.slice(0, whole))
+			else:
+				var whole := index.size() / 3 * 3
+				for i in range(0, whole):
+					out.append(moved[index[i]])
+	return out
+
+
+## How much wider than a triangle's own footprint a ray's x and z may sit and still be tried.
+const FOOTPRINT_SLACK := 0.0001
+
+## [method span] for several [param fractions] of one mesh at once, from [method faces_of], the same answers
+## (`{low, high, length}` or `{}` each) without a Dictionary per triangle and without a ray test per triangle:
+## each ray is tried on the triangles whose footprint holds it.
+static func spans(faces: PackedVector3Array, forward: Vector3, fractions: Array) -> Array:
+	var out: Array = []
+	var f := forward.normalized()
+	var none := f == Vector3.ZERO or absf(f.dot(Vector3.UP)) > 0.5 or faces.is_empty()
+	for _i in fractions:
+		out.append({})
+	if none:
+		return out
+	var side := Vector3.UP.cross(f).normalized()
+	var t_min := INF
+	var t_max := -INF
+	var s_min := INF
+	var s_max := -INF
+	var y_min := INF
+	var y_max := -INF
+	for p: Vector3 in faces:
+		var t := p.dot(f)
+		var sd := p.dot(side)
+		t_min = minf(t_min, t)
+		t_max = maxf(t_max, t)
+		s_min = minf(s_min, sd)
+		s_max = maxf(s_max, sd)
+		y_min = minf(y_min, p.y)
+		y_max = maxf(y_max, p.y)
+	var length := t_max - t_min
+	if length <= 0.0:
+		return out
+	# A vertical ray can only meet a triangle whose footprint (x and z extent, a hair wider) holds its x and z:
+	# the same Geometry3D test as [method span], run on those triangles alone, so the answers are the same.
+	var count := faces.size() / 3
+	var lo_x := PackedFloat32Array()
+	var hi_x := PackedFloat32Array()
+	var lo_z := PackedFloat32Array()
+	var hi_z := PackedFloat32Array()
+	lo_x.resize(count)
+	hi_x.resize(count)
+	lo_z.resize(count)
+	hi_z.resize(count)
+	for t in count:
+		var a := faces[t * 3]
+		var b := faces[t * 3 + 1]
+		var c := faces[t * 3 + 2]
+		lo_x[t] = minf(a.x, minf(b.x, c.x)) - FOOTPRINT_SLACK
+		hi_x[t] = maxf(a.x, maxf(b.x, c.x)) + FOOTPRINT_SLACK
+		lo_z[t] = minf(a.z, minf(b.z, c.z)) - FOOTPRINT_SLACK
+		hi_z[t] = maxf(a.z, maxf(b.z, c.z)) + FOOTPRINT_SLACK
+	var centre := (s_min + s_max) * 0.5
+	var width := s_max - s_min
+	for k in fractions.size():
+		var low := INF
+		var high := -INF
+		for shift: float in [0.0, -0.02, 0.02, -0.04, 0.04]:
+			for lateral: float in [0.0, -0.15, 0.15]:
+				var at := f * (lerpf(t_min, t_max, float(fractions[k])) + shift * length) + side * (centre + lateral * width)
+				var from_below := at + Vector3.DOWN * (at.y - y_min + 1.0)
+				var from_above := at + Vector3.UP * (y_max - at.y + 1.0)
+				for t in count:
+					if at.x < lo_x[t] or at.x > hi_x[t] or at.z < lo_z[t] or at.z > hi_z[t]:
+						continue
+					var up: Variant = Geometry3D.ray_intersects_triangle(from_below, Vector3.UP, faces[t * 3], faces[t * 3 + 1], faces[t * 3 + 2])
+					if up != null:
+						low = minf(low, (up as Vector3).y)
+					var down: Variant = Geometry3D.ray_intersects_triangle(from_above, Vector3.DOWN, faces[t * 3], faces[t * 3 + 1], faces[t * 3 + 2])
+					if down != null:
+						high = maxf(high, (down as Vector3).y)
+		if low != INF and high != -INF:
+			out[k] = {"low": low, "high": high, "length": length}
+	return out
+
+
 static func triangles_of(node: Node, space: Node3D) -> Array[Dictionary]:
 	return _triangles(node, space)
 
