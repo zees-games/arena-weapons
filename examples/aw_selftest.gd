@@ -5,7 +5,7 @@ extends Node
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 252
+const CHECKS := 259
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -31,6 +31,7 @@ func _ready() -> void:
 	_utility()
 	_glove_cache()
 	_shared_catalogue()
+	_mag_carve()
 	await _finish()
 
 
@@ -768,6 +769,41 @@ func _shared_catalogue() -> void:
 		a != null and a == AwWeaponCatalogue.shared() and ids.all(func(id: StringName) -> bool: return a.get_def(id) != null))
 	AwWeaponCatalogue.remove_source(&"lag16_probe")
 	_check("adding or removing a source builds it again", AwWeaponCatalogue.shared() != a)
+	_end()
+
+
+func _mag_carve() -> void:
+	_begin("a magazine carved out of a welded mesh")
+	var carve: Script = load("res://addons/arena_weapons/view/aw_mag_carve.gd")
+	# One mesh: a body (triangles near y=0) and a magazine (triangles near y=-1) in a single surface.
+	var verts := PackedVector3Array()
+	for y in [0.0, -1.0]:
+		for k in 20:
+			var x := float(k) * 0.1
+			verts.append_array(PackedVector3Array([Vector3(x, y, 0), Vector3(x + 0.05, y, 0), Vector3(x, y, 0.05)]))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	var whole := ArrayMesh.new()
+	whole.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var holder := Node3D.new()
+	var weapon := Node3D.new()
+	holder.add_child(weapon)
+	var mi := MeshInstance3D.new()
+	mi.mesh = whole
+	weapon.add_child(mi)
+	add_child(holder)
+	var mag: Node3D = carve.call(&"carve", weapon, holder, Transform3D.IDENTITY, AABB(Vector3(-1, -1.5, -1), Vector3(4, 1, 2)), "selftest")
+	_check("the magazine becomes a node of the weapon", mag != null and mag.get_parent() == mi.get_parent() and mag.name == "Magazine")
+	_check("the magazine holds its 20 triangles", mag != null and (mag as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size() == 60)
+	_check("the gun keeps the other 20", mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size() == 60)
+	_check("nothing is left in the carve box on the gun", mi.mesh.get_aabb().position.y > -0.5)
+	var again: Node3D = carve.call(&"carve", weapon, holder, Transform3D.IDENTITY, AABB(Vector3(-1, 5, -1), Vector3(1, 1, 1)), "selftest-empty")
+	_check("a box with nothing in it carves nothing", again == null)
+	carve.call(&"merge_back", mag)
+	_check("merging back leaves one mesh with every triangle", mi.mesh == whole and weapon.get_child_count() == 1)
+	holder.queue_free()
+	_check("the carve box is remembered per model", (carve.call(&"recall", "x") as AABB).size == Vector3.ZERO)
 	_end()
 
 

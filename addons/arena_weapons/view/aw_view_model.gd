@@ -6,6 +6,7 @@ const ReloadParts := preload("aw_reload_parts.gd")
 const Dress := preload("aw_attachment_dress.gd")
 const HipHold := preload("aw_hip_hold.gd")
 const ReloadProps := preload("aw_reload_props.gd")
+const MagCarve := preload("aw_mag_carve.gd")
 
 ## The weapon you see in your own hands. Parent it to the camera; it is told what happened (on_used, on_reload_started)
 ## and never reads a device, a clock or the arsenal, so it draws a remote player's gun the same way.
@@ -265,6 +266,7 @@ func equip(art: AwWeaponVisual) -> DotResult:
 		_attachments.append(part)
 
 	_reach_for(art)
+	_carve_magazine(art)
 	model_ready.emit(_id, _weapon)
 	return DotResult.success(null)
 
@@ -454,6 +456,40 @@ func on_reload(fraction: float) -> void:
 static var _parts_warmed := false
 var _seq_ran := false
 var _props: ReloadProps = null
+## The magazine split out of a one-mesh model (MagCarve), a node of the weapon; null when the model has its own or none.
+var _carved: Node3D = null
+
+
+## Makes the magazine of a gun whose model draws it welded into the body a node of its own, from the triangles in the
+## magazine well's box (the row's `reload.mag_box`, six numbers in Aim space, or one measured from the well).
+func _carve_magazine(art: AwWeaponVisual) -> void:
+	_carved = null
+	if art.hide_during_reload != &"" or art.has_magazine() or _weapon == null or feel_rules.reload_detail <= 0.0:
+		return
+	var style := ReloadSequence.style_of(art)
+	if style not in [&"magazine", &"pistol", &"cell"]:
+		return
+	var to_aim := _holder.transform
+	var well: Variant = _well if _has_well and art.reload.is_empty() else null
+	var anchors := ReloadSequence.anchors_for(_grip_at, _fore_at, to_aim * (_weapon.transform * _muzzle), well, art.reload.get("anchors", {}), to_aim)
+	var seq := ReloadSequence.new()
+	seq.compose(art, anchors, 30, 15)
+	var ps: float = seq.prop_scale
+	var box := AABB()
+	var given: Variant = art.reload.get("mag_box", null)
+	if given is Array and (given as Array).size() == 6:
+		var g: Array = given
+		box = AABB(Vector3(g[0], g[1], g[2]), Vector3(g[3] - g[0], g[4] - g[1], g[5] - g[2]))
+	else:
+		var w: Vector3 = anchors[&"well"]
+		var half := Vector3(0.03, 0.0, 0.045) * ps
+		box = AABB(w - Vector3(half.x, 0.17 * ps, half.z), Vector3(half.x * 2.0, 0.18 * ps, half.z * 2.0))
+	# In the holder's space, where the watcher's model of the gun finds it too.
+	box = to_aim.affine_inverse() * box
+	MagCarve.remember(art.model_path, box)
+	_carved = MagCarve.carve(_weapon, _holder, Transform3D.IDENTITY, box, "%s|%s" % [art.model_path, box])
+	if _carved != null:
+		_set_on_top(_carved)
 
 
 ## A reload began with [param left] of [param magazine] rounds in: plays the weapon's own phases, sized to what is there.
@@ -488,6 +524,8 @@ func on_reload_begin(left: int, magazine: int, start_share: float = 0.0) -> void
 
 ## The gun's own magazine node (the row's `mag_node`), which the reload carries out and back in, or null.
 func _own_magazine() -> Node3D:
+	if _carved != null and is_instance_valid(_carved):
+		return _carved
 	if _art.hide_during_reload == &"" or _weapon == null:
 		return null
 	return _weapon.find_child(String(_art.hide_during_reload), true, false) as Node3D
@@ -504,6 +542,13 @@ func _in_holder(node: Node3D) -> Transform3D:
 	return t
 
 
+## How many magazines are in sight now: the gun's own plus any built one. Exactly one in a sound reload, bar the moment the hand is fetching the next.
+func reload_magazines_visible() -> int:
+	if _props != null:
+		return _props.magazines_visible()
+	return 1 if _own_magazine() != null and _own_magazine().is_visible_in_tree() else 0
+
+
 ## The sequence playing now, or null.
 func reload_sequence() -> ReloadSequence:
 	return _seq
@@ -518,10 +563,13 @@ func _end_sequence() -> void:
 	_seq = null
 	_seq_ran = false
 	if _props != null:
+		_props.restore_own()
 		_props.queue_free()
 		_props = null
 	if _art != null:
 		_pose.tunables.reload_keys = _default_reload_keys()
+		if _carved != null and is_instance_valid(_carved):
+			_carved.visible = true
 		if _magazine != null:
 			_magazine.visible = true
 			_magazine.transform = _art.magazine_transform()
@@ -536,7 +584,7 @@ func _animate_sequence(f: float) -> void:
 	if _magazine != null:
 		_magazine.visible = not _art.magazine_loose and not out
 		_magazine.transform = _art.magazine_transform()
-	if _art.hide_during_reload != &"" and _weapon != null:
+	if _props == null and _art.hide_during_reload != &"" and _weapon != null:
 		var own := _weapon.find_child(String(_art.hide_during_reload), true, false) as Node3D
 		if own != null:
 			own.visible = not out
