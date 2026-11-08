@@ -435,18 +435,41 @@ static func surface_albedos(root: Node) -> Array[Color]:
 				continue
 			var c := mat.albedo_color
 			var tex := mat.albedo_texture
-			var img: Image = tex.get_image() if tex != null else null
-			if img != null and not img.is_empty() and img.is_compressed() and img.decompress() != OK:
-				img = null
-			if img != null and not img.is_empty():
-				img.resize(4, 4, Image.INTERPOLATE_BILINEAR)
-				var t := Color(0, 0, 0, 0)
-				for y in 4:
-					for x in 4:
-						t += img.get_pixel(x, y)
-				c *= t / 16.0
+			if tex != null:
+				c *= texture_mean(tex)
 			out.append(Color(c.r, c.g, c.b, 1.0))
 	return out
+
+
+## Whether [method texture_mean] remembers each texture's mean. Reading one back is a GPU
+## download, a decompress and a resize (10 to 50 ms for a gun's textures), and the glove fit
+## asks on every equip, so a 16v16 respawn wave paid it over and over for the same art.
+static var albedo_cache := true
+## texture instance id -> [WeakRef, mean]
+static var _means: Dictionary = {}
+
+
+## The mean colour of [param tex] from a 4x4 downsample, or white when it cannot be read.
+static func texture_mean(tex: Texture2D) -> Color:
+	var key := tex.get_instance_id()
+	if albedo_cache and _means.has(key):
+		var hit: Array = _means[key]
+		if (hit[0] as WeakRef).get_ref() == tex:
+			return hit[1]
+	var mean := Color(1, 1, 1, 1)
+	var img: Image = tex.get_image()
+	if img != null and not img.is_empty() and img.is_compressed() and img.decompress() != OK:
+		img = null
+	if img != null and not img.is_empty():
+		img.resize(4, 4, Image.INTERPOLATE_BILINEAR)
+		var t := Color(0, 0, 0, 0)
+		for y in 4:
+			for x in 4:
+				t += img.get_pixel(x, y)
+		mean = t / 16.0
+	if albedo_cache:
+		_means[key] = [weakref(tex), mean]
+	return mean
 
 
 ## The glove now worn: [member glove_color], or the light one when the held gun [param weapon] is as dark as it.

@@ -13,6 +13,23 @@ const ADDON := "arena_weapons"
 static var _sources: Dictionary = {}
 
 
+## Whether [method shared] keeps one built catalogue; false builds a fresh one on every call.
+static var def_cache := true
+static var _shared: DotWeaponCatalogue = null
+
+
+## One catalogue built from the default damage table and kept until a source is added or removed,
+## for readers that only look a def up (a watched hand's reload period, a fitted code). Building
+## [method catalogue] makes every def again: a round start where 16 watched players begin a reload
+## in one frame cost 40-170 ms of it. Read-only: change a def through a catalogue of your own.
+static func shared() -> DotWeaponCatalogue:
+	if not def_cache:
+		return catalogue()
+	if _shared == null:
+		_shared = catalogue()
+	return _shared
+
+
 static func catalogue(damage: Dictionary = {}) -> DotWeaponCatalogue:
 	var out := DotWeaponCatalogue.new()
 
@@ -61,10 +78,12 @@ static func table(types: Dictionary = {}) -> Dictionary:
 ## a lambda held in this static outlives its script and the process aborts on exit.
 static func add_source(name: StringName, source: Callable) -> void:
 	_sources[name] = source
+	_shared = null
 
 
 static func remove_source(name: StringName) -> void:
 	_sources.erase(name)
+	_shared = null
 
 
 static func source_names() -> PackedStringArray:

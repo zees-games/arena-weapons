@@ -286,7 +286,7 @@ func on_fitted(code: int) -> void:
 	if code == _fit_code or attachments == null or _id == &"":
 		return
 	_fit_code = code
-	var base := AwWeaponCatalogue.catalogue().get_def(_id)
+	var base := AwWeaponCatalogue.shared().get_def(_id)
 	if base != null and attachments.code_bits(base) <= DotWeaponNetSync.FITTED_BITS:
 		set_fitting(attachments.decode(base, code))
 
@@ -450,7 +450,7 @@ func reload_fraction() -> float:
 
 ## One cycle of the support hand: the weapon's whole reload, or one round of a reload by the round.
 func _cycle_seconds() -> float:
-	var def: DotWeaponDef = AwWeaponCatalogue.catalogue().get_def(_id) if _id != &"" else null
+	var def: DotWeaponDef = AwWeaponCatalogue.shared().get_def(_id) if _id != &"" else null
 	if def == null or def.reload_ticks <= 0:
 		return 1.5
 	var rate := float(def.authored_tick_rate) if def.authored_tick_rate > 0 else float(AwWeaponCatalogue.TICK_RATE)

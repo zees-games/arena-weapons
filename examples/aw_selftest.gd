@@ -5,7 +5,7 @@ extends Node
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 245
+const CHECKS := 249
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const OWN_SIGHTED := 9
 
@@ -29,6 +29,8 @@ func _ready() -> void:
 	await _previews()
 	_grenades()
 	_utility()
+	_glove_cache()
+	_shared_catalogue()
 	await _finish()
 
 
@@ -698,6 +700,50 @@ func _previews() -> void:
 	_check("the shared viewport is gone once done (%d left)" % again, again == (ids.size() if headless else 0))
 	previews.queue_free()
 	AwWeaponArtTable.remove_source(&"aw_selftest_previews")
+	_end()
+
+
+## The glove fit reads each gun texture back once: a second fit of the same art gives the same
+## colours from the cache, and turning the cache off still reads them.
+func _glove_cache() -> void:
+	_begin("glove contrast texture cache")
+	var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.2, 0.4, 0.6, 1.0))
+	var tex := ImageTexture.create_from_image(img)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = tex
+	var mi := MeshInstance3D.new()
+	mi.mesh = BoxMesh.new()
+	mi.material_override = mat
+	var was := AwViewArms.albedo_cache
+	AwViewArms.albedo_cache = true
+	var first := AwViewArms.surface_albedos(mi)
+	img.fill(Color(1, 1, 1, 1))
+	tex.set_image(img)
+	var again := AwViewArms.surface_albedos(mi)
+	_check("a second fit of the same texture comes from the cache",
+		first.size() == 1 and again.size() == 1 and first[0].is_equal_approx(again[0]) and absf(first[0].g - 0.4) < 0.02)
+	AwViewArms.albedo_cache = false
+	var img2 := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	img2.fill(Color(0.8, 0.4, 0.2, 1.0))
+	var tex2 := ImageTexture.create_from_image(img2)
+	mat.albedo_texture = tex2
+	var fresh := AwViewArms.surface_albedos(mi)
+	_check("with the cache off the texture is read and not remembered",
+		fresh.size() == 1 and absf(fresh[0].r - 0.8) < 0.02 and not AwViewArms._means.has(tex2.get_instance_id()))
+	AwViewArms.albedo_cache = was
+	mi.free()
+	_end()
+
+
+func _shared_catalogue() -> void:
+	_begin("shared weapon catalogue")
+	var a := AwWeaponCatalogue.shared()
+	var ids := AwWeaponCatalogue.weapons().map(func(d: DotWeaponDef) -> StringName: return d.id)
+	_check("the shared catalogue is built once and holds every weapon",
+		a != null and a == AwWeaponCatalogue.shared() and ids.all(func(id: StringName) -> bool: return a.get_def(id) != null))
+	AwWeaponCatalogue.remove_source(&"lag16_probe")
+	_check("adding or removing a source builds it again", AwWeaponCatalogue.shared() != a)
 	_end()
 
 
