@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 283
+const CHECKS := 302
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -21,6 +21,7 @@ func _ready() -> void:
 	_dress()
 	_own_sights()
 	_scope_hides_gun()
+	_scope_modes()
 	_reload_cues()
 	_reload_drop_charge()
 	await _floor_clip()
@@ -34,6 +35,7 @@ func _ready() -> void:
 	_mag_carve()
 	_charge_fizzle()
 	await _one_arm_set()
+	_charge_fizzle()
 	await _finish()
 
 
@@ -431,6 +433,7 @@ func _unstyled() -> Array[String]:
 func _scope_hides_gun() -> void:
 	_begin("scoped gun model hidden once the scope picture is up")
 	var view := AwViewModel.new()
+	view.scope_mode = AwViewModel.SCOPE_FULL
 	view.show_arms = false
 	add_child(view)
 	var row: Dictionary = AwWeaponArt.weapon_rows("")[&"sniper"]
@@ -451,6 +454,55 @@ func _scope_hides_gun() -> void:
 			shown_late = true
 	_check("gun never drawn while the scope picture is half up", not hid_early)
 	_check("gun not hidden before the picture is half up", not shown_late)
+	view.queue_free()
+	_end()
+
+
+func _scope_modes() -> void:
+	_begin("scope views: lens on screen, full screen, server pin, see-through on the move")
+	var view := AwViewModel.new()
+	view.show_arms = false
+	add_child(view)
+	var art := AwWeaponVisual.make(&"sniper")
+	AwArtDress.apply(art, AwWeaponArt.weapon_rows("")[&"sniper"])
+	view.equip(art)
+	_check("the scope lens is the default view", view.scope_mode == AwViewModel.SCOPE_LENS)
+	view.aim(true)
+	for _i in 80:
+		view.drive(Vector2.ZERO, 0.0, true)
+		view._process(0.02)
+	_check("lens: the camera keeps the hip field of view", is_equal_approx(view.view_fov_scale(), 1.0))
+	_check("lens: the scope still zooms", view.aim_fov_scale() < 0.9)
+	_check("lens: the gun stays drawn behind the lens", view._animated.visible)
+	_check("standing, the picture is solid", view.scope_clear() < 0.01)
+	view.drive(Vector2.ZERO, 6.0, true)
+	view._process(0.02)
+	_check("running, the picture goes part clear", view.scope_clear() > 0.4 and view.scope_clear() < 1.0)
+	view.scope_walk_clear = 0.0
+	_check("a clear of 0 keeps it solid at a run", view.scope_clear() == 0.0)
+	view.scope_mode = AwViewModel.SCOPE_FULL
+	view._process(0.02)
+	_check("full: the camera takes the whole zoom", is_equal_approx(view.view_fov_scale(), view.aim_fov_scale()))
+	_check("full: the gun is hidden behind the scope", not view._animated.visible)
+
+	var rules := AwAdsRules.new()
+	_check("no server rule: the client chooses 2", rules.resolve_scope_mode(&"sniper", 2) == 2)
+	_check("no server rule: the client chooses 1", rules.resolve_scope_mode(&"sniper", 1) == 1)
+	_check("a wild client value is clamped", rules.resolve_scope_mode(&"sniper", 9) == 2)
+	var _ok := rules.set_value(&"", "scope_mode", 2)
+	_check("server pins the full-screen scope", rules.resolve_scope_mode(&"sniper", 1) == 2)
+	var client := AwAdsRules.new()
+	_check("the pin travels on the wire", client.adopt_wire(rules.to_wire()) and client.resolve_scope_mode(&"sniper", 1) == 2)
+	view.ads_rules = rules
+	_check("the view model applies the server's pin", view.resolve_scope_mode(1) == 2)
+
+	var overlay := AwScopeOverlay.new()
+	add_child(overlay)
+	overlay.fraction = 1.0
+	_check("the overlay is headless-safe in lens mode", not overlay.lens_active() and overlay.mode == 1)
+	overlay.follow(view)
+	_check("the overlay takes mode and clear from the view", overlay.mode == AwViewModel.SCOPE_FULL and overlay.clear == 0.0)
+	overlay.queue_free()
 	view.queue_free()
 	_end()
 
