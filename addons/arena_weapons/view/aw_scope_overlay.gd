@@ -52,7 +52,33 @@ extends Control
 ## Colour fringing at the lens edge, in pixels at 1080 tall. 0 for none.
 @export_range(0.0, 6.0, 0.25) var fringe: float = 1.5
 
+## 1: the scope is a lens drawn at the middle of a normal screen, the world inside it enlarged by a second camera (see [method bind_camera]).
+## 2: the scope fills the screen: the lens is the main camera's own zoomed view and everything outside the circle is black.
+@export_range(1, 2, 1) var mode: int = 1:
+	set(value):
+		mode = clampi(value, 1, 2)
+		queue_redraw()
+
+## Mode 1: the lens's diameter as a fraction of the screen's shorter side.
+@export_range(0.15, 0.9, 0.01) var lens_circle: float = 0.46
+
+## How much of the picture is clear (0 solid, 1 not drawn), for a scope looked through on the move; [method follow] sets it.
+@export_range(0.0, 1.0, 0.01) var clear: float = 0.0:
+	set(value):
+		clear = clampf(value, 0.0, 1.0)
+		queue_redraw()
+
+## Mode 1: the lens picture's side in pixels at most; it is also scaled down to the lens's size on screen.
+@export_range(64, 2048, 1) var lens_pixels: int = 768
+
+## Mode 1: how much the lens's field of view is of the camera's: 0.25 is a 4x zoom.
+var lens_zoom: float = 1.0
+
 var _breath: float = 0.0
+var _source: Camera3D = null
+var _hide_mask: int = 0
+var _port: SubViewport = null
+var _cam: Camera3D = null
 
 
 func _ready() -> void:
@@ -62,7 +88,21 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 
+## Gives the lens (mode 1) the camera it looks through the same way as, and the render layers to leave out of its picture
+## (the view model's, so the gun is not drawn into its own scope).
+func bind_camera(camera: Camera3D, hide_layers: int = 0) -> void:
+	_source = camera
+	_hide_mask = hide_layers
+
+
+## Whether the lens renders at all: not headless, a mode-1 scope that is showing, a camera to follow.
+func lens_active() -> bool:
+	return mode == 1 and fraction > 0.0 and clear < 1.0 and is_instance_valid(_source) \
+		and DisplayServer.get_name() != "headless"
+
+
 func _process(delta: float) -> void:
+	_sync_lens()
 	if fraction <= 0.0:
 		return
 	_breath += delta
@@ -70,14 +110,48 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
+func _sync_lens() -> void:
+	if not lens_active():
+		if _port != null:
+			_port.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		return
+	if _port == null:
+		_port = SubViewport.new()
+		_port.name = "Lens"
+		_port.msaa_3d = Viewport.MSAA_DISABLED
+		_port.transparent_bg = false
+		_port.handle_input_locally = false
+		_port.audio_listener_enable_3d = false
+		_cam = Camera3D.new()
+		_cam.name = "LensCamera"
+		_port.add_child(_cam)
+		add_child(_port)
+	var side := clampi(int(minf(size.x, size.y) * lens_circle * fraction), 64, lens_pixels)
+	if _port.size != Vector2i(side, side):
+		_port.size = Vector2i(side, side)
+	_port.world_3d = _source.get_world_3d()
+	_port.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_cam.environment = _source.environment
+	_cam.attributes = _source.attributes
+	_cam.cull_mask = _source.cull_mask & ~_hide_mask
+	_cam.near = _source.near
+	_cam.far = _source.far
+	_cam.fov = _source.fov * lens_zoom
+	_cam.global_transform = _source.global_transform
+	_cam.current = true
+
+
 func _draw() -> void:
-	if fraction <= 0.0:
+	if fraction <= 0.0 or clear >= 1.0:
+		return
+	if mode == 1:
+		_draw_lens()
 		return
 
 	var size_px := size
 	var centre := size_px * 0.5
 	var radius := minf(size_px.x, size_px.y) * circle * 0.5 * lens_scale
-	var surround := Color(surround_colour, surround_colour.a * fraction)
+	var surround := Color(surround_colour, surround_colour.a * fraction * (1.0 - clear))
 	var unit := size_px.y / 1080.0
 
 	# The surround as four rectangles and a ring of quads around the circle: Godot has no
@@ -98,6 +172,32 @@ func _draw() -> void:
 	_draw_reticle(centre, radius, unit)
 
 
+## Mode 1: the world through a lens in the middle of the screen, rim and reticle on it, nothing else darkened.
+func _draw_lens() -> void:
+	var centre := size * 0.5
+	var radius := minf(size.x, size.y) * lens_circle * 0.5 * lens_scale
+	var unit := size.y / 1080.0
+	var alpha := fraction * (1.0 - clear)
+	var points := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	var steps := 72
+	for i in range(steps):
+		var a := TAU * float(i) / float(steps)
+		var dir := Vector2(cos(a), sin(a))
+		points.append(centre + dir * radius)
+		uvs.append(Vector2(0.5, 0.5) + dir * 0.5)
+	if _port != null and lens_active():
+		draw_colored_polygon(points, Color(1.0, 1.0, 1.0, alpha), uvs, _port.get_texture())
+	else:
+		draw_colored_polygon(points, Color(0.02, 0.03, 0.03, 0.55 * alpha))
+	if glass_tint.a > 0.0:
+		draw_circle(centre, radius, Color(glass_tint, glass_tint.a * alpha), true, -1.0, true)
+	if vignette > 0.0:
+		_draw_edge_shadow(centre, radius, alpha)
+	_draw_rim(centre, radius, unit)
+	_draw_reticle(centre, radius, unit)
+
+
 ## Dark falloff just inside the rim: stacked thin arcs, darkest at the edge.
 func _draw_edge_shadow(centre: Vector2, radius: float, strength: float) -> void:
 	var steps := 16
@@ -110,15 +210,20 @@ func _draw_edge_shadow(centre: Vector2, radius: float, strength: float) -> void:
 
 
 ## The metal ring, a thin lit line inside it and a red and blue fringe either side of the edge.
+## The picture's opacity: faded in with the aim, out with the clear.
+func _shown() -> float:
+	return fraction * (1.0 - clear)
+
+
 func _draw_rim(centre: Vector2, radius: float, unit: float) -> void:
-	var rim := Color(rim_colour, rim_colour.a * fraction)
+	var rim := Color(rim_colour, rim_colour.a * _shown())
 	var thick := maxf(2.0, radius * rim_width)
 	draw_arc(centre, radius - thick * 0.5, 0.0, TAU, 128, rim, thick, true)
-	draw_arc(centre, radius - thick - 1.0, 0.0, TAU, 128, Color(0.55, 0.6, 0.65, 0.18 * fraction), maxf(1.0, unit), true)
+	draw_arc(centre, radius - thick - 1.0, 0.0, TAU, 128, Color(0.55, 0.6, 0.65, 0.18 * _shown()), maxf(1.0, unit), true)
 	if fringe > 0.0:
 		var shift := fringe * unit
-		draw_arc(centre, radius - thick - shift, 0.0, TAU, 128, Color(1.0, 0.25, 0.2, 0.16 * fraction), maxf(1.0, unit * 1.5), true)
-		draw_arc(centre, radius - thick - 2.0 * shift, 0.0, TAU, 128, Color(0.2, 0.4, 1.0, 0.14 * fraction), maxf(1.0, unit * 1.5), true)
+		draw_arc(centre, radius - thick - shift, 0.0, TAU, 128, Color(1.0, 0.25, 0.2, 0.16 * _shown()), maxf(1.0, unit * 1.5), true)
+		draw_arc(centre, radius - thick - 2.0 * shift, 0.0, TAU, 128, Color(0.2, 0.4, 1.0, 0.14 * _shown()), maxf(1.0, unit * 1.5), true)
 
 
 ## A duplex reticle: thin lines through the centre, heavy posts on the outer half left, right and
@@ -128,7 +233,7 @@ func _draw_reticle(centre: Vector2, radius: float, unit: float) -> void:
 	var c := centre + sway * radius * breath_sway
 	var reach := radius - maxf(2.0, radius * rim_width)
 	var thin := maxf(1.0, reticle_width * unit)
-	var line := Color(reticle_colour, reticle_colour.a * fraction)
+	var line := Color(reticle_colour, reticle_colour.a * _shown())
 	var post_from := reach * 0.38
 
 	for direction in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
@@ -171,10 +276,13 @@ func _draw_corners(centre: Vector2, radius: float, colour: Color) -> void:
 func follow(view: AwViewModel) -> void:
 	fraction = view.scope_fraction()
 	lens_scale = view.scope_lens_scale()
+	mode = view.scope_mode
+	clear = view.scope_clear()
+	lens_zoom = view.aim_fov_scale()
 	for key: Variant in view.scope_style():
 		if key is String and key in self:
 			set(key, view.scope_style()[key])
 
 
 func describe() -> Dictionary:
-	return {"fraction": fraction, "circle": circle, "lens_scale": lens_scale}
+	return {"fraction": fraction, "circle": circle, "lens_scale": lens_scale, "mode": mode, "clear": clear}
