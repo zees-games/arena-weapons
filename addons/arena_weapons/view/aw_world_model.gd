@@ -28,6 +28,7 @@ extends Node3D
 
 ## How much of a weapon's recoil a watcher sees.
 const Dress := preload("aw_attachment_dress.gd")
+const MagCarve := preload("aw_mag_carve.gd")
 
 const RECOIL_SHARE := 0.35
 
@@ -150,6 +151,8 @@ var _wall_clock: float = 0.0
 var _wall_was: bool = false
 var _holder: Node3D = null
 var _weapon: Node3D = null
+var _mag: Node3D = null
+var _mag_local := Transform3D.IDENTITY
 var _attachments: Array[Node3D] = []
 var _dressed: Dictionary = {}
 var _fitting: DotWeaponFitting = null
@@ -440,6 +443,7 @@ func on_reloading(reloading: bool) -> void:
 	if reloading and not _reloading:
 		_reload_time = 0.0
 		_reload_period = _cycle_seconds()
+		_detach_magazine()
 	_reloading = reloading
 
 
@@ -509,6 +513,38 @@ func advance(delta: float) -> void:
 	_holder.transform = Transform3D(
 		low * carry[1] * turn * rest.basis, rest.origin + moved + carry[0] + Vector3(0.0, 0.0, _kick + _wall_amount)
 	)
+	_move_magazine()
+	if _mag != null and _reload_blend <= 0.0 and not _reloading:
+		# Seated again and the reload over: the gun is one mesh once more.
+		MagCarve.merge_back(_mag)
+		_mag = null
+
+
+## The reload's magazine: split out of the gun on the reload's first frame (the first person view measured where it sits),
+## pulled out with the support hand, carried to the belt and back, and seated.
+func _detach_magazine() -> void:
+	if _mag != null or _weapon == null or _art == null or not _support_local.is_finite():
+		return
+	var box := MagCarve.recall(_art.model_path)
+	if box.size == Vector3.ZERO:
+		return
+	_mag = MagCarve.carve(_weapon, _holder, Transform3D.IDENTITY, box, "%s|%s" % [_art.model_path, box])
+	if _mag != null:
+		_mag_local = _mag.transform
+		_apply_shadows()
+
+
+## Follows the support hand while it has the magazine: out of the well at a quarter of the cycle, down to the belt and
+## back up with the fresh one, seated at three quarters.
+func _move_magazine() -> void:
+	if _mag == null or not is_instance_valid(_mag):
+		return
+	_mag.transform = _mag_local
+	var f := reload_fraction()
+	if f < 0.25 or f >= 0.75 or not _reloading:
+		return
+	var at: Vector3 = AwWeaponPose.sample_keys(RELOAD_SUPPORT_KEYS, f)[0]
+	_mag.global_position += Vector3.DOWN * 0.28 * clampf(at.y, 0.0, 1.0)
 
 
 ## Metres the gun must be pulled back for a wall [param hit] away from a ray that starts [param arm] behind the hand (INF for none).
@@ -754,6 +790,7 @@ func _meshes(node: Node) -> Array[MeshInstance3D]:
 
 
 func _clear_models() -> void:
+	_mag = null
 	if _weapon != null:
 		_weapon.queue_free()
 
