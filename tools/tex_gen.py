@@ -107,6 +107,12 @@ CLOTH_PARTS = {'sniper_ph': 5}
 GLOW_HUE = {'plasma_rifle': (0.22, 0.48), 'rail_rifle': (0.02, 0.13)}
 # stray geometry that sits in the wrong place in the source (a lens ring floating under the sniper's receiver)
 DROP_GLASS = {'sniper_ph'}
+# models whose pebble stipple on polymer is turned down (muzzle shrouds and grips read as noise at that scale)
+STIP_AMT = {'grenade_launcher': 0.12, 'drum_shotgun': 0.12}
+# models whose metal is capped (a mirror-like blade reflects nothing in a room and reads black): max metallic, min roughness, forced finish
+BLADE = {'knife': (0.40, 0.36, 2), 'knife_ph': (0.40, 0.36, 2)}
+# models whose painted (coat) colour is replaced by one flat paint colour (linear): the source's coat texels are a photo-like green smear
+COAT_FLAT = {'quad_rocket_launcher': (0.060, 0.072, 0.040)}
 WOOD_MODELS = {'derringer', 'rifle', 'pump_shotgun', 'battle_rifle', 'revolver', 'pistol_ph', 'sniper_ph', 'knife', 'knife_ph', 'rocket_launcher', 'rocket_launcher_alt', 'carbine', 'smg'}
 
 
@@ -151,7 +157,7 @@ def lum(a):
 # metal finishes: linear base colour, roughness, how much the wear reveals bare steel
 #            blued              parkerized         satin steel        black anodised     gunmetal
 # Neutral to warm greys, never blue: a metal texel reflects the sky tinted by its own colour, so a bluish albedo read as an icy cast under any sky.
-FIN_ALB = np.array([[0.090, 0.088, 0.094], [0.215, 0.205, 0.180], [0.440, 0.430, 0.415], [0.078, 0.078, 0.082], [0.320, 0.310, 0.295]], np.float32)
+FIN_ALB = np.array([[0.085, 0.083, 0.088], [0.190, 0.180, 0.158], [0.385, 0.372, 0.352], [0.072, 0.072, 0.076], [0.280, 0.268, 0.250]], np.float32)
 FIN_ROU = np.array([0.46, 0.68, 0.50, 0.56, 0.54], np.float32)
 FIN_WEAR = np.array([0.95, 0.80, 0.25, 0.75, 0.55], np.float32)
 FIN_PICK = [0, 0, 0, 0, 1, 1, 1, 2, 3, 4]
@@ -223,6 +229,8 @@ def build(name, size, rng):
             fin_of[i] = [0, 1, 1, 4, 1, 0, 1, 4, 1, 1][r]
         else:
             fin_of[i] = [2, 4, 2, 1, 4, 2, 2, 4, 1, 2][r]
+    if mname in BLADE:
+        fin_of[:] = BLADE[mname][2]
     fin = fin_of[np.clip(part, 0, 39)]
     base = FIN_ALB[fin]
     # broad tonal patches (oil, handling, light rust bloom) plus brushed streaks, so a part is never one flat dark value
@@ -232,7 +240,7 @@ def build(name, size, rng):
     m_alb = (base + plum * (fin == 0)[..., None]) * tone * (0.88 + 0.30 * (brush[..., None] - 0.5) * (0.5 + 0.5 * (fin == 2)[..., None]) + 0.12 * (fine[..., None] - 0.5))
     wear_amt = FIN_WEAR[fin]
     bare = np.clip((edgew * 0.95 + handling * 0.5 + scr * 0.45 * (0.5 + low) + ridge * 0.25 + pits * 0.1) * wear_amt, 0, 1)
-    steel = np.array([0.56, 0.545, 0.525], np.float32)[None, None, :] * (0.7 + 0.4 * mid[..., None])
+    steel = np.array([0.50, 0.485, 0.465], np.float32)[None, None, :] * (0.7 + 0.4 * mid[..., None])
     m_alb = lerp(m_alb, steel, bare[..., None])
     m_alb = m_alb * (1 - 0.55 * dirt[..., None]) * (1 - 0.35 * groove[..., None])
     m_rough = FIN_ROU[fin] + (mid - 0.5) * 0.22 + (fine - 0.5) * 0.08 + (low - 0.5) * 0.1
@@ -242,7 +250,7 @@ def build(name, size, rng):
     m_h = (fine - 0.5) * 0.04 + (low - 0.5) * 0.15 - pits * 0.08 - scr * 0.15 + det * 0.22 - bare * 0.1 + (brush - 0.5) * 0.06 * (fin == 2)
     # ---- polymer: grey-black, pebble stipple, lighter where handled
     cell = voronoi_cells(size, rng, 4.2 * k)
-    stip = 1 - sstep(cell, 0.6 * k, 2.1 * k)
+    stip = (1 - sstep(cell, 0.6 * k, 2.1 * k)) * STIP_AMT.get(mname, 1.0)
     p_wear = np.clip(edgew * 0.7 + scr * 0.35 + handling * 0.6, 0, 1)
     p_alb = np.array([0.050, 0.052, 0.056], np.float32)[None, None, :] * (0.7 + 0.7 * low[..., None]) * (0.85 + 0.3 * stip[..., None])
     p_alb = lerp(p_alb, np.array([0.14, 0.14, 0.145], np.float32)[None, None, :], p_wear[..., None] * 0.75)
@@ -281,13 +289,16 @@ def build(name, size, rng):
     # ---- coat (paint / cerakote): the artist's colour, matte, chipped to bare steel on edges and handled spots
     ca = np.clip(a, 0, 1) ** 2.2
     cl = lum(ca)[..., None]
+    if mname in COAT_FLAT:
+        ca = np.array(COAT_FLAT[mname], np.float32)[None, None, :] * (0.62 + 0.55 * low[..., None]) * np.ones_like(ca)
+        cl = lum(ca)[..., None]
     c_alb = lerp(cl, ca, 0.8) * np.clip(blur(ca, 3 * k) / np.maximum(cl, 1e-3), 0, 2) ** 0 * (0.75 + 0.5 * low[..., None]) * (0.92 + 0.16 * fine[..., None])
     c_alb = np.clip(c_alb * 0.9, 0, 1) * (1 - 0.45 * dirt[..., None]) * (1 - 0.35 * groove[..., None])
     chip = np.clip(edgew * 0.9 + scr * 0.4 + handling * 0.4, 0, 1)
     c_alb = lerp(c_alb, steel * 0.9, chip[..., None])
     c_rough = np.clip(0.55 + 0.2 * (mid - 0.5) + 0.1 * fine - chip * 0.25 + dirt * 0.1, 0, 1)
     c_met = chip * 0.95
-    c_h = (fine - 0.5) * 0.15 + (low - 0.5) * 0.1 + det * 0.25 - chip * 0.15 - scr * 0.2
+    c_h = (fine - 0.5) * (0.04 if mname in COAT_FLAT else 0.15) + (low - 0.5) * 0.1 + det * 0.25 - chip * 0.15 - scr * 0.2
     # ---- cloth wrap: woven olive-khaki tape, matte, low contrast (the source's stripes were a UV accident)
     wu = np.arange(size, dtype=np.float32)[None, :]
     wv = np.arange(size, dtype=np.float32)[:, None]
@@ -298,6 +309,10 @@ def build(name, size, rng):
     cl_rough = np.clip(0.86 + 0.1 * (fine - 0.5), 0, 1)
     cl_h = (weave - 0.5) * 0.35 + (thread - 0.5) * 0.12 - dirt * 0.05
     # ---- glow parts (cells of the plasma rifle, rail strips): a dark glassy housing with the light coming from inside
+    if mname in BLADE:
+        m_alb = np.clip(m_alb * 1.7, 0, 0.8)
+        m_met = np.minimum(m_met, BLADE[mname][0])
+        m_rough = np.maximum(m_rough, BLADE[mname][1])
     ge = glow[..., None]
     # ---- blend by class weight
     wr = lambda w: w[..., None]
