@@ -32,6 +32,7 @@ func _ready() -> void:
 	_shared_catalogue()
 	_mag_carve()
 	await _one_arm_set()
+	_charge_fizzle()
 	await _finish()
 
 
@@ -788,6 +789,21 @@ func _glove_cache() -> void:
 		fresh.size() == 1 and absf(fresh[0].r - 0.8) < 0.02 and not AwViewArms._means.has(tex2.get_instance_id()))
 	AwViewArms.albedo_cache = was
 	mi.free()
+	_end()
+
+
+func _charge_fizzle() -> void:
+	_begin("charge ball fizzle")
+	var fx := preload("res://addons/arena_weapons/view/aw_charge_fx.gd").new()
+	fx.set_charge(0.6)
+	fx.advance(0.5)
+	fx.set_charge(0.0)
+	_check("an early release is a fizzle that ends in under 8 frames at 60 Hz",
+		fx.is_fizzling() and fx.collapse_time() < 8.0 / 60.0)
+	for i in 8:
+		fx.advance(1.0 / 60.0)
+	_check("the fizzle is gone after 8 frames", not fx.visible and fx.shown() == 0.0)
+	fx.free()
 	_end()
 
 

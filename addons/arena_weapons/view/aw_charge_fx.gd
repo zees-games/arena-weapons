@@ -5,6 +5,8 @@ extends Node3D
 const READY := 0.98
 const SWIRL := 6
 const COLLAPSE := 0.22
+## A fizzle is a short stutter and a snap out, not a slow shrink (it read as a lingering wedge).
+const FIZZLE := 0.12
 
 ## Where the ball sits, in world space; read every frame.
 var follow: Callable = Callable()
@@ -75,6 +77,11 @@ func is_ready() -> bool:
 	return _charge >= READY
 
 
+## Seconds a collapse lasts now (shorter for a fizzle), for a suite.
+func collapse_time() -> float:
+	return FIZZLE if _fizzle else COLLAPSE
+
+
 func is_fizzling() -> bool:
 	return _collapse >= 0.0 and _fizzle
 
@@ -96,7 +103,7 @@ func advance(delta: float) -> void:
 	var punch := 1.0
 	if _collapse >= 0.0:
 		_collapse += delta
-		var t := _collapse / COLLAPSE
+		var t := _collapse / (FIZZLE if _fizzle else COLLAPSE)
 		if t >= 1.0:
 			visible = false
 			_collapse = -1.0
@@ -106,7 +113,8 @@ func advance(delta: float) -> void:
 		level = _peak * (1.0 - t)
 		punch = 1.0 + (1.4 * sin(t * PI) if not _fizzle else 0.0)
 		if _fizzle:
-			level *= 1.0 - t
+			## Flicker on and off at 40 Hz-ish, dimming; the ball never gets past its peak.
+			level *= (1.0 - t) * (0.35 + 0.65 * absf(sin(_collapse * 150.0)))
 	_shown = level
 
 	var ready := _charge >= READY and _collapse < 0.0
