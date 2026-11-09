@@ -18,6 +18,7 @@ extends RefCounted
 const CELL := &"cell"
 const AMMO_BOX := &"ammo_box"
 const BOX_MAGAZINE := &"box_magazine"
+const DRUM_MAGAZINE := &"drum_magazine"
 ## The reload sequence's loose pieces (aw_reload_sequence.gd): cases thrown out, rounds carried in.
 const LOOSE := [&"casing", &"round", &"shell", &"grenade", &"grenade_case", &"rocket", &"speedloader", &"clip", &"belt"]
 
@@ -26,7 +27,7 @@ const LOOSE := [&"casing", &"round", &"shell", &"grenade", &"grenade_case", &"ro
 ## reload of a session otherwise built and dressed them mid-play (a 150 ms frame on a GPU box).
 static func build_all() -> Array[Node3D]:
 	var out: Array[Node3D] = []
-	for part: StringName in [CELL, AMMO_BOX, BOX_MAGAZINE] + LOOSE:
+	for part: StringName in [CELL, AMMO_BOX, BOX_MAGAZINE, DRUM_MAGAZINE] + LOOSE:
 		var node := build(part)
 		if node != null:
 			out.append(node)
@@ -43,6 +44,8 @@ static func build(part: StringName) -> Node3D:
 			node = ammo_box()
 		BOX_MAGAZINE:
 			node = box_magazine()
+		DRUM_MAGAZINE:
+			node = drum_magazine()
 		&"casing":
 			node = _cartridge(0.006, 0.026, false)
 		&"round":
@@ -208,19 +211,62 @@ static func ammo_box() -> Node3D:
 	return root
 
 
-## A stick magazine for a real-sized pistol or machine pistol (the second pack's), 14 cm tall: a
-## dark body, a lighter base plate and a brass round showing at the lips. The kit those guns
-## come from has no magazine, only a 6.5 cm cartridge, which inside a grip and a glove was
+## A stick magazine for a real-sized pistol, machine pistol or rifle, 14 cm tall: a gunmetal body
+## in three slightly curved segments (a banana, not a slab), raised ribs down both faces, a
+## lighter floor plate with a lip, feed lips and a brass round showing at the top. The kit those
+## guns come from has no magazine, only a 6.5 cm cartridge, which inside a grip and a glove was
 ## nothing on screen: a reload where the gun lifted and nothing left it.
 static func box_magazine() -> Node3D:
 	var root := Node3D.new()
 	root.name = "BoxMagazine"
-	var body := _material(Color(0.30, 0.32, 0.38), 0.3, 0.6)
-	var plate := _material(Color(0.42, 0.44, 0.50), 0.4, 0.5)
-	var brass := _material(Color(0.85, 0.62, 0.22), 0.6, 0.35)
-	_box(root, Vector3(0.034, 0.012, 0.05), Vector3(0.0, 0.006, 0.0), plate)
-	_box(root, Vector3(0.028, 0.13, 0.042), Vector3(0.0, 0.075, 0.0), body)
-	_cylinder(root, 0.0075, 0.03, Vector3(0.0, 0.142, 0.002), brass, Basis(Vector3.RIGHT, PI * 0.5))
+	var body := _material(Color(0.20, 0.22, 0.27), 0.55, 0.45)
+	var rib := _material(Color(0.33, 0.35, 0.41), 0.6, 0.4)
+	var plate := _material(Color(0.52, 0.54, 0.60), 0.6, 0.35)
+	var brass := _material(Color(0.85, 0.62, 0.22), 0.7, 0.3)
+	# Three segments, each leaning a little more toward -Z, so the stick curves like a real one.
+	var y := 0.012
+	var z := 0.0
+	for i in 3:
+		var lean := deg_to_rad(4.0 * i)
+		var seg := 0.042
+		var mid := Vector3(0.0, y + seg * 0.5, z - seg * 0.5 * sin(lean))
+		_box(root, Vector3(0.028, seg + 0.002, 0.042), mid, body, Basis(Vector3.RIGHT, -lean))
+		for sx in [-1.0, 1.0]:
+			_box(root, Vector3(0.0035, seg * 0.8, 0.032), mid + Vector3(sx * 0.0145, 0.0, 0.0), rib, Basis(Vector3.RIGHT, -lean))
+		y += seg * cos(lean)
+		z -= seg * sin(lean)
+	_box(root, Vector3(0.036, 0.012, 0.052), Vector3(0.0, 0.006, 0.0), plate)
+	_box(root, Vector3(0.030, 0.006, 0.010), Vector3(0.0, 0.015, 0.027), plate)
+	_box(root, Vector3(0.030, 0.008, 0.044), Vector3(0.0, y + 0.002, z), rib)
+	_cylinder(root, 0.0075, 0.03, Vector3(0.0, y + 0.012, z + 0.004), brass, Basis(Vector3.RIGHT, PI * 0.5))
+	return root
+
+
+## A round drum magazine for a drum-fed gun, 14 cm across and 6 cm wide (along X), standing on a
+## short neck that seats in the well: a banded gunmetal drum with brass-coloured hub caps, a
+## lighter rim, radial ribs round the face and a round showing in the neck.
+static func drum_magazine() -> Node3D:
+	var root := Node3D.new()
+	root.name = "DrumMagazine"
+	var body := _material(Color(0.22, 0.24, 0.29), 0.55, 0.45)
+	var rim := _material(Color(0.50, 0.52, 0.58), 0.6, 0.35)
+	var rib := _material(Color(0.34, 0.36, 0.42), 0.6, 0.4)
+	var brass := _material(Color(0.85, 0.62, 0.22), 0.7, 0.3)
+	var along_x := Basis(Vector3.BACK, PI * 0.5)
+	var centre := Vector3(0.0, 0.085, 0.0)
+	_box(root, Vector3(0.030, 0.030, 0.040), Vector3(0.0, 0.015, 0.0), body)
+	_box(root, Vector3(0.036, 0.008, 0.046), Vector3(0.0, 0.004, 0.0), rim)
+	_cylinder(root, 0.068, 0.056, centre, body, along_x)
+	for sx in [-1.0, 1.0]:
+		_cylinder(root, 0.071, 0.006, centre + Vector3(sx * 0.030, 0.0, 0.0), rim, along_x)
+		_cylinder(root, 0.024, 0.008, centre + Vector3(sx * 0.031, 0.0, 0.0), brass, along_x)
+		_cylinder(root, 0.010, 0.012, centre + Vector3(sx * 0.033, 0.0, 0.0), rib, along_x)
+	for i in 8:
+		var a := TAU * float(i) / 8.0
+		var out := Vector3(0.0, cos(a), sin(a))
+		_box(root, Vector3(0.060, 0.008, 0.012), centre + out * 0.066, rib,
+			Basis(Vector3.RIGHT, -a))
+	_cylinder(root, 0.0075, 0.03, Vector3(0.0, 0.034, 0.0), brass, Basis(Vector3.RIGHT, PI * 0.5))
 	return root
 
 
