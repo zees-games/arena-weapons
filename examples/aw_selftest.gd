@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 274
+const CHECKS := 275
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -31,6 +31,7 @@ func _ready() -> void:
 	_glove_cache()
 	_shared_catalogue()
 	_mag_carve()
+	await _one_arm_set()
 	await _finish()
 
 
@@ -529,6 +530,36 @@ func _near_plane_clip() -> void:
 	_check("a box cutting the near plane inside the view counts", probe._section_meets(inside, 0.5, rect))
 	_check("a box cutting the near plane outside the view does not", not probe._section_meets(outside, 0.5, rect))
 	probe.free()
+	_end()
+
+
+## However the gun is equipped, swapped or reloaded, a view model owns exactly one set of arms (a second set drawn
+## beside the first was reported on charge_rifle's reload; render_reload counts the drawn sets on the real client).
+func _one_arm_set() -> void:
+	_begin("a view model holds exactly one arm set")
+	var camera := Camera3D.new()
+	add_child(camera)
+	var view := AwViewModel.new()
+	camera.add_child(view)
+	var bad: Array[String] = []
+	for id: StringName in [&"charge_rifle", &"lmg", &"rifle", &"charge_rifle"]:
+		var art := AwWeaponVisual.make(id)
+		AwArtDress.apply(art, AwWeaponArt.weapon_rows("")[id])
+		view.equip(art)
+		var sets := view.find_children("*", "AwViewArms", true, false).size()
+		if sets != 1:
+			bad.append("%s after equip: %d" % [id, sets])
+		for f in 12:
+			view.on_reload((f + 0.5) / 12.0)
+			await get_tree().physics_frame
+			view.advance(0.02)
+			sets = view.find_children("*", "AwViewArms", true, false).size()
+			if sets != 1:
+				bad.append("%s reload %d/12: %d" % [id, f, sets])
+		view.on_reload(0.0)
+	_check("one AwViewArms through equip, swaps and a reload sweep: %s" % ", ".join(bad), bad.is_empty())
+	view.queue_free()
+	camera.queue_free()
 	_end()
 
 
