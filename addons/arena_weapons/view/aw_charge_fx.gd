@@ -115,6 +115,12 @@ func advance(delta: float) -> void:
 		if _fizzle:
 			## Flicker on and off at 40 Hz-ish, dimming; the ball never gets past its peak.
 			level *= (1.0 - t) * (0.35 + 0.65 * absf(sin(_collapse * 150.0)))
+			if level < 0.05:
+				visible = false
+				_collapse = -1.0
+				_shown = 0.0
+				_peak = 0.0
+				return
 	_shown = level
 
 	var ready := _charge >= READY and _collapse < 0.0
