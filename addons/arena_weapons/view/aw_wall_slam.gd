@@ -126,30 +126,41 @@ static func probe_from(space: PhysicsDirectSpaceState3D, eye: Transform3D, reach
 				best = INF
 	out["depth"] = obstruction(reach, best, margin, cap)
 	if spread > 0.0:
-		var cb := eye.basis
-		var offsets := {"up": cb.y, "down": -cb.y, "left": -cb.x, "right": cb.x}
-		var sides: Dictionary = out["sides"]
-		for key: String in offsets:
-			var dir: Vector3 = (muzzle_dir * reach + (offsets[key] as Vector3) * spread).normalized()
-			var q := PhysicsRayQueryParameters3D.create(from, from + dir * (reach + margin), mask, exclude.duplicate())
-			q.collide_with_areas = false
-			var d := INF
-			for _hop in range(8):
-				var f := space.intersect_ray(q)
-				if f.is_empty():
-					break
-				if ignore_characters and f["collider"] is CharacterBody3D:
-					q.exclude.append(f["rid"])
-					continue
-				var fn: Vector3 = f["normal"]
-				if _ignored_surface(fn, f["position"].y - from.y, pitch_down, floor_look):
-					break
-				d = from.distance_to(f["position"])
-				break
-			var along := dir.dot(forward)
-			sides[key] = obstruction(reach * along, d * along, margin, cap)
+		out["sides"] = probe_sides(space, eye, reach, mask, ignore_characters, exclude, muzzle_dir, margin, cap, floor_look, spread)
 	out["normal"] = eye.basis.inverse() * best_normal
 	return out
+
+
+## How far each of four rays beside the muzzle (up, down, left, right, [param spread] apart) is obstructed, for the lean.
+## Split from [method probe_from] so [method barrel_turn] can skip these four rays when the gun meets nothing, its common case.
+static func probe_sides(space: PhysicsDirectSpaceState3D, eye: Transform3D, reach: float, mask: int, ignore_characters: bool, exclude: Array[RID],
+		muzzle_dir: Vector3, margin: float, cap: float, floor_look: float, spread: float) -> Dictionary:
+	var from := eye.origin
+	var forward: Vector3 = -eye.basis.z.normalized()
+	var pitch_down := rad_to_deg(asin(clampf(-forward.y, -1.0, 1.0)))
+	var cb := eye.basis
+	var offsets := {"up": cb.y, "down": -cb.y, "left": -cb.x, "right": cb.x}
+	var sides := {"up": 0.0, "down": 0.0, "left": 0.0, "right": 0.0}
+	for key: String in offsets:
+		var dir: Vector3 = (muzzle_dir * reach + (offsets[key] as Vector3) * spread).normalized()
+		var q := PhysicsRayQueryParameters3D.create(from, from + dir * (reach + margin), mask, exclude.duplicate())
+		q.collide_with_areas = false
+		var d := INF
+		for _hop in range(8):
+			var f := space.intersect_ray(q)
+			if f.is_empty():
+				break
+			if ignore_characters and f["collider"] is CharacterBody3D:
+				q.exclude.append(f["rid"])
+				continue
+			var fn: Vector3 = f["normal"]
+			if _ignored_surface(fn, f["position"].y - from.y, pitch_down, floor_look):
+				break
+			d = from.distance_to(f["position"])
+			break
+		var along := dir.dot(forward)
+		sides[key] = obstruction(reach * along, d * along, margin, cap)
+	return sides
 
 
 ## True for a floor or ceiling the gun is not meant to react to: the ground underfoot while looking level, the ceiling overhead. [param rise] is the surface's height above the eye; a floor-like surface within [constant FLOOR_NEAR] below it always counts.
@@ -159,30 +170,40 @@ static func _ignored_surface(n: Vector3, rise: float, pitch_down: float, floor_l
 	return n.y < -0.7 and -pitch_down < floor_look
 
 
+static var _sweep_sphere: SphereShape3D
+static var _sweep_q: PhysicsShapeQueryParameters3D
+static var _sweep_probe: PhysicsShapeQueryParameters3D
+
+
 ## A sphere of [param radius] swept from [param from] along [param dir]: `{distance, normal}` to the surface it stops against
 ## (INF and zero for none). The gun has thickness, so a wall its tip would miss by a hair still catches its body.
 static func _sweep(space: PhysicsDirectSpaceState3D, from: Vector3, dir: Vector3, length: float, radius: float, mask: int,
 		exclude: Array[RID], ignore_characters: bool) -> Dictionary:
 	var out := {"distance": INF, "normal": Vector3.ZERO, "height": 0.0}
-	var sphere := SphereShape3D.new()
-	sphere.radius = radius
-	var q := PhysicsShapeQueryParameters3D.new()
-	q.shape = sphere
+	# One shape and two queries for every call: a new SphereShape3D is a physics server shape made and freed per tick per shooter.
+	if _sweep_q == null:
+		_sweep_sphere = SphereShape3D.new()
+		_sweep_q = PhysicsShapeQueryParameters3D.new()
+		_sweep_q.shape = _sweep_sphere
+		_sweep_q.collide_with_areas = false
+		_sweep_probe = PhysicsShapeQueryParameters3D.new()
+		_sweep_probe.shape = _sweep_sphere
+		_sweep_probe.collide_with_areas = false
+	if _sweep_sphere.radius != radius:
+		_sweep_sphere.radius = radius
+	var q := _sweep_q
 	q.transform = Transform3D(Basis.IDENTITY, from)
 	q.motion = dir * maxf(length - radius, 0.0)
 	q.collision_mask = mask
-	q.collide_with_areas = false
 	q.exclude = exclude.duplicate()
 	for _hop in range(4):
 		var fractions := space.cast_motion(q)
 		if fractions.size() < 2 or fractions[0] >= 1.0:
 			return out
 		var at := from + q.motion * fractions[1]
-		var probe_q := PhysicsShapeQueryParameters3D.new()
-		probe_q.shape = sphere
+		var probe_q := _sweep_probe
 		probe_q.transform = Transform3D(Basis.IDENTITY, at)
 		probe_q.collision_mask = mask
-		probe_q.collide_with_areas = false
 		probe_q.exclude = q.exclude
 		var rest := space.get_rest_info(probe_q)
 		if ignore_characters and not rest.is_empty():
@@ -246,11 +267,15 @@ static func barrel_turn(space: PhysicsDirectSpaceState3D, eye: Transform3D, muzz
 		return Basis.IDENTITY
 	var to_muzzle: Vector3 = eye.basis * muzzle
 	var reach := reach_of(dist, view_scale, w["reach"])
+	# The side rays only shape the lean of a gun already touching something: probed after the depth, not with it.
 	var hit := probe_from(space, eye, reach, mask, ignore_characters, exclude, to_muzzle / dist, w["margin"], w["max"],
-		w["floor_look"], w["spread"] / maxf(view_scale, 0.1), w["cast"])
+		w["floor_look"], 0.0, w["cast"])
 	var depth: float = hit["depth"]
 	if depth <= 0.0:
 		return Basis.IDENTITY
+	var spread: float = w["spread"] / maxf(view_scale, 0.1)
+	if spread > 0.0:
+		hit["sides"] = probe_sides(space, eye, reach, mask, ignore_characters, exclude, to_muzzle / dist, w["margin"], w["max"], w["floor_look"], spread)
 	var slam := AwWallSlam.new()
 	slam.amount = minf(depth + clampf(speed * 0.012, 0.0, 0.1) * w["impulse"], w["max"])
 	slam.aim_at(hit["normal"], speed, strafe)

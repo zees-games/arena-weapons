@@ -150,8 +150,17 @@ func value_for(id: StringName, key: String) -> Variant:
 	return own.get(key, base.get(key, SPECS[key]["default"]))
 
 
+## Weapon id (String) -> the row [method set_def_row] last cleaned for it, as given.
+var _def_row_from: Dictionary = {}
+
+
 ## Takes a weapon def's `params["ads"]` as that weapon's profile-owned values; keys out of range or unknown are dropped.
 func set_def_row(id: StringName, row: Variant) -> void:
+	# The rig calls this every firing tick with the same row: checking it again built a whole AwAdsRules each time.
+	var key_id := String(id)
+	if _def_row_from.has(key_id) and _def_row_from[key_id] == row:
+		return
+	_def_row_from[key_id] = row.duplicate(true) if row is Dictionary else row
 	var clean := {}
 	if row is Dictionary:
 		var scratch := AwAdsRules.new()
