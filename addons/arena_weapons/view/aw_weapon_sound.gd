@@ -384,6 +384,15 @@ static func set_stream(id_or_class: StringName, audio: AudioStream) -> void:
 
 
 ## Bakes one recipe into a 16-bit mono stream.
+##
+## The crack is band-passed: a low-pass for the top, minus a low-pass for the bottom. Noise
+## with its lows left in is a thud; with its highs left in it is a hiss. The band between is
+## what reads as a snap. The body and tone sweep exponentially, because pitch is heard
+## logarithmically: a linear sweep spends its length near the top and arrives as a click
+## with a tail. The tone is two odd harmonics over the fundamental: a sine alone is a test
+## tone, a square is harsh, and this is between them. The whoosh is air: the noise's
+## brightness and level rise and fall together over the whole sound, which is the shape of
+## something passing the ear.
 static func bake(recipe: Dictionary, salt: int = 0) -> AudioStreamWAV:
 	var length := clampf(float(recipe.get("length", 0.3)), 0.02, 2.0)
 	var frames := int(length * float(RATE))
@@ -432,16 +441,11 @@ static func bake(recipe: Dictionary, salt: int = 0) -> AudioStreamWAV:
 		var sample := 0.0
 
 		if crack > 0.0:
-			# Band-passed: a low-pass for the top, minus a low-pass for the bottom. Noise
-			# with its lows left in is a thud; with its highs left in it is a hiss. The
-			# band between is what reads as a snap.
 			crack_low += crack_a * (noise - crack_low)
 			crack_high += crack_hp * (crack_low - crack_high)
 			sample += (crack_low - crack_high) * 2.2 * crack * exp(-t / crack_s)
 
 		if body > 0.0:
-			# Exponential sweep, because pitch is heard logarithmically: a linear one spends
-			# its length near the top and arrives as a click with a tail.
 			var hz := body_hz * pow(body_to / body_hz, minf(1.0, t / (body_s * 3.0)))
 			body_phase += TAU * hz / float(RATE)
 			sample += sin(body_phase) * body * exp(-t / body_s)
@@ -453,14 +457,10 @@ static func bake(recipe: Dictionary, salt: int = 0) -> AudioStreamWAV:
 		if tone > 0.0:
 			var thz := tone_hz * pow(tone_to / tone_hz, minf(1.0, t / (tone_s * 2.0)))
 			tone_phase += TAU * thz / float(RATE)
-			# Two odd harmonics over the fundamental: a sine alone is a test tone, a
-			# square is harsh, and this is between them.
 			var wave := sin(tone_phase) + sin(tone_phase * 3.0) / 3.0 + sin(tone_phase * 5.0) / 5.0
 			sample += wave * 0.8 * tone * exp(-t / tone_s)
 
 		if whoosh > 0.0:
-			# Air: the noise's brightness and level rise and fall together over the whole
-			# sound, which is the shape of something passing the ear.
 			var through := t / length
 			var bell := sin(PI * through)
 			whoosh_low += _pole(lerpf(whoosh_lo, whoosh_hi, bell)) * (noise - whoosh_low)
@@ -469,6 +469,11 @@ static func bake(recipe: Dictionary, salt: int = 0) -> AudioStreamWAV:
 		samples[i] = sample
 		peak = maxf(peak, absf(sample))
 
+	return _encode(samples, frames, peak, gain)
+
+
+## The second half of [method bake]: [param samples] normalised to [param gain] by their [param peak], shaped, and packed as 16-bit mono.
+static func _encode(samples: PackedFloat32Array, frames: int, peak: float, gain: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	data.resize(frames * 2)
 
