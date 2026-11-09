@@ -5,11 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-<<<<<<< HEAD
-const CHECKS := 274
-=======
-const CHECKS := 263
->>>>>>> weapon-fx-fizzle
+const CHECKS := 276
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -34,11 +30,8 @@ func _ready() -> void:
 	_utility()
 	_glove_cache()
 	_shared_catalogue()
-<<<<<<< HEAD
 	_mag_carve()
-=======
 	_charge_fizzle()
->>>>>>> weapon-fx-fizzle
 	await _finish()
 
 
