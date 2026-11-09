@@ -22,9 +22,19 @@ func _on_reload_started(slot: int) -> void:
 	_reload_started = _last_tick
 	_reload_ticks = reload_motion_ticks(carried.def, carried.magazine_space())
 	_cued_reload = false
+	# The view model adds nodes for the reload, which only the main thread may: a tick run on a
+	# worker shows it at the end of the frame.
+	if OS.get_thread_caller_id() == OS.get_main_thread_id():
+		_show_reload_begin(carried, carried.magazine)
+	else:
+		_show_reload_begin.call_deferred(carried, carried.magazine)
+
+
+## The view model's and the sounds' side of [method _on_reload_started].
+func _show_reload_begin(carried: DotWeaponSlot, magazine: int) -> void:
 	if _view != null and not _replaying:
 		var start := float(arsenal.ticks_for(carried.def, carried.def.reload_start_ticks)) if carried.def.reload_per_round else 0.0
-		_view.on_reload_begin(carried.magazine, carried.def.magazine, start / float(_reload_ticks))
+		_view.on_reload_begin(magazine, carried.def.magazine, start / float(_reload_ticks))
 		# With a plan the sounds come from the animation (see _on_reload_cue); the two fixed ones would double them.
 		_cued_reload = _view.has_reload_cues()
 		if _cued_reload and not _view.reload_cue.is_connected(_on_reload_cue):

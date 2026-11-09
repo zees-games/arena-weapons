@@ -259,6 +259,10 @@ func _aim_along_wall_barrel(context: DotWeaponContext) -> void:
 		context.direction = (aim * (turn * Vector3.FORWARD)).normalized()
 
 
+## The space [method wall_barrel] last took on the main thread.
+var _wall_space: PhysicsDirectSpaceState3D = null
+
+
 ## The rotation (view space) a wall puts on the held gun's barrel for an eye at [param origin] looking along [param direction].
 func wall_barrel(origin: Vector3, direction: Vector3, art: AwWeaponVisual, speed: float, aim: float, strafe: float = 0.0) -> Basis:
 	var node := _player as Node3D
@@ -269,7 +273,15 @@ func wall_barrel(origin: Vector3, direction: Vector3, art: AwWeaponVisual, speed
 	if node is CollisionObject3D:
 		exclude.append((node as CollisionObject3D).get_rid())
 	var mask := (_fx.collision_mask if _fx != null else wall_shot_mask) | wall_extra_mask
-	return AwWallSlam.barrel_turn(node.get_world_3d().direct_space_state, eye, art.hip_muzzle(arsenal.fitting_at(arsenal.current_slot()) if arsenal != null else null), ads_rules.view_scale_for(art.id),
+	# The physics server hands the space only to the main thread; a tick run on a worker uses the
+	# one the main thread last took (the main thread is waiting on that worker, so nothing steps it).
+	var space := _wall_space
+	if OS.get_thread_caller_id() == OS.get_main_thread_id() or space == null:
+		if OS.get_thread_caller_id() != OS.get_main_thread_id():
+			return Basis.IDENTITY
+		space = node.get_world_3d().direct_space_state
+		_wall_space = space
+	return AwWallSlam.barrel_turn(space, eye, art.hip_muzzle(arsenal.fitting_at(arsenal.current_slot()) if arsenal != null else null), ads_rules.view_scale_for(art.id),
 		ads_rules.wall_for(art.id), 1.0, 1.0, speed, aim, mask, true, exclude, strafe)
 
 
@@ -455,27 +467,10 @@ func _update_presentation(tick: int) -> void:
 	var def := arsenal.current_def()
 	var id := def.id if def != null else &""
 
-	if id != _shown:
-		_shown = id
-		var art: AwWeaponVisual = AwWeaponArtTable.table().get(id, null)
-		# A profile's `extra: art:` overrides the table's art, as a figure's held gun does.
-		if art != null and def != null and def.params.get("art") is Dictionary:
-			art = art.with_overrides(def.params["art"])
-
-		if def != null and ads_rules != null:
-			ads_rules.set_def_row(def.id, def.params.get("ads"))
-
-		if _view != null:
-			_view.equip(art)
-			_view.set_kick_params(def.params if def != null else {})
-
-		if _world != null:
-			_world.equip(art)
-
-		_shown_fit = ""
-		equipped.emit(id)
-		if _fx != null and _fx_origin_known and id != &"":
-			_fx.play_equip(_listen_at(), def != null and AwWeaponIds.TAG_THROWN in def.tags, id)
+	# The model swap adds nodes, which only the main thread may: a tick run on a worker leaves it
+	# for catch_up_equip(), which its owner calls once the worker is joined.
+	if id != _shown and OS.get_thread_caller_id() == OS.get_main_thread_id():
+		_show_equipped(def, id)
 
 	_show_fitting()
 	_fx_origin_known = true
@@ -490,6 +485,50 @@ func _update_presentation(tick: int) -> void:
 	if _world != null:
 		_world.on_switching(arsenal.is_switching())
 		_world.on_reloading(arsenal.is_reloading())
+
+
+## The shot's flash, sound and brass for [method _record_use].
+func _play_use_fx(outcome: DotWeaponOutcome, muzzle: Transform3D, weapon_id: StringName) -> void:
+	if _fx == null or _view == null:
+		return
+	_fx.play_use(outcome, muzzle, weapon_id)
+	if outcome.kind == DotWeaponOutcome.KIND_SHOT and _view.has_method(&"ejects") and _view.ejects():
+		_fx.play_eject(_view.eject_transform(), weapon_id, _view.eject_speed() if _view.has_method(&"eject_speed") else 1.0)
+
+
+## Shows the weapon in hand when a tick run off the main thread could not (see _update_presentation). Main thread only.
+func catch_up_equip() -> void:
+	if _replaying or role == Role.SERVER or arsenal == null:
+		return
+	var def := arsenal.current_def()
+	var id := def.id if def != null else &""
+	if id != _shown:
+		_show_equipped(def, id)
+		_show_fitting()
+
+
+## Swaps both models to [param id]'s art, with its sights row, kick and equip sound.
+func _show_equipped(def: DotWeaponDef, id: StringName) -> void:
+	_shown = id
+	var art: AwWeaponVisual = AwWeaponArtTable.table().get(id, null)
+	# A profile's `extra: art:` overrides the table's art, as a figure's held gun does.
+	if art != null and def != null and def.params.get("art") is Dictionary:
+		art = art.with_overrides(def.params["art"])
+
+	if def != null and ads_rules != null:
+		ads_rules.set_def_row(def.id, def.params.get("ads"))
+
+	if _view != null:
+		_view.equip(art)
+		_view.set_kick_params(def.params if def != null else {})
+
+	if _world != null:
+		_world.equip(art)
+
+	_shown_fit = ""
+	equipped.emit(id)
+	if _fx != null and _fx_origin_known and id != &"":
+		_fx.play_equip(_listen_at(), def != null and AwWeaponIds.TAG_THROWN in def.tags, id)
 
 
 ## Tells both models what is fitted to the weapon in hand, when that changes.
@@ -694,9 +733,12 @@ func _record_use(outcome: DotWeaponOutcome) -> void:
 			_fx.first_person_flash_scale = _view.flash_scale()
 			_fx.rail_charge = charge_shown
 			_view.note_fired()
-			_fx.play_use(outcome, _view.muzzle_transform(), weapon_id)
-			if outcome.kind == DotWeaponOutcome.KIND_SHOT and _view.has_method(&"ejects") and _view.ejects():
-				_fx.play_eject(_view.eject_transform(), weapon_id, _view.eject_speed() if _view.has_method(&"eject_speed") else 1.0)
+			# The effects cast rays and add nodes, which only the main thread may: a tick run on a
+			# worker leaves them to the end of the frame.
+			if OS.get_thread_caller_id() == OS.get_main_thread_id():
+				_play_use_fx(outcome, _view.muzzle_transform(), weapon_id)
+			else:
+				_play_use_fx.call_deferred(outcome, _view.muzzle_transform(), weapon_id)
 
 		if _world != null:
 			# The world model draws the shot itself only when nothing here did.
