@@ -14,6 +14,12 @@ const FAST_SPEED := 5.0
 ## A floor-like surface this near below the eye (metres) is a step, crate or stair the gun can run into, so it counts at any look angle; the floor underfoot is further than any gun reaches.
 const FLOOR_NEAR := 0.8
 
+## The shot's wall check ([method barrel_turn]) asks the cheap questions first (cvar `wall_shot_fast`, default on):
+## one sphere around the eye as wide as every probe reaches, and nothing inside it means open air without the
+## rays and the sweep; the four side rays only when the gun is in a wall (in open air the lean they feed is not
+## used). The answer is the same either way (aw_selftest); off asks every question every tick.
+static var fast_barrel := true
+
 ## Strafe speed (m/s, view space, right positive) of the last frame: a sideways approach shoves the gun round the wall.
 var lateral: float = 0.0
 ## Smoothed depth in metres (0 in open air).
@@ -88,7 +94,8 @@ static func probe(host: Node3D, reach: float, mask: int, ignore_characters: bool
 
 ## [method probe] from an eye transform and a physics space, so a server with no view model asks the same question.
 static func probe_from(space: PhysicsDirectSpaceState3D, eye: Transform3D, reach: float, mask: int, ignore_characters: bool, exclude: Array[RID],
-		muzzle_dir: Vector3, margin: float, cap: float, floor_look: float, spread: float = 0.0, cast_radius: float = 0.0) -> Dictionary:
+		muzzle_dir: Vector3, margin: float, cap: float, floor_look: float, spread: float = 0.0, cast_radius: float = 0.0,
+		sides_when_clear: bool = true) -> Dictionary:
 	var out := {"depth": 0.0, "normal": Vector3.ZERO, "sides": {"up": 0.0, "down": 0.0, "left": 0.0, "right": 0.0}}
 	if space == null or reach <= 0.01:
 		return out
@@ -125,7 +132,7 @@ static func probe_from(space: PhysicsDirectSpaceState3D, eye: Transform3D, reach
 			elif best_normal == Vector3.ZERO:
 				best = INF
 	out["depth"] = obstruction(reach, best, margin, cap)
-	if spread > 0.0:
+	if spread > 0.0 and (sides_when_clear or out["depth"] > 0.0):
 		var cb := eye.basis
 		var offsets := {"up": cb.y, "down": -cb.y, "left": -cb.x, "right": cb.x}
 		var sides: Dictionary = out["sides"]
@@ -246,8 +253,10 @@ static func barrel_turn(space: PhysicsDirectSpaceState3D, eye: Transform3D, muzz
 		return Basis.IDENTITY
 	var to_muzzle: Vector3 = eye.basis * muzzle
 	var reach := reach_of(dist, view_scale, w["reach"])
+	if fast_barrel and _open_air(space, eye.origin, reach + float(w["margin"]), mask, exclude):
+		return Basis.IDENTITY
 	var hit := probe_from(space, eye, reach, mask, ignore_characters, exclude, to_muzzle / dist, w["margin"], w["max"],
-		w["floor_look"], w["spread"] / maxf(view_scale, 0.1), w["cast"])
+		w["floor_look"], w["spread"] / maxf(view_scale, 0.1), w["cast"], not fast_barrel)
 	var depth: float = hit["depth"]
 	if depth <= 0.0:
 		return Basis.IDENTITY
@@ -257,3 +266,22 @@ static func barrel_turn(space: PhysicsDirectSpaceState3D, eye: Transform3D, muzz
 	slam.set_lean(hit["sides"], Vector2(muzzle.x, muzzle.y) / maxf(-muzzle.z, 0.05), w["lean"])
 	slam.lean = slam._lean_target
 	return slam.offset(retract_scale, tilt_scale, w["push"], w["nudge"], aim, w["impulse"]).basis
+
+
+static var _open_sphere: SphereShape3D = null
+static var _open_query: PhysicsShapeQueryParameters3D = null
+
+
+## True when nothing on [param mask] is within [param radius] of [param at]: every ray and sweep of
+## [method probe_from] stays inside that sphere, so none of them can hit.
+static func _open_air(space: PhysicsDirectSpaceState3D, at: Vector3, radius: float, mask: int, exclude: Array[RID]) -> bool:
+	if _open_query == null:
+		_open_sphere = SphereShape3D.new()
+		_open_query = PhysicsShapeQueryParameters3D.new()
+		_open_query.shape = _open_sphere
+		_open_query.collide_with_areas = false
+	_open_sphere.radius = radius + 0.01
+	_open_query.transform = Transform3D(Basis.IDENTITY, at)
+	_open_query.collision_mask = mask
+	_open_query.exclude = exclude
+	return space.intersect_shape(_open_query, 1).is_empty()

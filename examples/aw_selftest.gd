@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 275
+const CHECKS := 279
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -24,6 +24,7 @@ func _ready() -> void:
 	_reload_cues()
 	await _floor_clip()
 	await _near_plane_clip()
+	await _wall_shot_fast()
 	await _shot_fx_pool()
 	await _previews()
 	_grenades()
@@ -234,6 +235,12 @@ func _provider() -> void:
 	var rules := AwAdsRules.new()
 	rules.set_def_row(&"rifle", rifle_def.params["ads"])
 	_check("the ADS rules accept the rifle's wall row whole", float(rules.wall_for(&"rifle")["max"]) == float((rifle_def.params["ads"] as Dictionary)["wall_max"]))
+	var changed: Dictionary = (rifle_def.params["ads"] as Dictionary).duplicate()
+	changed["wall_max"] = float(changed["wall_max"]) * 0.5
+	rules.set_def_row(&"rifle", changed)
+	_check("a changed profile row replaces the cached one", is_equal_approx(float(rules.wall_for(&"rifle")["max"]), float(changed["wall_max"])))
+	rules.set_def_row(&"rifle", null)
+	_check("and no row drops it", float(rules.wall_for(&"rifle")["max"]) == float(AwAdsRules.defaults()["wall_max"]))
 	_check("every weapon id carries the pack prefix", rows.keys().all(func(k: StringName) -> bool: return String(k).begins_with("aw_")))
 	_check("one spawn entry per weapon", entries.size() == rows.size())
 	_check("role_art is keyed by role, not by this pack's ids", AwSpawnProvider.role_art().has(&"rifle") and not AwSpawnProvider.role_art().has(&"aw_rifle"))
@@ -478,6 +485,56 @@ func _floor_clip() -> void:
 	view.queue_free()
 	camera.queue_free()
 	floor_body.queue_free()
+	_end()
+
+
+## The shot's wall check with its cheap first questions (AwWallSlam.fast_barrel, cvar `wall_shot_fast`) turns the
+## barrel exactly as the full check does: in open air, near a wall, in one, and with a player body beside the eye.
+func _wall_shot_fast() -> void:
+	_begin("the fast wall shot check agrees with the full one")
+	var rifle_def := AwWeaponPack.weapons({}, "", false).filter(func(d: DotWeaponDef) -> bool: return d.id == &"rifle")[0] as DotWeaponDef
+	var rules := AwAdsRules.new()
+	rules.set_def_row(&"rifle", rifle_def.params["ads"])
+	var art := AwWeaponVisual.make(&"rifle")
+	AwArtDress.apply(art, AwWeaponArt.weapon_rows("")[&"rifle"])
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4.0, 4.0, 0.4)
+	shape.shape = box
+	wall.add_child(shape)
+	add_child(wall)
+	var body := CharacterBody3D.new()
+	var capsule := CollisionShape3D.new()
+	capsule.shape = CapsuleShape3D.new()
+	body.add_child(capsule)
+	add_child(body)
+	body.position = Vector3(50.0, 0.0, 0.0)
+	var space := get_viewport().world_3d.direct_space_state
+	var exclude: Array[RID] = []
+	var same := 0
+	var cases := 0
+	var turned := 0
+	for gap: float in [3.0, 1.0, 0.6, 0.35, 0.15]:
+		for yaw: float in [0.0, 35.0, -60.0]:
+			for beside: bool in [false, true]:
+				wall.position = Vector3(0.0, 0.0, -gap - 0.2)
+				body.position = Vector3(0.5, 0.0, -0.3) if beside else Vector3(50.0, 0.0, 0.0)
+				await get_tree().physics_frame
+				var eye := Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)), Vector3.ZERO)
+				var answers: Array[Basis] = []
+				for fast: bool in [false, true]:
+					AwWallSlam.fast_barrel = fast
+					answers.append(AwWallSlam.barrel_turn(space, eye, art.hip_muzzle(), rules.view_scale_for(&"rifle"),
+						rules.wall_for(&"rifle"), 1.0, 1.0, 3.0, 0.0, 0xFFFFFFFF, true, exclude, 0.5))
+				cases += 1
+				same += int(answers[0].is_equal_approx(answers[1]))
+				turned += int(answers[0] != Basis.IDENTITY)
+	AwWallSlam.fast_barrel = true
+	_check("fast and full agree in every case (%d of %d)" % [same, cases], same == cases)
+	_check("the cases include a turned barrel and open air (%d turned)" % turned, turned > 0 and turned < cases)
+	wall.queue_free()
+	body.queue_free()
 	_end()
 
 

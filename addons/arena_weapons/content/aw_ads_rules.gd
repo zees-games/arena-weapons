@@ -74,6 +74,11 @@ var base: Dictionary = defaults()
 var weapons: Dictionary = {}
 ## Weapon id (String) -> keys a weapon's own profile sets (`extra: params: ads:`); below the server's `weapons`, above the default.
 var def_rows: Dictionary = {}
+## Weapon id (String) -> hash of the row [method set_def_row] last took, so the rig's every-tick call is a lookup
+## while the profile row is unchanged (validating a row builds a scratch rule set: tens of microseconds a tick).
+var _def_row_hash: Dictionary = {}
+## Off: every [method set_def_row] validates the row again (perf_bench `--ads-cache 0`, for an A/B).
+static var cache_def_rows := true
 
 
 static func defaults() -> Dictionary:
@@ -150,6 +155,10 @@ func value_for(id: StringName, key: String) -> Variant:
 
 ## Takes a weapon def's `params["ads"]` as that weapon's profile-owned values; keys out of range or unknown are dropped.
 func set_def_row(id: StringName, row: Variant) -> void:
+	var h := hash(row)
+	if cache_def_rows and _def_row_hash.get(String(id), null) == h:
+		return
+	_def_row_hash[String(id)] = h
 	var clean := {}
 	if row is Dictionary:
 		var scratch := AwAdsRules.new()
