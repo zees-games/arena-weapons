@@ -5,7 +5,7 @@ extends Node
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 261
+const CHECKS := 267
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -29,6 +29,7 @@ func _ready() -> void:
 	_scope_hides_gun()
 	_reload_cues()
 	await _floor_clip()
+	await _near_plane_clip()
 	await _shot_fx_pool()
 	await _previews()
 	_grenades()
@@ -481,6 +482,58 @@ func _floor_clip() -> void:
 	view.queue_free()
 	camera.queue_free()
 	floor_body.queue_free()
+	_end()
+
+
+## A wall shoved against the muzzle retracts the gun toward the eye; no drawn mesh may then be cut by the camera near plane inside the view
+## (that slices it open into flat faces), at the narrow and the wide field of view alike, and the clamp must not push the gun past its free pose.
+func _near_plane_clip() -> void:
+	_begin("the gun at the near plane against a wall")
+	for fov: float in [75.0, 120.0]:
+		var camera := Camera3D.new()
+		camera.fov = fov
+		add_child(camera)
+		var view := AwViewModel.new()
+		view.show_arms = false
+		view.hands_fov = 55.0
+		camera.add_child(view)
+		var art := AwWeaponVisual.make(&"rifle")
+		AwArtDress.apply(art, AwWeaponArt.weapon_rows("")[&"rifle"])
+		view.equip(art)
+		var wall := StaticBody3D.new()
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(20.0, 20.0, 0.4)
+		shape.shape = box
+		wall.add_child(shape)
+		add_child(wall)
+		var worst := 0.0
+		var clear := camera.near + AwViewModel.NEAR_CLEAR
+		for gap: float in [1.2, 0.8, 0.5, 0.35, 0.25, 0.15]:
+			wall.position = Vector3(0.0, 0.0, -gap - 0.2)
+			for _i in 40:
+				await get_tree().physics_frame
+				view.advance(0.02)
+			worst = maxf(worst, view.weapon_cut_depth(camera, clear))
+		_check("fov %d: the near plane cuts no part of the gun inside the view (worst %.3f m)" % [fov, worst], worst < 0.001)
+		wall.position = Vector3(0.0, 0.0, -50.0)
+		for _i in 80:
+			await get_tree().physics_frame
+			view.advance(0.02)
+		_check("fov %d: free of the wall the gun is not pulled back (wall %.3f)" % [fov, view.wall_amount()], view.wall_amount() < 0.05)
+		wall.queue_free()
+		view.queue_free()
+		camera.queue_free()
+	var probe := AwViewModel.new()
+	var rect := PackedVector2Array([Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)])
+	var inside: Array[Vector3] = []
+	var outside: Array[Vector3] = []
+	for i in 8:
+		inside.append(Vector3(0.5 if i & 4 else -0.5, 0.5 if i & 2 else -0.5, -0.1 if i & 1 else -1.0))
+		outside.append(Vector3(5.5 if i & 4 else 4.5, 0.5 if i & 2 else -0.5, -0.1 if i & 1 else -1.0))
+	_check("a box cutting the near plane inside the view counts", probe._section_meets(inside, 0.5, rect))
+	_check("a box cutting the near plane outside the view does not", not probe._section_meets(outside, 0.5, rect))
+	probe.free()
 	_end()
 
 
