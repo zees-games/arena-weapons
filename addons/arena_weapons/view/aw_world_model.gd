@@ -1,6 +1,6 @@
 @tool
 class_name AwWorldModel
-extends Node3D
+extends "aw_world_model_keys.gd"
 
 ## The weapon everybody [i]else[/i] sees, hanging off a character's hand.
 ##
@@ -28,70 +28,9 @@ extends Node3D
 
 ## How much of a weapon's recoil a watcher sees.
 const Dress := preload("aw_attachment_dress.gd")
+const MagCarve := preload("aw_mag_carve.gd")
 
 const RECOIL_SHARE := 0.35
-
-# --- Authored motion ----------------------------------------------------------
-#
-# [b]A swing and a throw are keys here too, for the view model's reason[/b] ([AwWeaponPose]'s
-# SWING_KEYS): a melee weapon has no recoil, so a watcher saw somebody's knife ride the arm's
-# slash rigid in the hand, pointing where the held-gun pose points, and a grenade thrown from a
-# hand that never moved. Each key is [t, position in metres, rotation in degrees (pitch up,
-# yaw left, roll counter-clockwise)] in the hand's frame (-Z the way the person faces, +Y up),
-# turned about the grip, on top of [method AwWeaponVisual.world_transform], read through
-# [method AwWeaponPose.sample_keys]. [b]Not the view model's keys[/b]: those are in the camera's
-# frame at the view model's scale, and the arm under this one already moves (the person's
-# slash overlay), so these are the wrist's share only: cocked back as the arm comes up, cut
-# through as it comes down, followed through and back.
-
-## A melee swing, timed to the person's slash overlay (the arm is up at about 0.12 s and through
-## by 0.3 s at the rate the family plays it).
-const SWING_KEYS := [
-	[0.0, Vector3.ZERO, Vector3.ZERO],
-	[0.22, Vector3(0.0, 0.03, 0.04), Vector3(65.0, -15.0, -10.0)],
-	[0.42, Vector3(0.0, 0.0, -0.05), Vector3(-35.0, 30.0, 20.0)],
-	[0.58, Vector3(0.0, -0.02, -0.03), Vector3(-55.0, 38.0, 25.0)],
-	[0.82, Vector3(0.0, 0.0, 0.0), Vector3(-15.0, 10.0, 6.0)],
-	[1.0, Vector3.ZERO, Vector3.ZERO],
-]
-
-const SWING_SECONDS := 0.5
-
-## A throw: the wrist cocked back as the arm swings forward, flicked through, and the weapon gone
-## from [constant THROW_RELEASE] (the projectile is the game's, and a grenade still in the hand
-## beside it is two grenades) until it is back in the hand at [constant THROW_BACK]. The arm is
-## the person's: a thrown weapon is held with empty-handed arms, which have no throw of their
-## own, so [method throw] asks the person it hangs from for the slash overlay (see
-## [method _person]): up past the head and over, an overhand throw's path. Without an arm under
-## it a grenade moved by keys alone floated away from a hand that stayed where it was, and the
-## punch overlay punches with the other hand.
-const THROW_KEYS := [
-	[0.0, Vector3.ZERO, Vector3.ZERO],
-	[0.20, Vector3(0.0, 0.03, 0.05), Vector3(55.0, 0.0, -8.0)],
-	[0.36, Vector3(0.0, 0.02, -0.04), Vector3(-30.0, 0.0, 4.0)],
-	[0.60, Vector3(0.0, 0.0, -0.03), Vector3(-40.0, 0.0, 0.0)],
-	[0.85, Vector3(0.0, 0.0, 0.0), Vector3(-8.0, 0.0, 0.0)],
-	[1.0, Vector3.ZERO, Vector3.ZERO],
-]
-
-const THROW_SECONDS := 0.55
-
-## The fractions of a throw between which the thrown weapon is not in the hand.
-const THROW_RELEASE := 0.36
-const THROW_BACK := 0.9
-
-## A watcher's reload, in the hand's frame like the swing: the gun dipped and rolled so its well faces the support
-## hand, which goes from the fore-end to the well, down to the belt and back once per cycle (one reload, or one round).
-const RELOAD_DIP := Vector3(0.0, -0.05, 0.03)
-const RELOAD_TURN := Vector3(-18.0, 12.0, 38.0)
-const RELOAD_SUPPORT_KEYS := [
-	[0.0, Vector3(0.0, 0.0, 0.0), Vector3.ZERO],
-	[0.25, Vector3(1.0, 0.0, 0.0), Vector3.ZERO],
-	[0.5, Vector3(1.0, 1.0, 0.0), Vector3.ZERO],
-	[0.75, Vector3(1.0, 0.0, 0.0), Vector3.ZERO],
-	[0.9, Vector3(1.0, 0.0, 0.0), Vector3.ZERO],
-	[1.0, Vector3(0.0, 0.0, 0.0), Vector3.ZERO],
-]
 
 @export_group("Attachment")
 
@@ -150,6 +89,8 @@ var _wall_clock: float = 0.0
 var _wall_was: bool = false
 var _holder: Node3D = null
 var _weapon: Node3D = null
+var _mag: Node3D = null
+var _mag_local := Transform3D.IDENTITY
 var _attachments: Array[Node3D] = []
 var _dressed: Dictionary = {}
 var _fitting: DotWeaponFitting = null
@@ -440,6 +381,7 @@ func on_reloading(reloading: bool) -> void:
 	if reloading and not _reloading:
 		_reload_time = 0.0
 		_reload_period = _cycle_seconds()
+		_detach_magazine()
 	_reloading = reloading
 
 
@@ -509,6 +451,38 @@ func advance(delta: float) -> void:
 	_holder.transform = Transform3D(
 		low * carry[1] * turn * rest.basis, rest.origin + moved + carry[0] + Vector3(0.0, 0.0, _kick + _wall_amount)
 	)
+	_move_magazine()
+	if _mag != null and _reload_blend <= 0.0 and not _reloading:
+		# Seated again and the reload over: the gun is one mesh once more.
+		MagCarve.merge_back(_mag)
+		_mag = null
+
+
+## The reload's magazine: split out of the gun on the reload's first frame (the first person view measured where it sits),
+## pulled out with the support hand, carried to the belt and back, and seated.
+func _detach_magazine() -> void:
+	if _mag != null or _weapon == null or _art == null or not _support_local.is_finite():
+		return
+	var box := MagCarve.recall(_art.model_path)
+	if box.size == Vector3.ZERO:
+		return
+	_mag = MagCarve.carve(_weapon, _holder, Transform3D.IDENTITY, box, "%s|%s" % [_art.model_path, box])
+	if _mag != null:
+		_mag_local = _mag.transform
+		_apply_shadows()
+
+
+## Follows the support hand while it has the magazine: out of the well at a quarter of the cycle, down to the belt and
+## back up with the fresh one, seated at three quarters.
+func _move_magazine() -> void:
+	if _mag == null or not is_instance_valid(_mag):
+		return
+	_mag.transform = _mag_local
+	var f := reload_fraction()
+	if f < 0.25 or f >= 0.75 or not _reloading:
+		return
+	var at: Vector3 = AwWeaponPose.sample_keys(RELOAD_SUPPORT_KEYS, f)[0]
+	_mag.global_position += Vector3.DOWN * 0.28 * clampf(at.y, 0.0, 1.0)
 
 
 ## Metres the gun must be pulled back for a wall [param hit] away from a ray that starts [param arm] behind the hand (INF for none).
@@ -754,6 +728,7 @@ func _meshes(node: Node) -> Array[MeshInstance3D]:
 
 
 func _clear_models() -> void:
+	_mag = null
 	if _weapon != null:
 		_weapon.queue_free()
 

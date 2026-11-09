@@ -1,21 +1,15 @@
-extends Node
+extends "aw_selftest_grenades.gd"
 
 ## Headless suite: models load with the muzzle where the table says and the stock clear of the eye at the sights,
 ## the provider's contract, the pack's own weapon definitions, and a base art dressed by role.
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
-const CHECKS := 261
+const CHECKS := 274
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
 const OWN_SIGHTED := 9
-
-var _entered := 0
-var _finished := 0
-var _checks := 0
-var _failures := 0
-
 
 func _ready() -> void:
 	print("arena-weapons self-test")
@@ -29,12 +23,14 @@ func _ready() -> void:
 	_scope_hides_gun()
 	_reload_cues()
 	await _floor_clip()
+	await _near_plane_clip()
 	await _shot_fx_pool()
 	await _previews()
 	_grenades()
 	_utility()
 	_glove_cache()
 	_shared_catalogue()
+	_mag_carve()
 	await _finish()
 
 
@@ -484,6 +480,58 @@ func _floor_clip() -> void:
 	_end()
 
 
+## A wall shoved against the muzzle retracts the gun toward the eye; no drawn mesh may then be cut by the camera near plane inside the view
+## (that slices it open into flat faces), at the narrow and the wide field of view alike, and the clamp must not push the gun past its free pose.
+func _near_plane_clip() -> void:
+	_begin("the gun at the near plane against a wall")
+	for fov: float in [75.0, 120.0]:
+		var camera := Camera3D.new()
+		camera.fov = fov
+		add_child(camera)
+		var view := AwViewModel.new()
+		view.show_arms = false
+		view.hands_fov = 55.0
+		camera.add_child(view)
+		var art := AwWeaponVisual.make(&"rifle")
+		AwArtDress.apply(art, AwWeaponArt.weapon_rows("")[&"rifle"])
+		view.equip(art)
+		var wall := StaticBody3D.new()
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(20.0, 20.0, 0.4)
+		shape.shape = box
+		wall.add_child(shape)
+		add_child(wall)
+		var worst := 0.0
+		var clear := camera.near + AwViewModel.NEAR_CLEAR
+		for gap: float in [1.2, 0.8, 0.5, 0.35, 0.25, 0.15]:
+			wall.position = Vector3(0.0, 0.0, -gap - 0.2)
+			for _i in 40:
+				await get_tree().physics_frame
+				view.advance(0.02)
+			worst = maxf(worst, view.weapon_cut_depth(camera, clear))
+		_check("fov %d: the near plane cuts no part of the gun inside the view (worst %.3f m)" % [fov, worst], worst < 0.001)
+		wall.position = Vector3(0.0, 0.0, -50.0)
+		for _i in 80:
+			await get_tree().physics_frame
+			view.advance(0.02)
+		_check("fov %d: free of the wall the gun is not pulled back (wall %.3f)" % [fov, view.wall_amount()], view.wall_amount() < 0.05)
+		wall.queue_free()
+		view.queue_free()
+		camera.queue_free()
+	var probe := AwViewModel.new()
+	var rect := PackedVector2Array([Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)])
+	var inside: Array[Vector3] = []
+	var outside: Array[Vector3] = []
+	for i in 8:
+		inside.append(Vector3(0.5 if i & 4 else -0.5, 0.5 if i & 2 else -0.5, -0.1 if i & 1 else -1.0))
+		outside.append(Vector3(5.5 if i & 4 else 4.5, 0.5 if i & 2 else -0.5, -0.1 if i & 1 else -1.0))
+	_check("a box cutting the near plane inside the view counts", probe._section_meets(inside, 0.5, rect))
+	_check("a box cutting the near plane outside the view does not", not probe._section_meets(outside, 0.5, rect))
+	probe.free()
+	_end()
+
+
 ## 32 shooters (bots) each fire; counts the nodes the effects cost and the time per shot.
 ## The "BENCH" lines are the before/after record in the commit message.
 func _shot_fx_pool() -> void:
@@ -551,7 +599,16 @@ func _shot_fx_pool() -> void:
 	for fx in fxs:
 		fx.advance(5.0)
 
-	# Limits: a far shooter draws nothing, a mid-range one draws no light, the local gun is never limited.
+	_shot_fx_limits(holder)
+	holder.queue_free()
+	camera.queue_free()
+	floor_body.queue_free()
+	_end()
+
+
+## The cvar limits half of [method _shot_fx_pool]: what a far, a mid-range and the local gun draw, under [param holder].
+func _shot_fx_limits(holder: Node3D) -> void:
+	# A far shooter draws nothing, a mid-range one draws no light, the local gun is never limited.
 	var rules := AwShotFx.rules
 	var lone := AwShotFx.new()
 	lone.binbun_flash = false
@@ -587,196 +644,7 @@ func _shot_fx_pool() -> void:
 	holder.add_child(deaf)
 	deaf.play_remote(AwWeaponNet.KIND_SHOT, far_at, aim, &"rifle")
 	_check("a report beyond cl_shotfx_voice_distance makes no voice", int(deaf.describe()["voices"]) == 0)
-	holder.queue_free()
-	camera.queue_free()
-	floor_body.queue_free()
-	_end()
 
-
-func _grenades() -> void:
-	_begin("grenade gameplay")
-	var defs := AwSpawnProvider.weapon_defs()
-	var rules := AwGrenadeRules.new()
-	var floor_y := func(_from: Vector3, to: Vector3) -> Dictionary:
-		if to.y > 0.0:
-			return {}
-		return {"position": Vector3(to.x, 0.0, to.z), "normal": Vector3.UP}
-	var make := func(id: StringName, vel: Vector3, fuse: int) -> AwGrenade:
-		var s := DotWeaponSpawn.make(id, Vector3(0, 1, 0), vel, 7)
-		s.fuse_ticks = fuse
-		s.gravity_scale = 1.0
-		return AwGrenade.from_spawn(s, _def(defs, id), rules)
-
-	_check("flash, smoke and incendiary are weapons with their own kinds", [&"aw_flash", &"aw_smoke", &"aw_incendiary"].all(func(i: StringName) -> bool: return _def(defs, i).slot == 5 and _def(defs, i).params.has(&"kind")))
-	_check("they wear the baked grenade models", [&"flash", &"smoke", &"incendiary"].all(func(i: StringName) -> bool: return ResourceLoader.exists(AwWeaponArt.row_of(i)["model"])))
-
-	var g: AwGrenade = make.call(&"aw_frag", Vector3(4, 0, 0), 64)
-	var ticks := 0
-	while ticks < 200:
-		var gone := g.step(floor_y, 64)
-		ticks += 1
-		if gone:
-			break
-	_check("a frag bounces off the floor and goes off when the fuse runs out (%d ticks)" % ticks, g.bounces > 0 and ticks == 64 and g.position.y >= 0.0)
-	_check("a bounce loses speed", g.velocity.length() < 12.0)
-
-	var st: AwGrenade = make.call(&"aw_sticky", Vector3(2, 0, 0), 500)
-	for i in 100:
-		var _gone := st.step(floor_y, 64)
-	_check("a sticky stays where it landed", st.stuck and st.velocity == Vector3.ZERO)
-
-	var inc: AwGrenade = make.call(&"aw_incendiary", Vector3(0, -3, 0), 500)
-	var burst := false
-	for i in 100:
-		burst = inc.step(floor_y, 64)
-		if burst:
-			break
-	_check("an incendiary bursts on first contact, fuse not spent", burst and inc.fuse > 300)
-
-	var cooked: AwGrenade = make.call(&"aw_frag", Vector3.ZERO, 0)
-	_check("a grenade cooked past its fuse goes off at once", cooked.step(floor_y, 64))
-
-	g.position = Vector3.ZERO
-	var victims: Array = [
-		{"id": 7, "position": Vector3(0, 0, 0), "eye": Vector3(0, 1.6, 0), "forward": Vector3.FORWARD},
-		{"id": 2, "position": Vector3(2.6, 0, 0), "eye": Vector3(2.6, 1.6, 0), "forward": Vector3.FORWARD},
-		{"id": 3, "position": Vector3(9, 0, 0), "eye": Vector3(9, 1.6, 0), "forward": Vector3.FORWARD},
-		{"id": 4, "position": Vector3(1, 0, 0), "eye": Vector3(1, 1.6, 0), "forward": Vector3.FORWARD},
-	]
-	var clear := func(_a: Vector3, b: Vector3) -> bool: return b.x != 1.0
-	var hurt := {}
-	for e in AwGrenadeBlast.detonate(g, _def(defs, &"aw_frag"), victims, clear):
-		if e["event"] == "damage":
-			hurt[e["victim"]] = e["damage"]
-	_check("splash falls off with distance and the thrower is hurt", hurt.has(7) and hurt.has(2) and hurt[7] > hurt[2] and hurt[2] > 0.0)
-	_check("outside the radius or behind cover takes nothing", not hurt.has(3) and not hurt.has(4))
-
-	var flash := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_flash", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_flash"), rules)
-	var look: Array = [
-		{"id": 2, "position": Vector3(0, 0, -4), "eye": Vector3(0, 1.6, -4), "forward": Vector3(0, 0, 1)},
-		{"id": 3, "position": Vector3(0, 0, -4), "eye": Vector3(0, 1.6, -4), "forward": Vector3(0, 0, -1)},
-	]
-	var blind := {}
-	for e in AwGrenadeBlast.detonate(flash, _def(defs, &"aw_flash"), look, func(_a: Vector3, _b: Vector3) -> bool: return true):
-		if e["event"] == "blind":
-			blind[e["victim"]] = e["seconds"]
-	_check("a flash blinds who faces it and spares who looks away", blind.has(2) and not blind.has(3) and blind[2] <= rules.flash_seconds)
-
-	var sm := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_smoke", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_smoke"), rules)
-	var sev := AwGrenadeBlast.detonate(sm, _def(defs, &"aw_smoke"), [], clear)
-	_check("smoke leaves a cloud and no damage", sev.any(func(e: Dictionary) -> bool: return e["event"] == "smoke") and not sev.any(func(e: Dictionary) -> bool: return e["event"] == "damage"))
-
-	var _set := rules.set_cvar("sv_grenade_bounce", "5")
-	_check("cvars clamp to their range and have sane defaults", is_equal_approx(rules.bounce, 0.95) and is_equal_approx(AwGrenadeRules.new().friction, 0.7))
-	_end()
-
-
-func _utility() -> void:
-	_begin("utility grenade glue")
-	var defs := AwSpawnProvider.weapon_defs()
-	var ids := AwUtilityZones.utility_ids(defs)
-	_check("utility ids are the flash, smoke and incendiary, not the frags", ids.size() == 3 and ids.has(&"aw_flash") and not ids.has(&"aw_frag"))
-
-	var z := AwUtilityZones.new()
-	var people: Array = [
-		AwUtilityZones.victim(2, Vector3(1, 0, 0), Vector3(1, 1.6, 0), Vector3.LEFT),
-		AwUtilityZones.victim(3, Vector3(30, 0, 0), Vector3(30, 1.6, 0), Vector3.LEFT),
-		AwUtilityZones.victim(4, Vector3(1, 5, 0), Vector3(1, 6.6, 0), Vector3.LEFT),
-	]
-	var hits: Array[Dictionary] = []
-	z.victims = func() -> Array: return people
-	z.los = AwUtilityZones.los_from_ray(func(_f: Vector3, _d: Vector3, _n: float) -> bool: return false)
-	z.damage = func(attacker: int, victim: int, amount: float, type: Variant, _w: StringName) -> void:
-		hits.append({"a": attacker, "v": victim, "n": amount, "t": type})
-	var seen: Array[Dictionary] = []
-	z.effect.connect(func(i: Dictionary) -> void: seen.append(i))
-
-	var blocked := AwUtilityZones.los_from_ray(func(_f: Vector3, _d: Vector3, _n: float) -> bool: return true)
-	_check("the ray adapter says clear when nothing is hit and blocked when something is", z.los.call(Vector3.ZERO, Vector3.ONE) and not blocked.call(Vector3.ZERO, Vector3.ONE) and z.los.call(Vector3.ONE, Vector3.ONE) and blocked.call(Vector3.ONE, Vector3.ONE))
-
-	var inc := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_incendiary", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_incendiary"), z.rules)
-	inc.owner_entity = 9
-	var _ev := z.detonate(inc, _def(defs, &"aw_incendiary"))
-	_check("an incendiary opens one fire zone and tells the host", z.active_fires() == 1 and seen.size() == 1 and int(seen[0]["fx"]) == AwUtilityZones.Fx.FIRE)
-	for i in 10:
-		z.tick(0.1)
-	var burned := hits.filter(func(h: Dictionary) -> bool: return h["v"] == 2)
-	_check("the fire pulses damage as the thrower, twice a second", burned.size() == 2 and burned[0]["a"] == 9 and burned[0]["t"] == AwUtilityZones.FIRE_TYPE)
-	_check("fire spares who stands far off or a floor above", not hits.any(func(h: Dictionary) -> bool: return h["v"] == 3 or h["v"] == 4))
-	for i in int(z.rules.fire_seconds * 10.0) + 10:
-		z.tick(0.1)
-	_check("a fire zone burns out", z.active_fires() == 0)
-
-	var smoke := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_smoke", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_smoke"), z.rules)
-	var _sev := z.detonate(smoke, _def(defs, &"aw_smoke"))
-	_check("smoke is a cloud that expires", z.active_smokes() == 1 and int(seen[-1]["fx"]) == AwUtilityZones.Fx.SMOKE)
-	z.tick(z.rules.smoke_seconds + 1.0)
-	_check("smoke is gone after its seconds", z.active_smokes() == 0)
-
-	var flash := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_flash", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_flash"), z.rules)
-	var _fev := z.detonate(flash, _def(defs, &"aw_flash"))
-	var blinds := seen.filter(func(i: Dictionary) -> bool: return int(i["fx"]) == AwUtilityZones.Fx.BLIND)
-	_check("a flash blinds the one facing it and the ledger holds the blind", blinds.any(func(i: Dictionary) -> bool: return int(i["victim"]) == 2) and z.ledger.is_blind(2) and not z.ledger.is_blind(3))
-	var before := z.ledger.remaining(2)
-	z.tick(1.0)
-	_check("the blind ticks down with the clock", is_equal_approx(z.ledger.remaining(2), before - 1.0))
-	z.tick(60.0)
-	_check("and ends", not z.ledger.is_blind(2) and z.ledger.count() == 0)
-
-	var l := AwBlindLedger.new()
-	var _a := l.blind(1, 3.0)
-	var _b := l.blind(1, 1.0)
-	_check("a shorter flash never shortens a blind", is_equal_approx(l.remaining(1), 3.0))
-	var _c := l.blind(1, 5.0)
-	_check("a longer one extends it", is_equal_approx(l.remaining(1), 5.0))
-	var _d := l.blind(2, 999.0)
-	_check("no blind passes the cap", is_equal_approx(l.remaining(2), l.max_seconds))
-	l.clear_victim(2)
-	_check("a victim's blind can be lifted", not l.is_blind(2) and l.is_blind(1))
-
-	z.apply_blast_damage = true
-	hits.clear()
-	var frag := AwGrenade.from_spawn(DotWeaponSpawn.make(&"aw_frag", Vector3.ZERO, Vector3.ZERO, 7), _def(defs, &"aw_frag"), z.rules)
-	var _gev := z.detonate(frag, _def(defs, &"aw_frag"))
-	_check("blast damage goes through the host's callable when asked", hits.any(func(h: Dictionary) -> bool: return h["v"] == 2))
-
-	var _w := l.blind(5, 2.0, 0.4)
-	var _w2 := l.blind(5, 1.0, 0.9)
-	var _w3 := l.blind(5, 1.0, 0.2)
-	_check("the ledger keeps the strongest strength of a stretch", is_equal_approx(l.strength(5), 0.9) and is_equal_approx(l.strength(1), 1.0))
-	l.tick(99.0)
-	_check("strength is 0 once the blind ends, and a new blind starts fresh", l.strength(5) == 0.0 and is_equal_approx((l.blind(5, 1.0, 0.3) * 0.0) + l.strength(5), 0.3))
-	_check("a blind event carries strength, and a flash at the edge or side is weaker",
-		blinds.any(func(i: Dictionary) -> bool: return int(i["victim"]) == 2 and float(i["strength"]) > 0.0 and float(i["strength"]) <= 1.0))
-	_utility_fx()
-	_end()
-
-
-func _utility_fx() -> void:
-	var own_dir := AwGrenadeFx.own_dir()
-	var own_defs := AwGrenadeFx.defs()
-	_check("with no folder the clouds load from the addon's own fx/", own_defs[0].scene_path == own_dir + "/smoke_cloud.tscn" and ResourceLoader.exists(own_defs[0].scene_path) and ResourceLoader.exists(own_defs[1].scene_path))
-	_check("both shipped cloud scenes instance", (load(own_defs[0].scene_path) as PackedScene).instantiate() != null and (load(own_defs[1].scene_path) as PackedScene).instantiate() != null)
-	_check("API level 8", preload("res://addons/arena_weapons/arena_weapons_api.gd").LEVEL == 8)
-
-	var fx_defs := AwGrenadeFx.defs("res://fx")
-	_check("three fx defs: two clouds from the game's folder and a screen flash", fx_defs.size() == 3 and fx_defs[0].scene_path == "res://fx/smoke_cloud.tscn" and fx_defs[2].kind == DotFxDef.Kind.SCREEN)
-	_check("the flash decay follows the blind, clamped", AwGrenadeFx.flash_decay_ms(0.01) == AwGrenadeFx.BLIND_MIN_MS and AwGrenadeFx.flash_decay_ms(3.0) == 3000 and AwGrenadeFx.flash_decay_ms(99.0) == AwGrenadeFx.BLIND_MAX_MS)
-	_check("showing with no fx host is a no-op", AwGrenadeFx.show(null, null, {"fx": AwUtilityZones.Fx.SMOKE, "seconds": 1.0, "radius": 1.0, "position": Vector3.ZERO, "victim": 0}, 0) == null)
-
-
-func _thrown() -> bool:
-	var art := AwWeaponVisual.make(&"frag")
-	art.model_forward = Vector3.UP
-	AwArtDress.apply(art, AwSpawnProvider.role_art()[&"frag"])
-	return art.model_path == AwWeaponArt.model_path("stick_grenade") and art.model_forward == Vector3.UP
-
-
-func _def(defs: Array[DotWeaponDef], id: StringName) -> DotWeaponDef:
-	for d in defs:
-		if d.id == id:
-			return d
-	return DotWeaponDef.new()
 
 
 ## The highest vertex in the rear half of the gun's length, as tools/measure_sights.py finds the rear sight.
@@ -903,23 +771,39 @@ func _shared_catalogue() -> void:
 	_end()
 
 
-func _begin(name: String) -> void:
-	_entered += 1
-	print("")
-	print("-- %s" % name)
-
-
-func _end() -> void:
-	_finished += 1
-
-
-func _check(label: String, passed: bool) -> void:
-	_checks += 1
-	if passed:
-		print("  ok   %s" % label)
-	else:
-		_failures += 1
-		print("  FAIL %s" % label)
+func _mag_carve() -> void:
+	_begin("a magazine carved out of a welded mesh")
+	var carve: Script = load("res://addons/arena_weapons/view/aw_mag_carve.gd")
+	# One mesh: a body (triangles near y=0) and a magazine (triangles near y=-1) in a single surface.
+	var verts := PackedVector3Array()
+	for y in [0.0, -1.0]:
+		for k in 20:
+			var x := float(k) * 0.1
+			verts.append_array(PackedVector3Array([Vector3(x, y, 0), Vector3(x + 0.05, y, 0), Vector3(x, y, 0.05)]))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	var whole := ArrayMesh.new()
+	whole.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var holder := Node3D.new()
+	var weapon := Node3D.new()
+	holder.add_child(weapon)
+	var mi := MeshInstance3D.new()
+	mi.mesh = whole
+	weapon.add_child(mi)
+	add_child(holder)
+	var mag: Node3D = carve.call(&"carve", weapon, holder, Transform3D.IDENTITY, AABB(Vector3(-1, -1.5, -1), Vector3(4, 1, 2)), "selftest")
+	_check("the magazine becomes a node of the weapon", mag != null and mag.get_parent() == mi.get_parent() and mag.name == "Magazine")
+	_check("the magazine holds its 20 triangles", mag != null and (mag as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size() == 60)
+	_check("the gun keeps the other 20", mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size() == 60)
+	_check("nothing is left in the carve box on the gun", mi.mesh.get_aabb().position.y > -0.5)
+	var again: Node3D = carve.call(&"carve", weapon, holder, Transform3D.IDENTITY, AABB(Vector3(-1, 5, -1), Vector3(1, 1, 1)), "selftest-empty")
+	_check("a box with nothing in it carves nothing", again == null)
+	carve.call(&"merge_back", mag)
+	_check("merging back leaves one mesh with every triangle", mi.mesh == whole and weapon.get_child_count() == 1)
+	holder.queue_free()
+	_check("the carve box is remembered per model", (carve.call(&"recall", "x") as AABB).size == Vector3.ZERO)
+	_end()
 
 
 func _finish() -> void:
