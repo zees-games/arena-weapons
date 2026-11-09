@@ -5,7 +5,11 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("../addons/arena_weapons/view/aw_iron_sight.gd")
+<<<<<<< HEAD
 const CHECKS := 274
+=======
+const CHECKS := 263
+>>>>>>> weapon-fx-fizzle
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -30,7 +34,11 @@ func _ready() -> void:
 	_utility()
 	_glove_cache()
 	_shared_catalogue()
+<<<<<<< HEAD
 	_mag_carve()
+=======
+	_charge_fizzle()
+>>>>>>> weapon-fx-fizzle
 	await _finish()
 
 
@@ -757,6 +765,21 @@ func _glove_cache() -> void:
 		fresh.size() == 1 and absf(fresh[0].r - 0.8) < 0.02 and not AwViewArms._means.has(tex2.get_instance_id()))
 	AwViewArms.albedo_cache = was
 	mi.free()
+	_end()
+
+
+func _charge_fizzle() -> void:
+	_begin("charge ball fizzle")
+	var fx := preload("res://addons/arena_weapons/view/aw_charge_fx.gd").new()
+	fx.set_charge(0.6)
+	fx.advance(0.5)
+	fx.set_charge(0.0)
+	_check("an early release is a fizzle that ends in under 8 frames at 60 Hz",
+		fx.is_fizzling() and fx.collapse_time() < 8.0 / 60.0)
+	for i in 8:
+		fx.advance(1.0 / 60.0)
+	_check("the fizzle is gone after 8 frames", not fx.visible and fx.shown() == 0.0)
+	fx.free()
 	_end()
 
 
