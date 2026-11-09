@@ -33,6 +33,7 @@ func _ready() -> void:
 	_mag_carve()
 	await _one_arm_set()
 	_charge_fizzle()
+	await _one_arm_set()
 	await _finish()
 
 
