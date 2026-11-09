@@ -265,9 +265,9 @@ func _belt(stub: bool) -> void:
 		_add(&"charge_back", 0.06, &"cant", &"fore", Vector3.ZERO, &"bolt", Vector3(0.0, 0.0, 0.09))
 	_add(&"return", 0.08, &"settle", &"fore")
 	_add(&"rest", 0.05, &"rest", &"fore")
-	own_out = [_t0(&"box_grab"), _t1(&"box_in")]
-	props.append({"part": &"ammo_box", "segments": [[_t0(&"box_out"), _t1(&"box_out") + 0.06, "fall", _anchors[&"well"], 0]]})
-	props.append({"part": &"ammo_box", "segments": [[_mid(&"fetch"), _t1(&"box_in"), "hand", Vector3.ZERO, 0]]})
+	own_out = [_t0(&"box_out"), _t1(&"box_in")]
+	props.append({"part": &"ammo_box", "own": true, "segments": [[_t0(&"box_out"), _t1(&"box_out") + 0.06, "fall", _anchors[&"well"], 0]]})
+	props.append({"part": &"ammo_box", "own": true, "segments": [[_mid(&"fetch"), _t1(&"box_in"), "hand", Vector3.ZERO, 0]]})
 	props.append({"part": &"belt", "segments": [[_t1(&"box_in"), _t1(&"belt_lay"), "hand", Vector3.ZERO, 0], [_t1(&"belt_lay"), _t1(&"slap"), "at", _anchors[&"cover"], 0]]})
 	if stub:
 		props.append({"part": &"belt", "segments": [[_t1(&"cover_open"), _t1(&"cover_open") + 0.08, "fall", _anchors[&"cover"], 0]]})

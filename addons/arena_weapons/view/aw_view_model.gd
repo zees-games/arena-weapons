@@ -499,6 +499,7 @@ const MAG_BOXES := {
 	"drum_shotgun.glb": [-0.12, -0.11, 0.20, 0.12, 0.05, 0.37],
 	"marksman.glb": [-0.12, -0.03, -0.245, 0.12, 0.03, -0.14],
 	"sniper_ph.glb": [-0.12, -0.01, -0.17, 0.12, 0.04, -0.095],
+	"lmg.glb": [-0.2, -0.125, -0.31, 0.2, 0.10, -0.155],
 	"bullpup.glb": [],
 	"battle_rifle.glb": [],
 }
@@ -508,7 +509,7 @@ func _carve_magazine(art: AwWeaponVisual) -> void:
 	if art.hide_during_reload != &"" or art.has_magazine() or _weapon == null or feel_rules.reload_detail <= 0.0:
 		return
 	var style := ReloadSequence.style_of(art)
-	if style not in [&"magazine", &"pistol", &"cell"]:
+	if style not in [&"magazine", &"pistol", &"cell", &"belt"]:
 		return
 	var to_aim := _holder.transform
 	var well: Variant = _well if _has_well and art.reload.is_empty() else null
@@ -519,6 +520,8 @@ func _carve_magazine(art: AwWeaponVisual) -> void:
 	var box := AABB()
 	var held: Variant = MAG_BOXES.get(art.model_path.get_file(), null)
 	if held is Array and (held as Array).is_empty():
+		return
+	if style == &"belt" and held == null and art.reload.get("mag_box", null) == null:
 		return
 	var given: Variant = art.reload.get("mag_box", null)
 	if held is Array and given == null:
