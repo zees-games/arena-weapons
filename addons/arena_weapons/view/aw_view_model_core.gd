@@ -332,6 +332,21 @@ func _animate_sequence(f: float) -> void:
 	if _props != null:
 		var scale := maxf(_holder.transform.basis.get_scale().x, 0.0001)
 		_props.show_at(_seq, f if f > 0.0 and f < 1.0 else -1.0, _holder.transform.affine_inverse(), float(_seq.prop_scale) / scale)
+	_set_bolt(_seq.bolt_back(f) if f > 0.0 and f < 1.0 else 0.0)
+
+
+## Draws the art's [member AwWeaponVisual.bolt_node] [param back] (0 rest, 1 fully charged)
+## of [member AwWeaponVisual.bolt_travel] toward the stock. The rest position is kept on the
+## node the first time it moves, so a sequence cut short puts it back where it was.
+func _set_bolt(back: float) -> void:
+	if _art == null or _art.bolt_node == &"" or _art.bolt_travel <= 0.0 or not is_instance_valid(_weapon):
+		return
+	var bolt := _weapon.find_child(String(_art.bolt_node), true, false) as Node3D
+	if bolt == null:
+		return
+	if not bolt.has_meta(&"aw_bolt_rest"):
+		bolt.set_meta(&"aw_bolt_rest", bolt.position)
+	bolt.position = (bolt.get_meta(&"aw_bolt_rest") as Vector3) + Vector3(0.0, 0.0, _art.bolt_travel * clampf(back, 0.0, 1.0))
 
 
 ## The scale that draws the hands at [member hands_fov]. See there.

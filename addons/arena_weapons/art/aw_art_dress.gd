@@ -20,6 +20,8 @@ static func apply(art: AwWeaponVisual, row: Dictionary) -> void:
 	art.model_path = model
 	art.magazine_path = ""
 	art.hide_during_reload = StringName(str(row.get("mag_node", "")))
+	art.bolt_node = StringName(str(row.get("bolt_node", "")))
+	art.bolt_travel = float(row.get("bolt_travel", 0.0))
 	art.attachments = []
 	art.reload = (row.get("reload", {}) as Dictionary).duplicate(true)
 

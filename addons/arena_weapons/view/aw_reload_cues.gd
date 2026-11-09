@@ -72,7 +72,7 @@ const NUMBERED := {
 	&"launcher": {&"load_": [0.9, &"shell_load", -2.0]},
 }
 
-## An empty magazine falls instead of being carried off.
+## A dropped magazine (a `drop` phase; an empty one in an older sequence's `mag_out`) lands.
 const DROP := [0.8, &"mag_drop", -3.0]
 
 
@@ -102,14 +102,18 @@ static func plan(seq: RefCounted) -> Array:
 	var table: Dictionary = TABLE.get(style, {})
 	var numbered: Dictionary = NUMBERED.get(style, {})
 	var empty: bool = bool(seq.get(&"empty"))
+	var has_drop := false
+	for p: Dictionary in seq.phases:
+		has_drop = has_drop or p.name == &"drop"
 	for p: Dictionary in seq.phases:
 		var name: StringName = p.name
 		var rows: Array = table.get(name, [])
 		for k: StringName in numbered:
 			if String(name).begins_with(String(k)):
 				rows = [numbered[k]]
-		if empty and name == &"mag_out" and (style == &"magazine" or style == &"pistol"):
-			rows = rows + [DROP]
+		if style == &"magazine" or style == &"pistol":
+			if name == &"drop" or (empty and name == &"mag_out" and not has_drop):
+				rows = rows + [DROP]
 		for e: Array in rows:
 			var t0 := float(p.t0)
 			var t1 := float(p.t1)

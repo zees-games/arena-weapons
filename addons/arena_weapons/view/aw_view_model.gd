@@ -252,6 +252,8 @@ func on_reload_begin(left: int, magazine: int, start_share: float = 0.0) -> void
 		well = to_aim * _in_holder(own) * HandReach.bounds_in(own, own).get_center()
 	var anchors := ReloadSequence.anchors_for(_grip_at, _fore_at, to_aim * (_weapon.transform * _muzzle), well, _art.reload.get("anchors", {}), to_aim)
 	var seq := ReloadSequence.new()
+	seq.drop_always = feel_rules.reload_drop >= 0.5
+	seq.charge_always = feel_rules.reload_charge >= 0.5
 	seq.compose(_art, anchors, magazine, left, start_share)
 	if seq.phases.is_empty():
 		return
@@ -307,6 +309,7 @@ func reload_parts_shown(part: StringName = &"") -> int:
 
 
 func _end_sequence() -> void:
+	_set_bolt(0.0)
 	_seq = null
 	_cue_plan = []
 	_cue_next = 0

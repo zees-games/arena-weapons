@@ -33,6 +33,8 @@ const CVAR_KICK := "cl_vm_kick"
 const CVAR_WALL := "cl_vm_wall"
 const CVAR_WALL_TILT := "cl_vm_wall_tilt"
 const CVAR_RELOAD := "cl_vm_reload_detail"
+const CVAR_RELOAD_DROP := "cl_vm_reload_drop"
+const CVAR_RELOAD_CHARGE := "cl_vm_reload_charge"
 
 ## Look lag and inertia: the weapon trails a turn, and rolls into it.
 var sway: float = 1.0
@@ -71,6 +73,12 @@ var wall_tilt: float = 1.0
 ## Each weapon's own reload phases (magazine out, cases thrown, rounds fed), 1; 0 plays one generic reload for every gun.
 var reload_detail: float = 1.0
 
+## A magazine reload drops the old magazine, 1; 0 drops only an empty one and stows a part-used one in the pouch.
+var reload_drop: float = 1.0
+
+## A magazine reload works the charging handle or slide every time (throwing the chambered round), 1; 0 only after the last round.
+var reload_charge: float = 1.0
+
 
 func cvar_specs() -> Array[Dictionary]:
 	return [
@@ -98,6 +106,10 @@ func cvar_specs() -> Array[Dictionary]:
 			"description": "How far the view model pitches up against a wall, a multiplier: 0 off, 1 default"},
 		{"name": CVAR_RELOAD, "value": str(reload_detail), "min": 0.0, "max": 1.0,
 			"description": "Each weapon's own reload (magazine, cases, rounds in sight): 1 on, 0 one generic reload"},
+		{"name": CVAR_RELOAD_DROP, "value": str(reload_drop), "min": 0.0, "max": 1.0,
+			"description": "Magazine reloads drop the old magazine: 1 always (default), 0 only when empty (else it goes to the pouch)"},
+		{"name": CVAR_RELOAD_CHARGE, "value": str(reload_charge), "min": 0.0, "max": 1.0,
+			"description": "Magazine reloads work the charging handle or slide: 1 always (default, a chambered round flies out), 0 only when empty"},
 	]
 
 
@@ -167,6 +179,8 @@ func set_cvar(cvar_name: String, value: String) -> bool:
 			CVAR_WALL: wall_retract = number
 			CVAR_WALL_TILT: wall_tilt = number
 			CVAR_RELOAD: reload_detail = number
+			CVAR_RELOAD_DROP: reload_drop = number
+			CVAR_RELOAD_CHARGE: reload_charge = number
 		changed.emit()
 		return true
 	return false
@@ -184,7 +198,8 @@ func describe() -> Dictionary:
 	return {"sway": sway, "strafe_tilt": strafe_tilt, "strafe_yaw": strafe_yaw,
 		"strafe_aimed": strafe_aimed, "strafe_response": strafe_response, "bob": bob, "landing": landing,
 		"aim_steadiness": aim_steadiness, "kick": kick,
-		"wall_retract": wall_retract, "wall_tilt": wall_tilt, "reload_detail": reload_detail}
+		"wall_retract": wall_retract, "wall_tilt": wall_tilt, "reload_detail": reload_detail,
+		"reload_drop": reload_drop, "reload_charge": reload_charge}
 
 
 func describe_lines() -> PackedStringArray:

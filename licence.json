@@ -14,6 +14,13 @@
         "title": "Arena weapon models (see CREDITS.md)"
     },
     {
+        "paths": ["addons/arena_weapons/assets/models/rifle.glb"],
+        "licence": "CC0-1.0",
+        "author": "Lamoot",
+        "url": "https://opengameart.org/content/high-poly-ak-47",
+        "title": "High-poly AK-47 (OpenGameArt, CC0; rebuilt by tools/build_own_ak.py, textured by tools/tex_pipeline.sh)"
+    },
+    {
         "paths": ["tools/detail"],
         "licence": "CC0-1.0",
         "author": "ambientCG",

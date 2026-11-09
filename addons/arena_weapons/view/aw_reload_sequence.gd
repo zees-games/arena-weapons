@@ -38,10 +38,19 @@ var phases: Array = []
 var left_keys: Array = []
 var right_keys: Array = []
 var gun_keys: Array = []
-## [{part, segments: [[t0, t1, mode, a: Vector3, i]]}]; mode "hand" (follows the left hand), "rhand", "at" (fixed), "fall", "eject".
+## [{part, segments: [[t0, t1, mode, a: Vector3, i, turn0, turn1]]}]; mode "hand" (follows the left hand), "rhand", "at" (fixed),
+## "from" (eases from a to the hand), "into" (eases from the hand to a), "fall" (from a), "drop" (falls from where the hand was
+## at t0), "eject". The optional turn0/turn1 (degrees) ramp the prop's turn over the segment.
 var props: Array = []
 ## While the gun's own magazine is out of it: [t0, t1], or empty.
 var own_out: Array = []
+## Set before [method compose]: drop the old magazine on every reload (else only an empty one, a full one going to the pouch).
+var drop_always := true
+## Set before [method compose]: work the charging handle or slide on every reload (else only after the last round).
+var charge_always := true
+## What the composed magazine reload does: the old magazine dropped, the action worked.
+var dropped := false
+var charged := false
 
 var _anchors: Dictionary = {}
 var _grip := Vector3.ZERO
@@ -149,30 +158,48 @@ func compose(art: AwWeaponVisual, anchors: Dictionary, magazine: int, left: int,
 
 func _magazine(part: StringName, pistol: bool) -> void:
 	var gun := &"lift" if pistol else &"tilt"
+	# The old magazine leaves on its own when dropped (any reload under `drop_always`, else only an empty one), or goes to the pouch.
+	dropped = empty or drop_always
+	# How far the magazine rocks about its front lug on the way out and in (degrees, bottom forward); 0 for a straight well.
+	var rock := Vector3(float(_spec.get("rock", 0.0)), 0.0, 0.0)
 	_add(&"tilt", 0.09, gun, &"fore")
 	_add(&"grab", 0.07, gun, &"well", Vector3(0.0, -0.03, 0.0))
 	_add(&"mag_out", 0.11, gun, &"below")
+	if dropped:
+		# The hand lets go and flicks clear: the magazine falls from where the hand was.
+		_add(&"drop", 0.06, gun, &"below", Vector3(0.0, -0.05, 0.06))
 	_add(&"pouch", 0.15, gun, &"pouch")
 	_add(&"rise", 0.12, gun, &"below", Vector3(0.0, 0.08, -0.04))
 	_add(&"mag_in", 0.09, gun, &"well", Vector3(0.0, -0.035, 0.0))
 	_add(&"seat", 0.05, gun, &"well", Vector3(0.0, -0.025, 0.0))
-	if empty and style != &"cell":
+	charged = style != &"cell" and (empty or charge_always)
+	if charged:
 		if pistol:
 			_add(&"slide", 0.08, &"cant", &"bolt", Vector3(0.0, 0.02, 0.0))
 			_add(&"slide_back", 0.07, &"cant", &"bolt", Vector3(0.0, 0.02, 0.07))
 		else:
 			_add(&"charge", 0.08, &"cant", &"fore", Vector3.ZERO, &"bolt")
 			_add(&"charge_back", 0.07, &"cant", &"fore", Vector3.ZERO, &"bolt", Vector3(0.0, 0.0, 0.08))
+		if not empty:
+			# Working the action over a chambered round throws that round out of the port.
+			_eject_cases(&"round", 1, &"slide_back" if pistol else &"charge_back", &"port")
+			ejected = 1
 	_add(&"return", 0.10, &"settle", &"fore")
 	_add(&"rest", 0.06, &"rest", &"fore")
+	var well: Vector3 = _anchors[&"well"]
 	own_out = [_t0(&"mag_out"), _t1(&"seat")]
-	var old_track: Array = [[_t0(&"mag_out"), _t1(&"mag_out"), "hand", Vector3.ZERO, 0]]
-	if empty:
-		old_track = [[_t0(&"mag_out"), _t1(&"mag_out") + 0.08, "fall", _anchors[&"well"], 0]]
+	# Out: rocked about its lug while the hand draws it down, then dropped from the hand or carried to the pouch.
+	var old_track: Array = [[_t0(&"mag_out"), _t1(&"mag_out"), "from", well, 0, Vector3.ZERO, rock]]
+	if dropped:
+		old_track.append([_t0(&"drop"), minf(_t0(&"drop") + 0.12, _mid(&"pouch")), "drop", Vector3.ZERO, 0, rock, rock])
 	else:
-		old_track.append([_t0(&"pouch"), _mid(&"pouch"), "hand", Vector3.ZERO, 0])
+		old_track.append([_t1(&"mag_out"), _mid(&"pouch"), "hand", Vector3.ZERO, 0, rock, rock])
 	props.append({"part": part, "own": true, "segments": old_track})
-	props.append({"part": part, "own": true, "segments": [[_mid(&"pouch") + 0.02, _t1(&"seat"), "hand", Vector3.ZERO, 0]]})
+	# In: fetched, raised nose first, hooked into the well and rocked home so it ends exactly where it sits.
+	props.append({"part": part, "own": true, "segments": [
+		[_mid(&"pouch") + 0.02, _t1(&"rise"), "hand", Vector3.ZERO, 0, Vector3.ZERO, rock],
+		[_t0(&"mag_in"), _t1(&"mag_in"), "into", well + Vector3(0.0, -0.012, 0.0), 0, rock, rock * 0.5],
+		[_t0(&"seat"), _t1(&"seat"), "at", well, 0, rock * 0.5, Vector3.ZERO]]})
 
 
 func _revolver(eject: int, missing: int) -> void:
@@ -389,6 +416,7 @@ func props_at(f: float) -> Array:
 			var u := (f - t0) / (t1 - t0)
 			var a: Vector3 = s[3]
 			entry.shown = true
+			var eased := u * u * (3.0 - 2.0 * u)
 			match str(s[2]):
 				"hand":
 					entry.at = left_hand(f) + CARRY
@@ -396,14 +424,23 @@ func props_at(f: float) -> Array:
 					entry.at = _grip + right_offset(f) + CARRY
 				"at":
 					entry.at = a
+				"from":
+					entry.at = a.lerp(left_hand(f) + CARRY, eased * eased)
+				"into":
+					entry.at = (left_hand(f) + CARRY).lerp(a, eased)
 				"fall":
 					entry.at = a + Vector3(0.0, -0.45 * u * u - 0.03 * u, 0.03 * u)
 					entry.turn = Vector3(-40.0 * u, 0.0, 12.0 * u)
+				"drop":
+					entry.at = left_hand(t0) + CARRY + Vector3(0.0, -0.55 * u * u - 0.04 * u, 0.05 * u)
+					entry.turn = Vector3(-55.0 * u * u, 8.0 * u, 18.0 * u)
 				"eject":
 					var i := int(s[4])
 					var spread := float(i % 3 - 1) * 0.015
 					entry.at = a + right * (0.10 * u + spread) + Vector3(0.0, 0.07 * u - 0.40 * u * u, 0.02 * u + spread)
 					entry.turn = Vector3(0.0, 300.0 * u, 540.0 * u + 37.0 * i)
+			if s.size() >= 7:
+				entry.turn += (s[5] as Vector3).lerp(s[6] as Vector3, eased)
 			break
 		out.append(entry)
 	return out
@@ -414,8 +451,28 @@ func own_magazine_out(f: float) -> bool:
 	return own_out.size() == 2 and f >= float(own_out[0]) and f < float(own_out[1])
 
 
+## How far back the charging handle (or slide) is at [param f], 0 at rest to 1 fully back:
+## drawn back through `charge_back` (`slide_back` on a pistol), released to slam home in
+## the first quarter of the phase after it. 0 throughout when the reload does not charge.
+func bolt_back(f: float) -> float:
+	for i in phases.size():
+		var p: Dictionary = phases[i]
+		if p.name != &"charge_back" and p.name != &"slide_back":
+			continue
+		var t0 := float(p.get("t0", 0.0))
+		var t1 := float(p.get("t1", 0.0))
+		if f >= t0 and f < t1:
+			return smoothstep(t0, t1, f)
+		if f >= t1 and i + 1 < phases.size():
+			var next: Dictionary = phases[i + 1]
+			var release := t1 + (float(next.get("t1", t1)) - t1) * 0.25
+			if f < release:
+				return 1.0 - smoothstep(t1, maxf(release, t1 + 0.0001), f)
+	return 0.0
+
+
 func describe() -> Dictionary:
 	var names: Array = []
 	for p: Dictionary in phases:
 		names.append(String(p.name))
-	return {"style": style, "empty": empty, "ejected": ejected, "loaded": loaded, "phases": names, "props": props.size()}
+	return {"style": style, "empty": empty, "dropped": dropped, "charged": charged, "ejected": ejected, "loaded": loaded, "phases": names, "props": props.size()}

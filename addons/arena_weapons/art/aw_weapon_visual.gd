@@ -233,6 +233,14 @@ extends Resource
 ## gun. Empty draws the model whole throughout.
 @export var hide_during_reload: StringName = &""
 
+## A node of the weapon's own model (a rebuilt rifle's `bolt`) drawn back by [member bolt_travel]
+## metres along +Z (toward the stock) while the reload charges it, then released home.
+## Empty leaves the model still: the hand alone mimes the pull.
+@export var bolt_node: StringName = &""
+
+## How far [member bolt_node] travels back when charged, in the model's own metres.
+@export var bolt_travel: float = 0.0
+
 ## A part built in code instead of a file (`&"cell"`, `&"ammo_box"`: `view/aw_reload_parts.gd`),
 ## used when [member magazine_path] is empty. Built, not vendored, because every game that
 ## draws this pack carries its own copy of `assets/`, and a new file there is a copy in seven

@@ -2,11 +2,12 @@
 
 | What | Author | Licence | Where |
 | --- | --- | --- | --- |
-| `pistol`, `smg`, `rifle`, `carbine`, `sniper_rifle`, `pump_shotgun`, the rocket launchers, the grenades, `ammo_box`, the rounds (renamed by type, re-oriented, rescaled; the meshes and textures are unchanged) | Styloo | Creative Commons Zero v1.0 Universal | https://styloo.itch.io/guns-asset-pack (the free "GLTF FBX V1.1" zip) |
+| `pistol`, `smg`, `carbine` (and the `rifle` until it was replaced, see below), `sniper_rifle`, `pump_shotgun`, the rocket launchers, the grenades, `ammo_box`, the rounds (renamed by type, re-oriented, rescaled; the meshes and textures are unchanged) | Styloo | Creative Commons Zero v1.0 Universal | https://styloo.itch.io/guns-asset-pack (the free "GLTF FBX V1.1" zip) |
 | `revolver`, `machine_pistol`, `derringer`, `bullpup`, `battle_rifle`, `burst_rifle`, `drum_shotgun`, `marksman` (low-poly edition, re-oriented, rescaled, origin moved to the grip) | Polyy | CC0 1.0 | https://polyyai.itch.io/3d-low-poly-guns-pack |
 | `minigun`, `lmg`, `grenade_launcher`, `plasma_rifle`, `rail_rifle` (the same treatment) | Polyy | CC0 1.0 | https://polyyai.itch.io/3d-low-poly-guns-pack-2 |
 | `knife` (OBJ converted to GLB, rescaled) | Vinrax | CC0 1.0 | https://opengameart.org/content/knife-low-poly |
 | `pistol`, `sniper` (the Styloo models they replaced stay in the pack unused: `pistol`, `sniper_rifle`) | Mateusz Sadek | CC0 1.0 (Poly Haven) | https://polyhaven.com/a/service_pistol, https://polyhaven.com/a/bolt_action_rifle_7_62 (2K textures untouched, one weapon state kept, re-oriented and rescaled by `tools/bake_polyhaven.py`) |
+| `rifle` (replaces Styloo's `ak47`, which is no longer drawn: subdivided once, decimated to 20k triangles, split into body, furniture, magazine and bolt nodes, origin at the grip by `tools/build_own_ak.py`; textured by `tools/tex_pipeline.sh`) | Lamoot | CC0 1.0 (OpenGameArt) | https://opengameart.org/content/high-poly-ak-47 (`highpoly_ak47.blend`, posted 2010-11-14; the page lists CC0 as the only licence) |
 | `frag` (stick grenade) | singaii | CC0 1.0 (Poly Haven) | https://polyhaven.com/a/stick_grenade (maps 1K, mesh decimated, by `tools/bake_polyhaven_small.py`) |
 | `knife` (fish knife; replaces Vinrax's, which stays in the pack unused) | Mateusz Sadek | CC0 1.0 (Poly Haven) | https://polyhaven.com/a/fish_knife (same bake) |
 

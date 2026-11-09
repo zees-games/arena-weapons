@@ -13,7 +13,7 @@ const _HEAVY := {"hold": Vector3(0.19, -0.21, -0.42), "rot": Vector3(0, 10, 26),
 
 ## weapon id -> {model, muzzle, motion, tier, reload, view}; `reload` is the view model's reload phases (style and parts). `aim` is tools/measure_sights.py's: the sight 0.32 ahead of the eye,
 ## further out when the stock would otherwise fill the screen. `view` without hold/rot/scale/zoom takes its tier's (a melee or thrown row's hold/rot/scale go over the stand-in's own).
-## `mag_node` names the model's own magazine, which a reload hides and carries out and back in; `hand_grip` is AwWeaponVisual.hand_grip.
+## `mag_node` names the model's own magazine, which a reload hides and carries out and back in; `hand_grip` is AwWeaponVisual.hand_grip. `bolt_node` and `bolt_travel` name a model part the charge draws back toward the stock (AwWeaponVisual.bolt_node).
 const WEAPONS := {
 	&"knife": {"model": "knife_ph", "world_scale": 1.6, "hands_life": 1.0, "muzzle": 0.0, "motion": "melee", "tier": "melee", "view": {"rot": Vector3(55, 80, 75), "scale": 1.5, "hold": Vector3(0.20, -0.22, -0.40)}},
 	&"pistol": {"model": "pistol_ph", "mag_node": "magazine", "muzzle": 0.151, "tier": "sidearm", "reload": {"style": "pistol"}, "support_grip": Vector3(-0.03, -0.06, 0.02), "hand_scale": 0.4, "forearm_scale": 0.85, "view": {"hold": Vector3(0.12, -0.06, -0.36), "scale": 1.4, "aim": Vector3(0.002, -0.063, -0.332)}},
@@ -21,8 +21,8 @@ const WEAPONS := {
 	&"machine_pistol": {"model": "machine_pistol", "measured_grip": true, "muzzle": 0.274, "tier": "sidearm", "reload": {"style": "pistol", "anchors": {"below": [0.0, -0.13, 0.0], "pouch": [-0.06, -0.1, -0.03]}}, "support_grip": Vector3(-0.03, -0.06, 0.05), "hand_scale": 0.4, "view": {"scale": 0.55, "aim": Vector3(0.000, -0.184, -0.309)}},
 	&"derringer": {"model": "derringer", "measured_grip": true, "muzzle": 0.120, "tier": "sidearm", "reload": {"style": "launcher", "round": "round", "case": "casing", "prop_scale": 4.0, "anchors": {"breech": [0.0, 0.03, 0.03], "pouch": [-0.07, -0.15, 0.05], "near": [-0.03, -0.08, 0.04]}}, "support_grip": Vector3(-0.03, -0.05, 0.02), "view": {"aim": Vector3(0.000, -0.074, -0.330)}},
 	&"smg": {"model": "smg", "mag_node": "mac10magazine_low", "world_scale": 2.2, "hands_life": 1.0, "muzzle": 0.143, "tier": "primary", "reload": {"style": "magazine", "prop_scale": 2.3, "gun_scale": 1.6, "anchors": {"below": [0.0, -0.11, -0.06], "pouch": [-0.07, -0.17, -0.16]}}, "view": {"aim": Vector3(0.000, -0.048, -0.400), "scale": 0.9, "zoom": 0.85}},
-	&"carbine": {"model": "carbine", "mag_node": "akmagazine_low_001", "fore_along": 0.68, "muzzle": 0.548, "tier": "primary", "reload": {"style": "magazine", "anchors": {"below": [0.0, -0.12, -0.12], "pouch": [-0.07, -0.2, -0.2]}}, "view": {"aim": Vector3(-0.007, -0.079, -0.227), "scale": 0.75}},
-	&"rifle": {"model": "rifle", "mag_node": "akmagazine_low", "fore_along": 0.68, "muzzle": 0.548, "tier": "primary", "reload": {"style": "magazine", "anchors": {"below": [0.0, -0.12, -0.12], "pouch": [-0.07, -0.2, -0.2]}}, "view": {"aim": Vector3(-0.007, -0.079, -0.456)}},
+	&"carbine": {"model": "carbine", "mag_node": "akmagazine_low_001", "fore_along": 0.68, "muzzle": 0.548, "tier": "primary", "reload": {"style": "magazine", "rock": 22.0, "anchors": {"below": [0.0, -0.12, -0.12], "pouch": [-0.07, -0.2, -0.2]}}, "view": {"aim": Vector3(-0.007, -0.079, -0.227), "scale": 0.75}},
+	&"rifle": {"model": "rifle", "mag_node": "magazine", "bolt_node": "bolt", "bolt_travel": 0.07, "fore_along": 0.68, "muzzle": 0.573, "tier": "primary", "reload": {"style": "magazine", "rock": 22.0, "anchors": {"below": [0.0, -0.12, -0.12], "pouch": [-0.07, -0.2, -0.2]}}, "view": {"aim": Vector3(-0.006, -0.077, -0.432)}},
 	&"bullpup": {"model": "bullpup", "measured_grip": true, "muzzle": 0.451, "tier": "primary", "reload": {"style": "magazine", "prop_scale": 2.3, "gun_scale": 1.6, "anchors": {"below": [0.0, -0.11, -0.06], "pouch": [-0.07, -0.17, -0.16]}}, "view": {"sight": "red_dot", "aim": Vector3(0.000, -0.278, -0.451)}},
 	&"battle_rifle": {"model": "battle_rifle", "measured_grip": true, "muzzle": 0.702, "fore_along": 0.45, "tier": "primary", "reload": {"style": "magazine", "prop_scale": 2.3, "gun_scale": 1.6, "anchors": {"below": [0.0, -0.11, -0.06], "pouch": [-0.07, -0.17, -0.16]}}, "view": {"aim": Vector3(0.000, -0.162, -0.450)}},
 	&"burst_rifle": {"model": "burst_rifle", "measured_grip": true, "muzzle": 0.498, "tier": "primary", "reload": {"style": "magazine", "prop_scale": 2.3, "gun_scale": 1.6, "anchors": {"below": [0.0, -0.11, -0.06], "pouch": [-0.07, -0.17, -0.16]}}, "view": {"sight": "red_dot", "aim": Vector3(-0.002, -0.278, -0.456)}},
@@ -49,11 +49,12 @@ const PROPS: Array[String] = ["ammo_box", "round_pistol", "round_rifle", "round_
 
 ## Who made each model ([method AwSpawnProvider.credits]); CREDITS.md says the same for people.
 const CREDITS: Array[Dictionary] = [
-	{"id": "styloo", "model": "pistol, smg, rifle, carbine, sniper_rifle, pump_shotgun, rocket launchers, grenades, ammo_box, rounds", "author": "Styloo", "licence": "CC0-1.0", "url": "https://styloo.itch.io/guns-asset-pack"},
+	{"id": "styloo", "model": "pistol, smg, carbine, sniper_rifle, pump_shotgun, rocket launchers, grenades, ammo_box, rounds", "author": "Styloo", "licence": "CC0-1.0", "url": "https://styloo.itch.io/guns-asset-pack"},
 	{"id": "polyy-1", "model": "revolver, machine_pistol, derringer, bullpup, battle_rifle, burst_rifle, drum_shotgun, marksman", "author": "Polyy", "licence": "CC0-1.0", "url": "https://polyyai.itch.io/3d-low-poly-guns-pack"},
 	{"id": "polyy-2", "model": "minigun, lmg, grenade_launcher, plasma_rifle, rail_rifle", "author": "Polyy", "licence": "CC0-1.0", "url": "https://polyyai.itch.io/3d-low-poly-guns-pack-2"},
 	{"id": "ambientcg-metal", "model": "surface detail on every gun (Metal038, Metal027)", "author": "ambientCG", "licence": "CC0-1.0", "url": "https://ambientcg.com/view?id=Metal038"},
 	{"id": "polyhaven-guns", "model": "pistol, sniper (service_pistol, bolt_action_rifle_7_62; 2K PBR)", "author": "Mateusz Sadek (Poly Haven)", "licence": "CC0-1.0", "url": "https://polyhaven.com/a/service_pistol"},
+	{"id": "lamoot-rifle", "model": "rifle (high-poly AK, rebuilt by tools/build_own_ak.py)", "author": "Lamoot", "licence": "CC0-1.0", "url": "https://opengameart.org/content/high-poly-ak-47"},
 	{"id": "polyhaven-small", "model": "frag (stick_grenade), knife (fish_knife); 1K", "author": "singaii, Mateusz Sadek (Poly Haven)", "licence": "CC0-1.0", "url": "https://polyhaven.com/a/stick_grenade"},
 	{"id": "vinrax-knife", "model": "knife", "author": "Vinrax", "licence": "CC0-1.0", "url": "https://opengameart.org/content/knife-low-poly"},
 ]

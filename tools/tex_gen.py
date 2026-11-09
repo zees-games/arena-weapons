@@ -409,6 +409,8 @@ def main():
                 p['material'] = keep_mat
     mat = j['materials'][keep_mat]
     imgs = []
+    j.setdefault('images', [])  # a source with flat colours only (tools/build_own_ak.py) has no image list yet
+    j.setdefault('textures', [])
     emu = (np.clip(emis, 0, 1) * 255 + 0.5).astype(np.uint8)
     pics = [(enc(albu, 'JPEG', quality=ALB_Q, subsampling=0), 'image/jpeg'), (enc(orm, 'JPEG', quality=ORM_Q, subsampling=0), 'image/jpeg'), (enc(nrm, 'PNG', optimize=True), 'image/png')]
     if glowmax > 0.05:
