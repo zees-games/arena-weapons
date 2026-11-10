@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 311
+const CHECKS := 314
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -823,6 +823,32 @@ func _shot_fx_limits(holder: Node3D) -> void:
 	holder.add_child(deaf)
 	deaf.play_remote(AwWeaponNet.KIND_SHOT, far_at, aim, &"rifle")
 	_check("a report beyond cl_shotfx_voice_distance makes no voice", int(deaf.describe()["voices"]) == 0)
+	_shot_fx_sky(holder)
+
+
+## A shot on the sky draws nothing where it lands, a shot on a wall a mark: sky by group or by hull_kind meta.
+func _shot_fx_sky(holder: Node3D) -> void:
+	var wall := StaticBody3D.new()
+	var tagged := StaticBody3D.new()
+	tagged.set_meta(&"hull_kind", "sky")
+	var grouped := StaticBody3D.new()
+	grouped.add_to_group(AwShotFx.NO_IMPACT_GROUP)
+	for body in [wall, tagged, grouped]:
+		holder.add_child(body)
+	_check("the sky (meta or group) draws no impact, a wall and a ray with no collider do",
+		not AwShotFx.draws_impact(tagged) and not AwShotFx.draws_impact(grouped)
+		and AwShotFx.draws_impact(wall) and AwShotFx.draws_impact(null))
+	var fx := AwShotFx.new()
+	holder.add_child(fx)
+	var at := Vector3(0.0, 0.0, -10.0)
+	fx.play_impact(at, Vector3.BACK, tagged)
+	fx.play_impact(at, Vector3.BACK, grouped)
+	_check("a shot landing on the sky leaves no mark and no effect (%d, %d)" % [fx.mark_count(), fx.live_count()],
+		fx.mark_count() == 0 and fx.live_count() == 0)
+	fx.play_impact(at, Vector3.BACK, wall)
+	_check("the same shot on a wall leaves a mark and an effect (%d, %d)" % [fx.mark_count(), fx.live_count()],
+		fx.mark_count() == 1 and fx.live_count() > 0)
+	fx.advance(5.0)
 
 
 

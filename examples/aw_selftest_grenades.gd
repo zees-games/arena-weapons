@@ -172,7 +172,7 @@ func _utility_fx() -> void:
 	var own_defs := AwGrenadeFx.defs()
 	_check("with no folder the clouds load from the addon's own fx/", own_defs[0].scene_path == own_dir + "/smoke_cloud.tscn" and ResourceLoader.exists(own_defs[0].scene_path) and ResourceLoader.exists(own_defs[1].scene_path))
 	_check("both shipped cloud scenes instance", (load(own_defs[0].scene_path) as PackedScene).instantiate() != null and (load(own_defs[1].scene_path) as PackedScene).instantiate() != null)
-	_check("API level 10", preload("res://addons/arena_weapons/arena_weapons_api.gd").LEVEL == 10)
+	_check("API level 11", preload("res://addons/arena_weapons/arena_weapons_api.gd").LEVEL == 11)
 
 	var fx_defs := AwGrenadeFx.defs("res://fx")
 	_check("three fx defs: two clouds from the game's folder and a screen flash", fx_defs.size() == 3 and fx_defs[0].scene_path == "res://fx/smoke_cloud.tscn" and fx_defs[2].kind == DotFxDef.Kind.SCREEN)

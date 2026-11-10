@@ -51,6 +51,10 @@ const BODY_GROUP := &"aw_body"
 ## where what was hit must not be given away by the impact (a disguised player).
 const NOT_BODY_GROUP := &"aw_not_body"
 
+## Put a node in this group to have a shot that lands on it draw no impact at all (no mark, spark
+## or puff): a map's sky. A collider whose meta hull_kind is "sky" counts too, as map imports tag it.
+const NO_IMPACT_GROUP := &"aw_no_impact"
+
 ## What a presentation ray's collider is, for [method impact_kind].
 const IMPACT_WORLD := &"world"
 const IMPACT_BODY := &"body"
@@ -395,10 +399,21 @@ static func takes_marks(collider: Object) -> bool:
 	return collider is StaticBody3D or collider.is_class("CSGShape3D") or collider.is_class("GridMap")
 
 
+## Whether a shot landing on [param collider] draws an impact at all: not on the sky (a node in
+## [constant NO_IMPACT_GROUP] or one whose meta hull_kind is "sky"). Only the picture: the shot hit.
+static func draws_impact(collider: Object) -> bool:
+	var node := collider as Node
+	if node == null:
+		return true
+	if node.is_in_group(NO_IMPACT_GROUP):
+		return false
+	return str(node.get_meta(&"hull_kind", "")) != "sky"
+
+
 ## The effects of a shot landing at [param at] on [param collider], facing [param normal]: what a
 ## presentation ray would draw. Public for a suite and for a game that traces its own shots.
 func play_impact(at: Vector3, normal: Vector3, collider: Object) -> void:
-	if not visuals or not is_inside_tree() or not at.is_finite():
+	if not visuals or not is_inside_tree() or not at.is_finite() or not draws_impact(collider):
 		return
 	_impact(at, normal, impact_kind(collider), takes_marks(collider))
 

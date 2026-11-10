@@ -22,5 +22,6 @@ extends RefCounted
 # 9: AwFxPool (fill, fill_flashes, take_shot_fx, take_charge_fx, shared_flash): a world model's shot effects, charge ball
 #    and muzzle flashes built under a loading cover and taken on first use instead of being built in the tick.
 # 10: AwWeaponRig.phase_timers, phase_us, phase_calls, PHASES: opt-in sub-phase timings of simulate_tick for a profiler.
-const LEVEL := 10
+# 11: AwShotFx.NO_IMPACT_GROUP and draws_impact: a shot on the sky (that group, or meta hull_kind "sky") draws no impact.
+const LEVEL := 11
 const OLDEST := 1
