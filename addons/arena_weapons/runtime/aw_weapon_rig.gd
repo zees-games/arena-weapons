@@ -173,6 +173,22 @@ func current_art() -> AwWeaponVisual:
 	return AwWeaponArtTable.table().get(def.id, null) if def != null else null
 
 
+## Microseconds per part of [method simulate_tick], summed while [member phase_timers] is on (a profiler recording's
+## sub-spans, the bench); [member phase_calls] counts the idle and the full ticks they cover.
+const PHASES: Array[StringName] = [&"idle_pre", &"idle_arsenal", &"aim", &"arsenal", &"use", &"bash", &"present", &"copy"]
+enum { PH_IDLE_PRE, PH_IDLE_ARSENAL, PH_AIM, PH_ARSENAL, PH_USE, PH_BASH, PH_PRESENT, PH_COPY }
+static var phase_us := PackedInt64Array([0, 0, 0, 0, 0, 0, 0, 0])
+static var phase_calls := PackedInt64Array([0, 0])
+static var phase_timers := false
+static var _lap_at := 0
+
+
+static func _lap(phase: int) -> void:
+	var now := Time.get_ticks_usec()
+	phase_us[phase] += now - _lap_at
+	_lap_at = now
+
+
 ## One tick of one command: the arsenal, then the bash, then the picture.
 ## [param ctx] is optional; left null, one is built from the player through [DotWeaponPlayerBridge].
 ## The order is load-bearing: presentation first shows the previous tick, and a bash first can fire through a weapon being holstered.
@@ -185,10 +201,15 @@ func simulate_tick(
 		return DotWeaponOutcome.nothing("setup() has not been called.")
 
 	_last_tick = tick
+	var prof := phase_timers
+	if prof:
+		_lap_at = Time.get_ticks_usec()
 
 	# A shooter with nothing pressed and nothing under way: no context to build, no command to copy.
 	if ctx == null and arsenal.is_idle_for(command, _previous_command):
-		return _idle_tick(command, tick)
+		if prof:
+			phase_calls[0] += 1
+		return _idle_tick(command, tick, prof)
 
 	var context := ctx if ctx != null else _context_for(tick)
 	context.tick = tick
@@ -201,13 +222,20 @@ func simulate_tick(
 		_aim_along_wall_barrel(context)
 
 	_notice_holster(tick)
+	if prof:
+		phase_calls[1] += 1
+		_lap(PH_AIM)
 
 	var outcome := _simulate_aimed(command, context)
+	if prof:
+		_lap(PH_ARSENAL)
 
 	_notice_switch_end()
 
 	if outcome.used:
 		_record_use(outcome)
+	if prof:
+		_lap(PH_USE)
 
 	var bash_outcome := _advance_bash(command, context, tick)
 
@@ -215,11 +243,17 @@ func simulate_tick(
 		_record_use(bash_outcome)
 		bashed.emit(bash_outcome)
 		outcome = bash_outcome
+	if prof:
+		_lap(PH_BASH)
 
 	_advance_charge(command, tick)
 	_update_presentation(tick)
+	if prof:
+		_lap(PH_PRESENT)
 
 	_previous_command = command.duplicate_command()
+	if prof:
+		_lap(PH_COPY)
 	return outcome
 
 
@@ -285,7 +319,7 @@ func wall_barrel(origin: Vector3, direction: Vector3, art: AwWeaponVisual, speed
 
 ## What [method simulate_tick] does when [method DotWeaponArsenal.is_idle_for] holds: with no button
 ## down there is no aim, bash or use, so only the bookkeeping that every tick does is left.
-func _idle_tick(command: DotWeaponCommand, tick: int) -> DotWeaponOutcome:
+func _idle_tick(command: DotWeaponCommand, tick: int, prof: bool = false) -> DotWeaponOutcome:
 	# Sprinting is just movement: no button is down, so this is the path a sprint usually takes.
 	if _view != null and _player != null:
 		_view.set_sprinting(DotWeaponPlayerBridge.posture_for(_player, tick).sprinting)
@@ -293,14 +327,22 @@ func _idle_tick(command: DotWeaponCommand, tick: int) -> DotWeaponOutcome:
 	_ads_move = 1.0
 	_ads_progress = 0.0
 	_aim_ticks = 0
+	if prof:
+		_lap(PH_IDLE_PRE)
 	var outcome := arsenal.idle_tick()
+	if prof:
+		_lap(PH_IDLE_ARSENAL)
 	_notice_switch_end()
 	_advance_charge(command, tick)
 	_update_presentation(tick)
+	if prof:
+		_lap(PH_PRESENT)
 
 	# The previous command is only read for its buttons and slot; copy it only when they differ.
 	if _previous_command == null or _previous_command.buttons != 0 or _previous_command.slot != command.slot:
 		_previous_command = command.duplicate_command()
+	if prof:
+		_lap(PH_COPY)
 
 	return outcome
 

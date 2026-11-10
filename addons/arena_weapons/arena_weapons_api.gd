@@ -21,5 +21,6 @@ extends RefCounted
 #    AwWeaponRig, AwWeaponNet, AwShotFx, AwWeaponSound, AwAdsRules (hip_zero 20 m) and the rest, a host needs no other weapon pack.
 # 9: AwFxPool (fill, fill_flashes, take_shot_fx, take_charge_fx, shared_flash): a world model's shot effects, charge ball
 #    and muzzle flashes built under a loading cover and taken on first use instead of being built in the tick.
-const LEVEL := 9
+# 10: AwWeaponRig.phase_timers, phase_us, phase_calls, PHASES: opt-in sub-phase timings of simulate_tick for a profiler.
+const LEVEL := 10
 const OLDEST := 1
