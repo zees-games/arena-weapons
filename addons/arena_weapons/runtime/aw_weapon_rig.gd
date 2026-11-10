@@ -196,7 +196,9 @@ func simulate_tick(
 	if _view != null:
 		_view.set_sprinting(context.sprinting)
 	_aim_along_sprint_barrel(context)
-	_aim_along_wall_barrel(context)
+	# The wall turns an aim only a use, a release or a bash reads: a trigger held inside the cadence has none of them, so no ray is cast.
+	if not _aim_unread(command, context):
+		_aim_along_wall_barrel(context)
 
 	_notice_holster(tick)
 
@@ -241,6 +243,14 @@ func _aim_along_sprint_barrel(context: DotWeaponContext) -> void:
 	var hand := Basis.from_euler(Vector3(deg_to_rad(rot.x), deg_to_rad(rot.y), deg_to_rad(rot.z)))
 	var aim := _look_basis(context.direction)
 	context.direction = (aim * (hand * Vector3.FORWARD)).normalized()
+
+
+## Whether this tick hands [member DotWeaponContext.direction] to nobody: no sights (a held-back shot is a release), no bash, and an arsenal only counting its cadence down.
+func _aim_unread(command: DotWeaponCommand, context: DotWeaponContext) -> bool:
+	if (command.buttons & (DotWeaponCommand.BUTTON_AIM | DotWeaponCommand.BUTTON_ALT)) != 0:
+		return false
+	# Asked by name: an older dot-weapon has no such answer, and then every tick casts as before.
+	return arsenal.has_method(&"is_cooling_for") and arsenal.call(&"is_cooling_for", command, context)
 
 
 ## Sideways speed last given to [method drive_view]; the wall shot tilts with it, as the drawn gun does. A server sets it from `context.extra[&"strafe"]` instead.
