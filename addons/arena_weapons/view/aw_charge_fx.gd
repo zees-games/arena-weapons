@@ -154,6 +154,11 @@ func advance(delta: float) -> void:
 		mote.visible = level > 0.12
 
 
+## Builds the ball's nodes now, hidden, so the first charge creates nothing. For [AwFxPool].
+func prewarm() -> void:
+	_build()
+
+
 func _build() -> void:
 	if _ball != null:
 		return

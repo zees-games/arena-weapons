@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 302
+const CHECKS := 311
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -27,6 +27,7 @@ func _ready() -> void:
 	await _floor_clip()
 	await _near_plane_clip()
 	await _shot_fx_pool()
+	await _fx_pool()
 	await _previews()
 	_grenades()
 	_utility()
@@ -950,6 +951,52 @@ func _charge_fizzle() -> void:
 		fx.advance(1.0 / 60.0)
 	_check("the fizzle is gone after 8 frames", not fx.visible and fx.shown() == 0.0)
 	fx.free()
+	_end()
+
+
+## A hand's first shot and charge take what [AwFxPool] parked under the cover: nothing is built when they happen.
+func _fx_pool() -> void:
+	_begin("fx pool: parked effects are taken, not built")
+	var pool := AwFxPool.new()
+	add_child(pool)
+	var full := false
+	for _i in 400:
+		if pool.fill(3, 2, 0.5):
+			full = true
+			break
+	_check("fill parks what was asked for, a slice at a time", full and pool.spare_shots() == 3 and pool.spare_charges() == 2)
+	for _i in 3:
+		await get_tree().process_frame
+	var hand := Node3D.new()
+	add_child(hand)
+	var before := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+	var fx := AwFxPool.take_shot_fx()
+	_check("a parked effects node comes out of the tree", fx != null and fx.get_parent() == null)
+	# A game hands every remote hand one shared layered player; alone, the first shot would build its own.
+	fx.layered_shots = false
+	hand.add_child(fx)
+	var kids := fx.get_child_count()
+	fx.play_remote(AwWeaponNet.KIND_SHOT, Transform3D.IDENTITY, Vector3.FORWARD, &"rifle")
+	var made := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) - before
+	_check("taking it and firing once creates no node (%d made, %d under it)" % [made, fx.get_child_count() - kids], made == 0)
+	_check("it came with its voices and quads", (fx.get("_voices") as Array).size() >= 1
+		and (fx.get_node("Meshes") as DotFxMeshPool).built() >= pool.shot_meshes)
+	_check("it ticks again once in a hand", fx.can_process())
+	var ball := AwFxPool.take_charge_fx()
+	hand.add_child(ball)
+	ball.call("set_charge", 0.5)
+	_check("a parked charge ball shows on the first charge and creates no node", ball.visible
+		and int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) == before)
+	_check("the pool counts what it handed out", pool.handed == 2 and pool.spare_shots() == 2 and pool.spare_charges() == 1)
+	var _a := AwFxPool.take_shot_fx()
+	var _b := AwFxPool.take_shot_fx()
+	_check("an empty pool answers null and counts the miss", AwFxPool.take_shot_fx() == null and pool.missed == 1)
+	hand.add_child(_a)
+	hand.add_child(_b)
+	pool.free()
+	_check("with no pool in the tree there is nothing to take",
+		AwFxPool.current() == null and AwFxPool.take_shot_fx() == null and AwFxPool.take_charge_fx() == null)
+	hand.free()
 	_end()
 
 

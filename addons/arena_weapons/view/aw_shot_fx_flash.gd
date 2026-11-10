@@ -151,6 +151,14 @@ func _pack_flash(muzzle: Transform3D, size: float, weapon_class: StringName, id:
 		return false
 	var def: DotWeaponDef = catalogue.get_def(id) if catalogue != null and catalogue.has(id) else null
 	var category: String = CLASS_CATEGORY.get(weapon_class, "rifle")
+	var shared: Node3D = null if first_person else AwFxPool.shared_flash(category, def, weapon_class == AwWeaponSound.SUPPRESSED)
+	if shared != null:
+		# Not this node's child, so this node's being hidden has to be asked.
+		if is_visible_in_tree():
+			shared.global_transform = muzzle
+			DotWeaponMuzzle.fire(shared)
+			_pack_flash_light(muzzle, size, weapon_class, shared)
+		return true
 	var key := "%s/%s/%s" % [category, DotWeaponMuzzle.flash_name(def), first_person]
 	if not _pack_flashes.has(key) or (_pack_flashes[key] != null and not is_instance_valid(_pack_flashes[key])):
 		var made := DotWeaponMuzzle.attach(self, category, def, first_person, weapon_class == AwWeaponSound.SUPPRESSED)

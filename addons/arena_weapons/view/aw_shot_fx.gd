@@ -130,6 +130,13 @@ func prewarm_pools() -> void:
 		_meshes.prewarm(_quad_mesh(), _flash_mat(), REMOTE_PREWARM_MESHES)
 
 
+## Builds what a watched shooter's first shots would: its voices and [param meshes] quads. For [AwFxPool].
+func prewarm_parked(meshes: int) -> void:
+	prewarm_voices()
+	if _meshes != null and meshes > _meshes.built():
+		_meshes.prewarm(_quad_mesh(), _flash_mat(), meshes - _meshes.built())
+
+
 ## Stops every report on the way out.
 ##
 ## [b]A report still playing when its player is freed is held by the audio server[/b], and

@@ -266,7 +266,9 @@ func muzzle_transform() -> Transform3D:
 ## A charged weapon's draw, 0 to 1, from the snapshot. Builds the ball on the first charge.
 func on_charge(fraction: float) -> void:
 	if fraction > 0.0 and _charge_fx == null and is_inside_tree() and effects:
-		_charge_fx = ChargeFx.new()
+		_charge_fx = AwFxPool.take_charge_fx()
+		if _charge_fx == null:
+			_charge_fx = ChargeFx.new()
 		_charge_fx.name = "ChargeFx"
 		_charge_fx.follow = muzzle_transform
 		_charge_fx.with_light = false
@@ -652,10 +654,8 @@ func _show_in_hand(shown: bool) -> void:
 
 # --- Internals --------------------------------------------------------------
 
-## The effects node, built the first time this hand fires.
-##
-## Lazily, because most world models in a match belong to somebody who has not fired yet,
-## and thirty effects nodes waiting to be needed is thirty nodes in every frame's walk.
+## The effects node, taken from [AwFxPool] the first time this hand fires, or built then
+## when no pool has one parked.
 func _shot_fx() -> AwShotFx:
 	if _fx != null and is_instance_valid(_fx):
 		# Read every shot, not only at creation: a game that turns sounds off after the
@@ -663,7 +663,9 @@ func _shot_fx() -> AwShotFx:
 		_fx.sounds = sounds
 		return _fx
 
-	_fx = AwShotFx.new()
+	_fx = AwFxPool.take_shot_fx()
+	if _fx == null:
+		_fx = AwShotFx.new()
 	_fx.name = "ShotFx"
 	_fx.sounds = sounds
 	add_child(_fx)

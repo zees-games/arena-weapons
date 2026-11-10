@@ -19,5 +19,7 @@ extends RefCounted
 #    each a recording of its own in dot-audio's stock; a host that fed the old classes to set_class need change nothing.
 # 8: the view runtime is the pack's own: AwWeaponCatalogue, AwWeaponArtTable, AwWeaponVisual, AwViewModel, AwWorldModel,
 #    AwWeaponRig, AwWeaponNet, AwShotFx, AwWeaponSound, AwAdsRules (hip_zero 20 m) and the rest, a host needs no other weapon pack.
-const LEVEL := 8
+# 9: AwFxPool (fill, fill_flashes, take_shot_fx, take_charge_fx, shared_flash): a world model's shot effects, charge ball
+#    and muzzle flashes built under a loading cover and taken on first use instead of being built in the tick.
+const LEVEL := 9
 const OLDEST := 1
