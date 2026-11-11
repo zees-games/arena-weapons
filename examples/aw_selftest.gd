@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 318
+const CHECKS := 327
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -34,6 +34,7 @@ func _ready() -> void:
 	_glove_cache()
 	_shared_catalogue()
 	_mag_carve()
+	_assets_pack()
 	_charge_fizzle()
 	await _one_arm_set()
 	_charge_fizzle()
@@ -1117,6 +1118,55 @@ func _mag_carve() -> void:
 	holder.queue_free()
 	_check("the carve box is remembered per model", (carve.call(&"recall", "x") as AABB).size == Vector3.ZERO)
 	_end()
+
+
+## A build without the models (the web shell) draws them from a mounted pack listed with add_fallback_root.
+## The pack is built here with PCKPacker: one box scene, under a synthetic dot-cloud mount; no CDN.
+func _assets_pack() -> void:
+	_begin("models come from a mounted pack when the build lacks them")
+	const ROOT := "res://dot_cloud/aw_synth/1/arena_weapons/assets"
+	var path := AwModelCache.ASSETS_BASE + "models/selftest_pack_gun.tscn"
+	var outside := "res://aw_selftest_elsewhere/models/selftest_pack_gun.tscn"
+	AwModelCache.clear()
+	_check("the build does not carry the pack's model", not AwModelCache.scene(path).ok and not AwModelCache.exists(path))
+	_check("a missing model measures as an empty box", AwModelCache.bounds(path).size == Vector3.ZERO)
+	var made := _synth_assets_pack(ROOT + "/models/selftest_pack_gun.tscn")
+	_check("synthetic assets pack mounts", made != "" and ProjectSettings.load_resource_pack(made, false))
+	_check("mounted but not listed, the model is still missing", not AwModelCache.scene(path).ok)
+	AwModelCache.add_fallback_root(ROOT + "/")
+	_check("listed, the model loads from the pack", AwModelCache.scene(path).ok and AwModelCache.exists(path))
+	var model := AwModelCache.instantiate(path)
+	_check("and instantiates", model != null)
+	if model != null:
+		model.free()
+	_check("the empty box measured before is dropped and the model measured", is_equal_approx(AwModelCache.bounds(path).size.x, 0.2))
+	_check("a path outside the addon's assets is not redirected", not AwModelCache.exists(outside))
+	AwModelCache.remove_fallback_root(ROOT)
+	_check("unlisted again, the model is gone and the list empty", not AwModelCache.exists(path) and AwModelCache.fallback_roots().is_empty())
+	AwModelCache.clear()
+	_end()
+
+
+## Writes a pck holding a 0.2 m box scene at [param inside]; the pck's path, or "" if it could not.
+func _synth_assets_pack(inside: String) -> String:
+	var root := Node3D.new()
+	var mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.2, 0.1, 0.4)
+	mesh.mesh = box
+	root.add_child(mesh)
+	mesh.owner = root
+	var packed := PackedScene.new()
+	var packed_ok := packed.pack(root) == OK
+	root.free()
+	var scene_file := ProjectSettings.globalize_path("user://aw_selftest_pack_gun.tscn")
+	if not packed_ok or ResourceSaver.save(packed, scene_file) != OK:
+		return ""
+	var out := ProjectSettings.globalize_path("user://aw_selftest_assets.pck")
+	var packer := PCKPacker.new()
+	if packer.pck_start(out) != OK or packer.add_file(inside, scene_file) != OK or packer.flush() != OK:
+		return ""
+	return out
 
 
 func _finish() -> void:

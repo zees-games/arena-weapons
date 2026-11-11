@@ -25,5 +25,7 @@ extends RefCounted
 # 11: AwShotFx.NO_IMPACT_GROUP and draws_impact: a shot on the sky (that group, or meta hull_kind "sky") draws no impact.
 # 12: AwShotFx.round_profile, ROUNDS (tracer width, length and impact size per sound class), impact_stream and surface_of
 #     (impact sound per surface and flesh), play_impact(at, normal, collider, weapon_class, shape).
-const LEVEL := 12
+# 13: AwModelCache.add_fallback_root / remove_fallback_root / fallback_roots / exists: a build without the addon's models (the web shell) draws them
+#     from a mounted pack laid out like addons/arena_weapons/assets/.
+const LEVEL := 13
 const OLDEST := 1

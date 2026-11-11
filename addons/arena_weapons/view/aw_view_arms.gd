@@ -409,7 +409,7 @@ func fit_glove_to(weapon: Node) -> Color:
 
 func _build_rigged() -> bool:
 	var path := AwWeaponArtTable.RIGGED_ARMS_MODEL
-	if not ResourceLoader.exists(AwModelCache.resolve(path)):
+	if not AwModelCache.exists(path):
 		return false
 	var parts: Array[AwRiggedArm] = []
 	for arm_name in ["arm-right", "arm-left"]:

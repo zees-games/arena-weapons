@@ -37,6 +37,13 @@ static var _complained: Dictionary = {}
 ## Where `res://assets/` is on this machine. `res://` everywhere but inside a mounted pack.
 static var _asset_root: String = "res://"
 
+## Where this addon's own models are in a full build.
+const ASSETS_BASE := "res://addons/arena_weapons/assets/"
+
+## Folders laid out like [constant ASSETS_BASE], tried in order for a model the build lacks.
+## The web shell leaves the models out to stay small and mounts them as a pack on join.
+static var _fallback_roots: PackedStringArray = PackedStringArray()
+
 
 ## Puts the art somewhere other than `res://assets/`, for a game delivered as a pack.
 ##
@@ -56,6 +63,33 @@ static func set_asset_root(root: String) -> void:
 	_complained.clear()
 
 
+## Lets models under [constant ASSETS_BASE] come from [param root] when the build lacks them.
+## Cached misses are dropped, so a weapon drawn invisible before the pack mounted is drawn now.
+static func add_fallback_root(root: String) -> void:
+	var r := root.trim_suffix("/")
+	if r == "" or r in _fallback_roots:
+		return
+	_fallback_roots.append(r)
+	_drop_misses()
+	# The table dressed its rows only where a model was readable; redress them now that more are.
+	AwWeaponArtTable.drop_cache()
+
+
+## Undoes [method add_fallback_root], for a shell leaving the game that mounted the pack.
+static func remove_fallback_root(root: String) -> void:
+	var i := _fallback_roots.find(root.trim_suffix("/"))
+	if i < 0:
+		return
+	_fallback_roots.remove_at(i)
+	clear()
+	AwWeaponArtTable.drop_cache()
+
+
+## The folders [method add_fallback_root] listed, in the order they are tried.
+static func fallback_roots() -> PackedStringArray:
+	return _fallback_roots.duplicate()
+
+
 ## [param path], under [method set_asset_root] when it names the shipped art. A path that
 ## is already under the root, or names anything else, comes back unchanged.
 static func resolve(path: String) -> String:
@@ -73,7 +107,7 @@ static func scene(path: String) -> DotResult:
 	if _scenes.has(path):
 		return DotResult.success(_scenes[path])
 
-	var real := resolve(path)
+	var real := _locate(resolve(path))
 
 	if not ResourceLoader.exists(real):
 		return DotResult.fail(
@@ -91,6 +125,29 @@ static func scene(path: String) -> DotResult:
 
 	_scenes[path] = loaded
 	return DotResult.success(loaded)
+
+
+## True when [method scene] would find a file for [param path], here or under a fallback root.
+static func exists(path: String) -> bool:
+	return path != "" and ResourceLoader.exists(_locate(resolve(path)))
+
+
+## [param real], or the same file under a fallback root when the build lacks it.
+static func _locate(real: String) -> String:
+	if _fallback_roots.is_empty() or not real.begins_with(ASSETS_BASE) or ResourceLoader.exists(real):
+		return real
+	var rel := real.substr(ASSETS_BASE.length())
+	for root in _fallback_roots:
+		if ResourceLoader.exists(root + "/" + rel):
+			return root + "/" + rel
+	return real
+
+
+## Forgets the models that could not be found, and the empty boxes measured for them.
+static func _drop_misses() -> void:
+	for path: Variant in _complained.keys():
+		_bounds.erase(path)
+	_complained.clear()
 
 
 ## Loads every scene in [param paths] into the cache, so the first equip of each does not read
@@ -193,6 +250,7 @@ static func describe() -> Dictionary:
 		"scenes": _scenes.keys().size(),
 		"measured": _bounds.keys().size(),
 		"missing": _complained.keys().size(),
+		"fallback_roots": _fallback_roots.size(),
 	}
 
 

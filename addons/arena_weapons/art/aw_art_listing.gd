@@ -31,7 +31,7 @@ static func missing_result(paths: Array[String]) -> DotResult:
 	var missing: Array[String] = []
 
 	for path in paths:
-		if not ResourceLoader.exists(AwModelCache.resolve(path)):
+		if not AwModelCache.exists(path):
 			missing.append(path)
 
 	if missing.is_empty():
