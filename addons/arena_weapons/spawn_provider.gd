@@ -1,7 +1,7 @@
 class_name AwSpawnProvider
 extends RefCounted
 
-## What a host reads from this pack (loaded by path, called by name: game-arena's roles, game-zombie-zone's zz_packs.gd).
+## What a host reads from this pack (loaded by path, called by name: game-fatal-contact's roles, game-zombie-zone's zz_packs.gd).
 ## The weapons are this pack's own ([AwWeaponPack]); ids are `aw_<id>` in a host that mixes packs, plain in one that
 ## takes this pack as its whole set ([method set_id_prefix] with ""). Every row is plain data; no other weapon pack is named.
 
