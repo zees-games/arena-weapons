@@ -2,7 +2,7 @@
 
 Arena's whole weapon set: its own weapon definitions (stats, ammunition, reloads, view and aim holds) and the models they wear, from [Styloo's Guns Asset Pack](https://styloo.itch.io/guns-asset-pack), Polyy's two low-poly gun packs and a CC0 knife, all CC0, baked to the family's model contract (origin at the grip, muzzle toward -Z, metres). On `zees-games`; dot-cloud pack id `gamemann/arena-weapons`.
 
-**game-arena requires it**: it registers this pack under plain ids (`rifle`, not `aw_rifle`) and runs them on this pack's own runtime (`Aw*`: rig, view model, world model, net, shot effects, art registry, ADS rules); it links no other weapon addon. A host that mixes packs (game-zombie-zone, game-playground) reads `weapon_defs()`, `art_rows()` and `spawn_entries()` and gets `aw_`-prefixed ids; `role_art()` still dresses a host's own weapons by role. Every stat is tunable per weapon in `cfg/addons/arena_weapons/weapon/<id>.yml` (dot-weapon's `DotWeaponProfiles`).
+**game-arena requires it**: it registers this pack under plain ids (`rifle`, not `aw_rifle`) and runs them on this pack's own runtime (`Aw*`: rig, view model, world model, net, shot effects, art registry, ADS rules); it links no other weapon addon. A host that mixes packs (game-zombie-zone, game-playlot) reads `weapon_defs()`, `art_rows()` and `spawn_entries()` and gets `aw_`-prefixed ids; `role_art()` still dresses a host's own weapons by role. Every stat is tunable per weapon in `cfg/addons/arena_weapons/weapon/<id>.yml` (dot-weapon's `DotWeaponProfiles`).
 
 | Slot | Weapons (id: model) |
 | --- | --- |
