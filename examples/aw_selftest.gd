@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 327
+const CHECKS := 328
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -560,6 +560,13 @@ func _check_stepped_prewarm() -> void:
 			break
 	var art := AwWeaponVisual.make(role)
 	AwArtDress.apply(art, rows[role])
+	var spans: Dictionary = AwViewModel.HandReach._span_cache
+	for key: String in spans.keys():
+		if key.begins_with("%s|" % art.id):
+			spans.erase(key)
+	var before := spans.size()
+	var ready := [0]
+	view.model_ready.connect(func(_id: StringName, _node: Node3D) -> void: ready[0] += 1)
 	var steps := 0
 	var began := view.prewarm_begin(art)
 	var weapon_loaded := view.weapon_node() != null
@@ -567,6 +574,13 @@ func _check_stepped_prewarm() -> void:
 		steps += 1
 	view.queue_free()
 	_check("stepped prewarm loads the model, then runs %d stages and drops the weapon" % AwViewModel.EQUIP_STAGES, began and weapon_loaded and steps == AwViewModel.EQUIP_STAGES - 1 and view.weapon_node() == null)
+	var warmed := spans.size()
+	var hot := AwViewModel.new()
+	hot.show_arms = false
+	add_child(hot)
+	var _r := hot.equip(art)
+	hot.queue_free()
+	_check("stepped prewarm warms what equip reads, as prewarm does (model_ready %d, hand spans %d -> %d, equip adds %d)" % [ready[0], before, warmed, spans.size() - warmed], ready[0] == 1 and warmed > before and spans.size() == warmed)
 
 
 ## Rays from the aimed eye inside the sight cone, as far as the front post, hit nothing of the gun.

@@ -59,6 +59,17 @@ var scope_arms_hide_override: float = -1.0
 
 ## Draws [param art]'s weapon, replacing whatever was in hand; rebuilt, not hidden, as every model in the tree is culled per player.
 func equip(art: AwWeaponVisual) -> DotResult:
+	var head := _equip_head(art)
+	if not head.ok or head.value_or(null) == null:
+		return head
+	for stage in EQUIP_STAGES:
+		_equip_stage(_art, stage)
+	model_ready.emit(_id, _weapon)
+	return DotResult.success(null)
+
+
+## The part of [method equip] before its stages: the pose, the holder and the model load. Its value is the weapon node, or null for fists.
+func _equip_head(art: AwWeaponVisual) -> DotResult:
 	_build_structure()
 
 	if art == null:
@@ -112,14 +123,7 @@ func equip(art: AwWeaponVisual) -> DotResult:
 	_weapon.name = "Weapon"
 	_holder.add_child(_weapon)
 	_set_on_top(_weapon)
-
-	for stage in EQUIP_STAGES:
-		_equip_stage(art, stage)
-
-	_reach_for(art)
-	_carve_magazine(art)
-	model_ready.emit(_id, _weapon)
-	return DotResult.success(null)
+	return DotResult.success(_weapon)
 
 
 ## Draws [param fitting]'s attachments on the weapon in hand, and moves the muzzle and the sight line to suit.
@@ -673,7 +677,7 @@ func _add_built(part: Node3D, at: Transform3D) -> Node3D:
 
 
 ## The stages the tail of [method equip] runs in, after the model is in the holder; [method prewarm_step] runs them one a call.
-const EQUIP_STAGES := 4
+const EQUIP_STAGES := 6
 
 
 func _equip_stage(art: AwWeaponVisual, stage: int) -> void:
@@ -694,45 +698,39 @@ func _equip_stage(art: AwWeaponVisual, stage: int) -> void:
 			for part in Dress.art_parts(art, _holder):
 				_set_on_top(part)
 				_attachments.append(part)
+		4:
+			_reach_for(art)
+		5:
+			_carve_magazine(art)
 
 
-var _prewarm_art: AwWeaponVisual = null
 var _prewarm_stage := -1
 
 
-## Starts [method prewarm] over several calls: the head of the equip (structure, model load) now, the rest one stage per [method prewarm_step].
+## Starts [method prewarm] over several calls: [method equip]'s head (pose, holder, model load) now, its stages one per [method prewarm_step].
 ## Returns false when there is nothing to step (no art, no model, or the load failed); the weapon is then already as warm as it gets.
 func prewarm_begin(art: AwWeaponVisual) -> bool:
-	_prewarm_art = null
 	_prewarm_stage = -1
-	_build_structure()
-	if art == null or not art.has_model():
-		prewarm(art)
-		return false
-	_clear_models()
-	_end_sequence()
-	_art = HipHold.sized(art, ads_rules, position.z)
-	_weapon = AwModelCache.instantiate(_art.model_path)
-	if _weapon == null:
-		return false
-	_weapon.name = "Weapon"
-	_holder.add_child(_weapon)
-	_set_on_top(_weapon)
-	_prewarm_art = _art
-	_prewarm_stage = 0
-	return true
+	var head := _equip_head(art)
+	if head.ok and head.value_or(null) != null:
+		_prewarm_stage = 0
+		return true
+	clear()
+	_warm_parts()
+	return false
 
 
-## One more stage of the weapon begun by [method prewarm_begin] (the cold sight fit, cuts and red dot are in stages 0-1). True while more remain; on the last call the weapon is dropped again and the shared reload parts are warmed.
+## One more stage of the weapon begun by [method prewarm_begin]. True while more remain; after the last the weapon is dropped again, as [method prewarm] leaves it.
 func prewarm_step() -> bool:
-	if _prewarm_art == null:
+	if _prewarm_stage < 0 or _art == null:
+		_prewarm_stage = -1
 		return false
-	_equip_stage(_prewarm_art, _prewarm_stage)
+	_equip_stage(_art, _prewarm_stage)
 	_prewarm_stage += 1
 	if _prewarm_stage < EQUIP_STAGES:
 		return true
-	_prewarm_art = null
 	_prewarm_stage = -1
+	model_ready.emit(_id, _weapon)
 	clear()
 	_warm_parts()
 	return false
