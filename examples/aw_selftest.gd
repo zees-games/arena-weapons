@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 314
+const CHECKS := 318
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -824,6 +824,7 @@ func _shot_fx_limits(holder: Node3D) -> void:
 	deaf.play_remote(AwWeaponNet.KIND_SHOT, far_at, aim, &"rifle")
 	_check("a report beyond cl_shotfx_voice_distance makes no voice", int(deaf.describe()["voices"]) == 0)
 	_shot_fx_sky(holder)
+	_shot_fx_rounds(holder)
 
 
 ## A shot on the sky draws nothing where it lands, a shot on a wall a mark: sky by group or by hull_kind meta.
@@ -848,6 +849,52 @@ func _shot_fx_sky(holder: Node3D) -> void:
 	fx.play_impact(at, Vector3.BACK, wall)
 	_check("the same shot on a wall leaves a mark and an effect (%d, %d)" % [fx.mark_count(), fx.live_count()],
 		fx.mark_count() == 1 and fx.live_count() > 0)
+	fx.advance(5.0)
+
+
+## Each gun's round has its own tracer and impact, its impact sounds like what it hit, and handling carries less far than a report.
+func _shot_fx_rounds(holder: Node3D) -> void:
+	var pistol := float(AwShotFx.round_profile(AwWeaponSound.LIGHT)["width"])
+	var sniper := float(AwShotFx.round_profile(AwWeaponSound.SNIPER)["width"])
+	var pellet := float(AwShotFx.round_profile(AwWeaponSound.SHOTGUN)["width"])
+	_check("a sniper's tracer is wider than a pistol's, a pellet's the thinnest, an unknown class the rifle's",
+		sniper > pistol and pellet < pistol
+		and AwShotFx.round_profile(&"nonsense") == AwShotFx.round_profile(AwWeaponSound.RIFLE))
+	var fx := AwShotFx.new()
+	fx.first_person = true
+	holder.add_child(fx)
+	fx.play_remote(AwWeaponNet.KIND_SHOT, Transform3D(Basis(), Vector3(0.0, 0.0, 40.0)), Vector3.FORWARD, &"sniper")
+	var widths: Array[float] = []
+	for live: Dictionary in fx._live:
+		if live.get("kind", &"") == &"tracer":
+			widths.append(float(live["width"]))
+	_check("a sniper shot's tracer is drawn at the sniper's width (%s)" % [widths], widths.size() == 1 and is_equal_approx(widths[0], sniper))
+	var metal := StaticBody3D.new()
+	metal.set_meta(&"surface", "steel")
+	holder.add_child(metal)
+	var linked := DotWeaponSound.count(&"impact_metal") > 0 and DotWeaponSound.count(&"impact_flesh") > 0
+	var on_metal := AwShotFx.impact_stream(AwShotFx.IMPACT_WORLD, metal)
+	var on_body := AwShotFx.impact_stream(AwShotFx.IMPACT_BODY)
+	_check("a shot on steel sounds of metal and one on a body of flesh, with dot-audio linked",
+		not linked or (on_metal.resource_path.contains("impact_metal") and on_body.resource_path.contains("impact_flesh")))
+	var reloader := AwShotFx.new()
+	var shooter := AwShotFx.new()
+	for one: AwShotFx in [reloader, shooter]:
+		one.first_person = true
+		one.layered_shots = false
+		holder.add_child(one)
+	reloader.play_reload(AwWeaponSound.RELOAD_OUT, Vector3.ZERO, &"rifle")
+	shooter.play_remote(AwWeaponNet.KIND_SHOT, Transform3D(), Vector3.FORWARD, &"rifle")
+	var handling_size := -1.0
+	var report_size := -1.0
+	for voice in reloader._voices:
+		if voice.stream != null:
+			handling_size = voice.unit_size
+	for voice in shooter._voices:
+		if voice.stream != null:
+			report_size = voice.unit_size
+	_check("a reload carries less far than a report (unit size %.1f vs %.1f)" % [handling_size, report_size],
+		handling_size > 0.0 and handling_size < report_size)
 	fx.advance(5.0)
 
 

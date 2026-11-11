@@ -59,6 +59,37 @@ const NO_IMPACT_GROUP := &"aw_no_impact"
 const IMPACT_WORLD := &"world"
 const IMPACT_BODY := &"body"
 
+## Each sound class's round: tracer [code]width[/code] per metre of distance (see _screen_width), streak
+## [code]length[/code] and impact size [code]hit[/code] as multipliers. One width for every gun made a pistol's
+## shot as thick as a sniper's; a class not listed draws the rifle's ([constant ROUND_DEFAULT]).
+const ROUNDS := {
+	&"light": {"width": 0.0028, "length": 0.8, "hit": 0.8},
+	&"suppressed": {"width": 0.0022, "length": 0.7, "hit": 0.75},
+	&"derringer": {"width": 0.003, "length": 0.75, "hit": 0.85},
+	&"mpistol": {"width": 0.0026, "length": 0.8, "hit": 0.8},
+	&"smg": {"width": 0.003, "length": 0.85, "hit": 0.85},
+	&"magnum": {"width": 0.0046, "length": 1.0, "hit": 1.2},
+	&"rifle": {"width": 0.004, "length": 1.0, "hit": 1.0},
+	&"carbine": {"width": 0.0038, "length": 0.95, "hit": 0.95},
+	&"battle": {"width": 0.0047, "length": 1.1, "hit": 1.1},
+	&"marksman": {"width": 0.005, "length": 1.25, "hit": 1.15},
+	&"heavy": {"width": 0.0052, "length": 1.15, "hit": 1.2},
+	&"lmg": {"width": 0.0046, "length": 1.1, "hit": 1.05},
+	&"minigun": {"width": 0.0036, "length": 1.0, "hit": 0.9},
+	&"sniper": {"width": 0.0068, "length": 1.6, "hit": 1.4},
+	&"shotgun": {"width": 0.0022, "length": 0.55, "hit": 0.6},
+	&"autoshot": {"width": 0.0022, "length": 0.55, "hit": 0.6},
+}
+const ROUND_DEFAULT := {"width": 0.004, "length": 1.0, "hit": 1.0}
+
+## Stock impact per surface (dot-audio's [code]surface_of_collider[/code] names it); others play [code]impact[/code].
+const SURFACE_IMPACTS := {&"metal": &"impact_metal", &"wood": &"impact_wood"}
+
+## Read by path, so the pack needs no dot-audio; without it every surface sounds the same.
+const SURFACE_PROBE := "res://addons/dot_audio/runtime/dot_audio_footsteps.gd"
+
+var _last_impact_msec: int = -100000
+
 ## The charged weapon's draw when the shot left, for the beam. The rig sets it before play_use.
 const CHARGE_READY := 0.98
 var rail_charge := 0.0
@@ -195,8 +226,8 @@ func play_use(outcome: DotWeaponOutcome, muzzle: Transform3D, id: StringName) ->
 	if not beam:
 		_flash(muzzle, 1.0, AwWeaponSound.class_for(id, kind), id, true)
 
-	var rail := rail_charge >= CHARGE_READY \
-		and AwWeaponSound.class_for(id, kind) == AwWeaponSound.CHARGE
+	var weapon_class := AwWeaponSound.class_for(id, kind)
+	var rail := rail_charge >= CHARGE_READY and weapon_class == AwWeaponSound.CHARGE
 	var drawn := 0
 	for shot: DotShot in outcome.shots:
 		var directions: Array[Vector3] = shot.pellets
@@ -207,7 +238,7 @@ func play_use(outcome: DotWeaponOutcome, muzzle: Transform3D, id: StringName) ->
 			if drawn >= MAX_TRACERS_PER_USE:
 				break
 			drawn += 1
-			_trace(muzzle.origin, shot.origin, direction, shot.max_range, beam, rail)
+			_trace(muzzle.origin, shot.origin, direction, shot.max_range, beam, rail, weapon_class)
 
 
 ## A use somebody else made, known only by its kind: a watcher's view, from the world
@@ -234,9 +265,9 @@ func play_remote(
 	if not beam:
 		_flash(muzzle, 1.0, AwWeaponSound.class_for(id, AwWeaponNet.kind_name(kind)), id, false)
 
-	var rail := charge >= CHARGE_READY \
-		and AwWeaponSound.class_for(id, AwWeaponNet.kind_name(kind)) == AwWeaponSound.CHARGE
-	_trace(muzzle.origin, muzzle.origin, direction, miss_distance, beam, rail)
+	var weapon_class := AwWeaponSound.class_for(id, AwWeaponNet.kind_name(kind))
+	var rail := charge >= CHARGE_READY and weapon_class == AwWeaponSound.CHARGE
+	_trace(muzzle.origin, muzzle.origin, direction, miss_distance, beam, rail, weapon_class)
 
 
 ## How many effects are alive. For a suite, and for [method describe].
@@ -372,6 +403,7 @@ func play_body_hit(at: Vector3, direction: Vector3 = Vector3.ZERO) -> void:
 		return
 	var back := -direction.normalized() if direction.is_finite() and not direction.is_zero_approx() else Vector3.UP
 	_impact(at, back, IMPACT_BODY, false)
+	_play_impact_sound(at, IMPACT_BODY, null, -1)
 
 
 ## What a shot landing on [param collider] is drawn as: [constant IMPACT_BODY] for a character,
@@ -412,10 +444,48 @@ static func draws_impact(collider: Object) -> bool:
 
 ## The effects of a shot landing at [param at] on [param collider], facing [param normal]: what a
 ## presentation ray would draw. Public for a suite and for a game that traces its own shots.
-func play_impact(at: Vector3, normal: Vector3, collider: Object) -> void:
+## [param weapon_class] sizes it ([constant ROUNDS]); [param shape] is the hit's shape index, for its surface.
+func play_impact(
+	at: Vector3, normal: Vector3, collider: Object, weapon_class: StringName = &"", shape: int = -1
+) -> void:
 	if not visuals or not is_inside_tree() or not at.is_finite() or not draws_impact(collider):
 		return
-	_impact(at, normal, impact_kind(collider), takes_marks(collider))
+	var kind := impact_kind(collider)
+	_impact(at, normal, kind, takes_marks(collider), round_profile(weapon_class))
+	_play_impact_sound(at, kind, collider, shape)
+
+
+## The tracer and impact sizes of [param weapon_class] (an AwWeaponSound class): [constant ROUNDS], else the rifle's.
+static func round_profile(weapon_class: StringName) -> Dictionary:
+	return ROUNDS.get(weapon_class, ROUND_DEFAULT)
+
+
+## The stock impact for what [param kind] and [param collider] are made of, or null without dot-audio.
+static func impact_stream(kind: StringName, collider: Object = null, shape: int = -1) -> AudioStream:
+	var sound: StringName = &"impact_flesh" if kind == IMPACT_BODY \
+		else SURFACE_IMPACTS.get(surface_of(collider, shape), &"impact")
+	var picked := DotWeaponSound.pick(sound, randi())
+	return picked if picked != null else DotWeaponSound.pick(&"impact", randi())
+
+
+## What [param collider] is made of as dot-audio names it (metal, wood, ...), empty without dot-audio or a tag.
+static func surface_of(collider: Object, shape: int = -1) -> StringName:
+	if collider == null or not is_instance_valid(collider) or not ResourceLoader.exists(SURFACE_PROBE):
+		return &""
+	var probe: Script = load(SURFACE_PROBE)
+	return StringName(probe.call(&"surface_of_collider", collider, shape))
+
+
+func _play_impact_sound(at: Vector3, kind: StringName, collider: Object, shape: int) -> void:
+	if kind != IMPACT_BODY:
+		var now := Time.get_ticks_msec()
+		if now - _last_impact_msec < IMPACT_GAP_MSEC:
+			return
+		_last_impact_msec = now
+	var stream := impact_stream(kind, collider, shape)
+	if stream == null:
+		stream = AwWeaponSound.stream(AwWeaponSound.IMPACT)
+	_play(stream, at, -10.0 if kind == IMPACT_BODY else -8.0, &"impact")
 
 
 # --- The frame --------------------------------------------------------------
@@ -529,7 +599,7 @@ func _advance_marks(delta: float) -> void:
 
 func _trace(
 	muzzle: Vector3, eye: Vector3, direction: Vector3, reach: float, beam: bool,
-	rail: bool = false
+	rail: bool = false, weapon_class: StringName = &""
 ) -> void:
 	var dir := direction.normalized()
 	if not dir.is_finite() or dir.is_zero_approx():
@@ -541,6 +611,7 @@ func _trace(
 	var hit := false
 	var normal := Vector3.UP
 	var collider: Object = null
+	var shape := -1
 
 	var space := get_world_3d().direct_space_state if get_world_3d() != null else null
 	if space != null:
@@ -552,19 +623,20 @@ func _trace(
 			normal = found["normal"]
 			hit = true
 			collider = found.get("collider")
+			shape = int(found.get("shape", -1))
 
 	if rail:
 		_rail_beam(muzzle, end)
 	elif beam:
 		_beam(muzzle, end)
 	else:
-		_tracer(muzzle, end)
+		_tracer(muzzle, end, weapon_class)
 
 	if hit:
-		play_impact(end, normal, collider)
+		play_impact(end, normal, collider, weapon_class, shape)
 
 
-func _tracer(from: Vector3, to: Vector3) -> void:
+func _tracer(from: Vector3, to: Vector3, weapon_class: StringName = &"") -> void:
 	var total := from.distance_to(to)
 	if total < 0.05:
 		return
@@ -574,9 +646,10 @@ func _tracer(from: Vector3, to: Vector3) -> void:
 	# in a few milliseconds, which is no frames at all. A fifteenth of a second is two to
 	# eight frames, which is enough to be seen and short enough to read as fast.
 	var life := clampf(total / 420.0, 0.045, 0.11)
-	var length := clampf(total * 0.3, 0.6, 5.0)
+	var look := round_profile(weapon_class)
+	var length := minf(clampf(total * 0.3, 0.6, 5.0) * float(look["length"]), total)
 	_add(node, {"kind": &"tracer", "life": life, "from": from, "to": to,
-		"length": length, "width": 0.004})
+		"length": length, "width": float(look["width"])})
 	_place_along(node, from, to - from, 0.001, 0.001)
 
 
@@ -608,12 +681,15 @@ func _rail_beam(from: Vector3, to: Vector3) -> void:
 	_add(ring, {"kind": &"flash", "life": 0.18, "size": 0.9})
 
 
-func _impact(at: Vector3, normal: Vector3, kind: StringName, mark: bool) -> void:
+func _impact(
+	at: Vector3, normal: Vector3, kind: StringName, mark: bool, look: Dictionary = ROUND_DEFAULT
+) -> void:
 	if _live.size() > _live_cap() - 2 or _too_far(at, rules.fx_distance):
 		return
 
 	var facing := normal.normalized() if normal.is_finite() and not normal.is_zero_approx() else Vector3.UP
 	var lifted := at + facing * 0.02
+	var hit_scale := float(look["hit"])
 
 	if kind == IMPACT_BODY:
 		_last_body_at = at
@@ -622,42 +698,39 @@ func _impact(at: Vector3, normal: Vector3, kind: StringName, mark: bool) -> void
 		# told apart from a wall's grey dust at a glance. No spark: a body does not strike one.
 		var burst := _mesh(_quad_mesh(), _hit_mat())
 		burst.global_position = lifted + facing * 0.04
-		var burst_size := randf_range(0.30, 0.40)
+		var burst_size := randf_range(0.30, 0.40) * hit_scale
 		burst.scale = Vector3.ONE * burst_size
 		_add(burst, {"kind": &"hit", "life": 0.16, "size": burst_size})
 
 		var mist := _mesh(_quad_mesh(), _mist_mat())
 		mist.global_position = lifted + facing * 0.08
-		var mist_size := randf_range(0.32, 0.42)
+		var mist_size := randf_range(0.32, 0.42) * hit_scale
 		mist.scale = Vector3.ONE * mist_size
 		_add(mist, {"kind": &"mist", "life": 0.45, "size": mist_size, "drift": facing * 0.4,
 			"origin": mist.global_position})
-		_play(AwWeaponSound.stream(AwWeaponSound.IMPACT), at, -10.0)
 		return
 
 	var spark := _mesh(_quad_mesh(), _spark_mat())
 	spark.global_position = lifted
-	var spark_size := randf_range(0.24, 0.32)
+	var spark_size := randf_range(0.24, 0.32) * hit_scale
 	spark.scale = Vector3.ONE * spark_size
 	_add(spark, {"kind": &"spark", "life": 0.09, "size": spark_size})
 
 	var puff := _mesh(_quad_mesh(), _puff_mat())
 	puff.global_position = lifted + facing * 0.05
-	var puff_size := randf_range(0.3, 0.4)
+	var puff_size := randf_range(0.3, 0.4) * hit_scale
 	puff.scale = Vector3.ONE * puff_size
 	_add(puff, {"kind": &"puff", "life": 0.45, "size": puff_size})
 
 	if mark:
-		_mark(at, facing)
-
-	_play(AwWeaponSound.stream(AwWeaponSound.IMPACT), at, -8.0)
+		_mark(at, facing, hit_scale)
 
 
 ## A dark scorch on the wall where a shot landed, flat on the surface, held for
 ## [constant MARK_LIFE]. [b]The one effect that says where the shots went after they went[/b]:
 ## a spark and a puff are gone in a third of a second, and a player correcting their aim reads
 ## the group on the wall.
-func _mark(at: Vector3, facing: Vector3) -> void:
+func _mark(at: Vector3, facing: Vector3, hit_scale: float = 1.0) -> void:
 	if _marks.size() >= MAX_MARKS:
 		var oldest: Dictionary = _marks.pop_front()
 		var old: Node3D = oldest["node"]
@@ -671,7 +744,7 @@ func _mark(at: Vector3, facing: Vector3) -> void:
 	var y := facing.cross(x).normalized()
 	# Grown with distance like an impact (capped at four times, at twenty-four metres): left at
 	# its real size a mark at range was three pixels, which is no mark at all.
-	var size := randf_range(0.09, 0.11) * _distance_scale(at)
+	var size := randf_range(0.09, 0.11) * sqrt(hit_scale) * _distance_scale(at)
 	var spin := Basis(facing, randf() * TAU)
 	node.global_transform = Transform3D(spin * Basis(x * size, y * size, facing),
 		at + facing * 0.004)

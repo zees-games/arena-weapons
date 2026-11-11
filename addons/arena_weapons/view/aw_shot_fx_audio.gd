@@ -17,6 +17,19 @@ const DRY_GAP_MSEC := 250
 
 const CASING_GAP_MSEC := 90
 
+## Shortest gap between two impact sounds on the world: a shotgun's pellets land in one frame, and each
+## taking a voice cut its own report off.
+const IMPACT_GAP_MSEC := 30
+
+## How far each kind of sound carries and how much its pitch wanders: [unit size, max distance, pitch spread].
+## A report crosses the map, an impact a few rooms, a magazine going in only the next room; one shared
+## falloff made reloads across the map as loud as shots.
+const FALLOFF := {
+	&"report": [12.0, 260.0, 0.05],
+	&"impact": [5.0, 120.0, 0.12],
+	&"handling": [2.0, 40.0, 0.04],
+}
+
 ## Replaces the stock report and tail: `func(id: StringName, kind: StringName, at: Vector3, indoors: bool) -> bool`, e.g. wrapping a DotShotPlayer's `fire`. Return true when it played the shot; false falls back to the stock sound. Unset keeps the stock sound.
 var shot_sound: Callable = Callable()
 
@@ -54,7 +67,7 @@ var _last_casing_msec: int = -100000
 ## A reload's sound at [param at]: [param stage] is [constant AwWeaponSound.RELOAD_OUT] or
 ## [constant AwWeaponSound.RELOAD_IN]. The rig decides when; this only plays it. [param weapon_id] picks the class's own reload.
 func play_reload(stage: StringName, at: Vector3, weapon_id: StringName = &"") -> void:
-	_play(AwWeaponSound.reload_stream(weapon_id, stage), at, -4.0)
+	_play(AwWeaponSound.reload_stream(weapon_id, stage), at, -4.0, &"handling")
 
 
 ## One handling sound of a reload ([param cue] is a name from AwReloadCues, stock cue_NAME_N) at [param at]; [param db] is its
@@ -62,14 +75,14 @@ func play_reload(stage: StringName, at: Vector3, weapon_id: StringName = &"") ->
 func play_cue(cue: StringName, at: Vector3, db: float = 0.0) -> void:
 	if not sounds or not is_inside_tree():
 		return
-	_play(DotWeaponSound.pick(StringName("cue_%s" % cue), randi()), at, db - 4.0)
+	_play(DotWeaponSound.pick(StringName("cue_%s" % cue), randi()), at, db - 4.0, &"handling")
 
 
 ## The selector switch of weapon [param weapon_id] at [param at]; the click differs per gun class.
 func play_mode_click(at: Vector3, weapon_id: StringName) -> void:
 	if not sounds or not is_inside_tree():
 		return
-	_play(AwWeaponSound.stream(AwWeaponSound.mode_click_for(weapon_id)), at, -2.0)
+	_play(AwWeaponSound.stream(AwWeaponSound.mode_click_for(weapon_id)), at, -2.0, &"handling")
 
 
 ## The hammer falling on nothing. Throttled, because a held trigger asks every tick.
@@ -78,7 +91,7 @@ func play_dry(at: Vector3, weapon_id: StringName = &"") -> void:
 	if not sounds or not is_inside_tree() or now - _last_dry_msec < DRY_GAP_MSEC:
 		return
 	_last_dry_msec = now
-	_play(AwWeaponSound.dry_stream(weapon_id), at, -4.0)
+	_play(AwWeaponSound.dry_stream(weapon_id), at, -4.0, &"handling")
 
 
 ## A weapon coming up in the hands; a grenade ([param thrown]) is heard as its pin coming out.
@@ -86,13 +99,13 @@ func play_equip(at: Vector3, thrown: bool = false, weapon_id: StringName = &"") 
 	if not is_inside_tree():
 		return
 	var pin := DotWeaponSound.pick(&"pin_pull", randi()) if thrown else null
-	_play(pin if pin != null else AwWeaponSound.equip_stream(weapon_id), at, -6.0)
+	_play(pin if pin != null else AwWeaponSound.equip_stream(weapon_id), at, -6.0, &"handling")
 
 
 ## One shell going into a tube magazine: a per-round reload plays this once per round.
 func play_reload_shell(at: Vector3) -> void:
 	if is_inside_tree():
-		_play(AwWeaponSound.stream(AwWeaponSound.RELOAD_SHELL), at, -4.0)
+		_play(AwWeaponSound.stream(AwWeaponSound.RELOAD_SHELL), at, -4.0, &"handling")
 
 
 ## The case landing, a little after it left the port.
@@ -107,7 +120,7 @@ func _schedule_casing(at: Vector3, delay: float) -> void:
 
 func _play_casing(at: Vector3) -> void:
 	if is_inside_tree():
-		_play(AwWeaponSound.stream(AwWeaponSound.CASING), at - Vector3(0.0, 1.2, 0.0), -2.0)
+		_play(AwWeaponSound.stream(AwWeaponSound.CASING), at - Vector3(0.0, 1.2, 0.0), -2.0, &"handling")
 
 
 func _report(id: StringName, kind: StringName, at: Vector3) -> void:
@@ -179,9 +192,8 @@ func _make_voice() -> AudioStreamPlayer3D:
 	var voice := AudioStreamPlayer3D.new()
 	voice.name = "Voice%d" % _voices.size()
 	voice.top_level = true
-	# Heard across a map rather than across a room, and falling off gently: a shot is
-	# the loudest thing in the game, and the default attenuation makes one at forty
-	# metres inaudible.
+	# A report's reach until _play sets each sound's own (FALLOFF): the default attenuation
+	# makes a shot at forty metres inaudible.
 	voice.unit_size = 12.0
 	voice.max_distance = 260.0
 	voice.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
@@ -197,7 +209,7 @@ func prewarm_voices(count: int = -1) -> void:
 		var _made := _make_voice()
 
 
-func _play(stream: AudioStream, at: Vector3, extra_db: float) -> void:
+func _play(stream: AudioStream, at: Vector3, extra_db: float, falloff: StringName = &"report") -> void:
 	if not sounds or stream == null or _too_far(at, rules.voice_distance):
 		return
 
@@ -222,7 +234,10 @@ func _play(stream: AudioStream, at: Vector3, extra_db: float) -> void:
 	voice.bus = bus
 	voice.stream = stream
 	voice.volume_db = volume_db + extra_db
+	var shape: Array = FALLOFF.get(falloff, FALLOFF[&"report"])
+	voice.unit_size = float(shape[0])
+	voice.max_distance = float(shape[1])
 	# A rifle that sounds identical every shot is a metronome. Presentation, so randf.
-	voice.pitch_scale = randf_range(0.94, 1.06)
+	voice.pitch_scale = 1.0 + randf_range(-float(shape[2]), float(shape[2]))
 	voice.global_position = at
 	voice.play()

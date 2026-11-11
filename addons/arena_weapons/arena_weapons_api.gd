@@ -23,5 +23,7 @@ extends RefCounted
 #    and muzzle flashes built under a loading cover and taken on first use instead of being built in the tick.
 # 10: AwWeaponRig.phase_timers, phase_us, phase_calls, PHASES: opt-in sub-phase timings of simulate_tick for a profiler.
 # 11: AwShotFx.NO_IMPACT_GROUP and draws_impact: a shot on the sky (that group, or meta hull_kind "sky") draws no impact.
-const LEVEL := 11
+# 12: AwShotFx.round_profile, ROUNDS (tracer width, length and impact size per sound class), impact_stream and surface_of
+#     (impact sound per surface and flesh), play_impact(at, normal, collider, weapon_class, shape).
+const LEVEL := 12
 const OLDEST := 1
