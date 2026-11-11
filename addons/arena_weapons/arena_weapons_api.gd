@@ -27,5 +27,7 @@ extends RefCounted
 #     (impact sound per surface and flesh), play_impact(at, normal, collider, weapon_class, shape).
 # 13: AwModelCache.add_fallback_root / remove_fallback_root / fallback_roots / exists: a build without the addon's models (the web shell) draws them
 #     from a mounted pack laid out like addons/arena_weapons/assets/.
-const LEVEL := 13
+# 14: AwViewModel.prewarm_begin / prewarm_step(budget_msec): a weapon's prewarm over several frames, stages run while the budget lasts
+#     (the last stage measures the hand spans and the magazine cut, as prewarm does).
+const LEVEL := 14
 const OLDEST := 1

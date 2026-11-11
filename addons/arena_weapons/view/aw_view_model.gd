@@ -116,8 +116,6 @@ func equip(art: AwWeaponVisual) -> DotResult:
 	for stage in EQUIP_STAGES:
 		_equip_stage(art, stage)
 
-	_reach_for(art)
-	_carve_magazine(art)
 	model_ready.emit(_id, _weapon)
 	return DotResult.success(null)
 
@@ -672,8 +670,8 @@ func _add_built(part: Node3D, at: Transform3D) -> Node3D:
 	return part
 
 
-## The stages the tail of [method equip] runs in, after the model is in the holder; [method prewarm_step] runs them one a call.
-const EQUIP_STAGES := 4
+## The stages the tail of [method equip] runs in, after the model is in the holder; [method prewarm_step] runs them.
+const EQUIP_STAGES := 5
 
 
 func _equip_stage(art: AwWeaponVisual, stage: int) -> void:
@@ -694,6 +692,10 @@ func _equip_stage(art: AwWeaponVisual, stage: int) -> void:
 			for part in Dress.art_parts(art, _holder):
 				_set_on_top(part)
 				_attachments.append(part)
+		4:
+			# The hand spans and the magazine cut walk every triangle once per model, then come from a cache.
+			_reach_for(art)
+			_carve_magazine(art)
 
 
 var _prewarm_art: AwWeaponVisual = null
@@ -723,14 +725,19 @@ func prewarm_begin(art: AwWeaponVisual) -> bool:
 	return true
 
 
-## One more stage of the weapon begun by [method prewarm_begin] (the cold sight fit, cuts and red dot are in stages 0-1). True while more remain; on the last call the weapon is dropped again and the shared reload parts are warmed.
-func prewarm_step() -> bool:
+## Runs the next stage of the weapon begun by [method prewarm_begin], then more while [param budget_msec] lasts (0: one stage).
+## True while stages remain; after the last one the weapon is dropped again and the shared reload parts are warmed.
+func prewarm_step(budget_msec: float = 0.0) -> bool:
 	if _prewarm_art == null:
 		return false
-	_equip_stage(_prewarm_art, _prewarm_stage)
-	_prewarm_stage += 1
-	if _prewarm_stage < EQUIP_STAGES:
-		return true
+	var until := Time.get_ticks_usec() + int(budget_msec * 1000.0)
+	while true:
+		_equip_stage(_prewarm_art, _prewarm_stage)
+		_prewarm_stage += 1
+		if _prewarm_stage >= EQUIP_STAGES:
+			break
+		if Time.get_ticks_usec() >= until:
+			return true
 	_prewarm_art = null
 	_prewarm_stage = -1
 	clear()

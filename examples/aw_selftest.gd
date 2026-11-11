@@ -5,10 +5,11 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 327
+const CHECKS := 328
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
+const HandReach := preload("../addons/arena_weapons/view/aw_hand_reach.gd")
 const OWN_SIGHTED := 9
 
 func _ready() -> void:
@@ -561,12 +562,17 @@ func _check_stepped_prewarm() -> void:
 	var art := AwWeaponVisual.make(role)
 	AwArtDress.apply(art, rows[role])
 	var steps := 0
+	var spans: Dictionary = HandReach._span_cache
+	spans.clear()
 	var began := view.prewarm_begin(art)
 	var weapon_loaded := view.weapon_node() != null
 	while began and view.prewarm_step():
 		steps += 1
+	_check("stepped prewarm loads the model, then runs %d stages, measures the hand spans and drops the weapon" % AwViewModel.EQUIP_STAGES, began and weapon_loaded and steps == AwViewModel.EQUIP_STAGES - 1 and not spans.is_empty() and view.weapon_node() == null)
+	# A budget no stage outlasts runs the whole weapon in one call.
+	var whole := view.prewarm_begin(art) and not view.prewarm_step(60000.0)
+	_check("a budgeted prewarm step runs every remaining stage in one call", whole and view.weapon_node() == null)
 	view.queue_free()
-	_check("stepped prewarm loads the model, then runs %d stages and drops the weapon" % AwViewModel.EQUIP_STAGES, began and weapon_loaded and steps == AwViewModel.EQUIP_STAGES - 1 and view.weapon_node() == null)
 
 
 ## Rays from the aimed eye inside the sight cone, as far as the front post, hit nothing of the gun.
