@@ -27,5 +27,6 @@ extends RefCounted
 #     (impact sound per surface and flesh), play_impact(at, normal, collider, weapon_class, shape).
 # 13: AwModelCache.add_fallback_root / remove_fallback_root / fallback_roots / exists: a build without the addon's models (the web shell) draws them
 #     from a mounted pack laid out like addons/arena_weapons/assets/.
-const LEVEL := 13
+# 14: AwWeaponGroups (group_of, groups_for, all_groups): the download group "weapon-<id>" of each weapon, as groups.json at the pack root defines them.
+const LEVEL := 14
 const OLDEST := 1

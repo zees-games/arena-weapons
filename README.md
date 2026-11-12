@@ -41,3 +41,7 @@ The pack ships no audio. Guns play dot-audio's CC0 weapon stock by sound class (
 ## Effects pool (API level 9)
 
 Another player's hand used to build its effects on its first shot or charge, inside the tick. `AwFxPool` builds them ahead: add one to the tree under your loading cover, call `fill(shots, charges)` each frame until it answers true and `fill_flashes()` once, and wait for `flashes_ready()`. From then on `AwWorldModel` takes its `AwShotFx` and charge ball from the pool and every remote shot draws one of a few shared muzzle flashes. An empty or missing pool is not an error: the world model builds its own as before. Hands freed with a map take their effects with them, so fill again under the next cover. First-person effects and everything a shot decides are untouched.
+
+## Download groups (API level 14)
+
+`groups.json` at the pack root puts each weapon's model, its textures and their imported outputs in one group, `weapon-<id>` (`AwWeaponGroups.group_of`). The knife and pistol, the default loadout, and the shared props stay ungrouped, so a client that asks for no groups still draws them. A web shell sets `DotCloudAddonSet.groups` to `AwWeaponGroups.groups_for(ids)` of the weapons a game's loadout can hand out; with no groups set dot-cloud's default `"*"` fetches every weapon. A deferred group cannot be topped up at runtime (the overlay is built once), so a game must list every weapon it can give a player.

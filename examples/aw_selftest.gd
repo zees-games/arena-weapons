@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 339
+const CHECKS := 347
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -14,6 +14,7 @@ const OWN_SIGHTED := 9
 func _ready() -> void:
 	print("arena-weapons self-test")
 	_models()
+	_download_groups()
 	_spans()
 	_provider()
 	_sound_classes()
@@ -312,6 +313,38 @@ func _models() -> void:
 
 	for prop in AwWeaponArt.PROPS:
 		_check("prop %s ships" % prop, ResourceLoader.exists(AwWeaponArt.model_path(prop)))
+	_end()
+
+
+## groups.json: every non-core weapon's model sits in its own group and a core weapon's in none.
+func _download_groups() -> void:
+	_begin("download groups")
+	var doc: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://groups.json"))
+	_check("groups.json is an object", doc is Dictionary)
+	var groups: Dictionary = doc if doc is Dictionary else {}
+	_check("one group per weapon but the two core ones", groups.size() == AwWeaponPack.IDS.size() - AwWeaponGroups.CORE.size())
+	var uncovered: Array[String] = []
+	for id: StringName in AwWeaponArt.WEAPONS:
+		var g := AwWeaponGroups.group_of(id)
+		var model := String(AwWeaponArt.WEAPONS[id]["model"])
+		if g == "":
+			continue
+		var found := false
+		for pattern: String in groups.get(g, []):
+			if pattern.contains("assets/models/" + model + "."):
+				found = true
+		if not found:
+			uncovered.append(String(id))
+	_check("every grouped weapon's model is in its group (missing: %s)" % ", ".join(uncovered), uncovered.is_empty())
+	_check("the core weapons have no group", AwWeaponGroups.group_of(&"knife") == "" and AwWeaponGroups.group_of(&"pistol") == "")
+	_check("groups_for skips core and unknown ids and repeats", AwWeaponGroups.groups_for([&"knife", &"rifle", &"rifle", &"nope"]) == PackedStringArray(["weapon-rifle"]))
+	_check("all_groups is every group groups.json defines", AwWeaponGroups.all_groups().size() == groups.size())
+	var stray: Array[String] = []
+	for name: String in AwWeaponGroups.all_groups():
+		if not groups.has(name):
+			stray.append(name)
+	_check("every group the code names is in groups.json", stray.is_empty())
+	_check("the sniper's textures are extracted, so its model is a few hundred KB, not 4.8 MB", FileAccess.file_exists("res://addons/arena_weapons/assets/models/sniper_ph_0.jpg"))
 	_end()
 
 

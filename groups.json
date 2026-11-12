@@ -1,0 +1,174 @@
+{
+ "weapon-revolver": [
+  "addons/arena_weapons/assets/models/revolver.*",
+  "addons/arena_weapons/assets/models/revolver_?.*",
+  "_imported/revolver.glb-*",
+  "_imported/revolver_?.jpg-*",
+  "_imported/revolver_?.png-*"
+ ],
+ "weapon-machine_pistol": [
+  "addons/arena_weapons/assets/models/machine_pistol.*",
+  "addons/arena_weapons/assets/models/machine_pistol_?.*",
+  "_imported/machine_pistol.glb-*",
+  "_imported/machine_pistol_?.jpg-*",
+  "_imported/machine_pistol_?.png-*"
+ ],
+ "weapon-derringer": [
+  "addons/arena_weapons/assets/models/derringer.*",
+  "addons/arena_weapons/assets/models/derringer_?.*",
+  "_imported/derringer.glb-*",
+  "_imported/derringer_?.jpg-*",
+  "_imported/derringer_?.png-*"
+ ],
+ "weapon-smg": [
+  "addons/arena_weapons/assets/models/smg.*",
+  "addons/arena_weapons/assets/models/smg_?.*",
+  "_imported/smg.glb-*",
+  "_imported/smg_?.jpg-*",
+  "_imported/smg_?.png-*"
+ ],
+ "weapon-carbine": [
+  "addons/arena_weapons/assets/models/carbine.*",
+  "addons/arena_weapons/assets/models/carbine_?.*",
+  "_imported/carbine.glb-*",
+  "_imported/carbine_?.jpg-*",
+  "_imported/carbine_?.png-*"
+ ],
+ "weapon-rifle": [
+  "addons/arena_weapons/assets/models/rifle.*",
+  "addons/arena_weapons/assets/models/rifle_?.*",
+  "_imported/rifle.glb-*",
+  "_imported/rifle_?.jpg-*",
+  "_imported/rifle_?.png-*"
+ ],
+ "weapon-bullpup": [
+  "addons/arena_weapons/assets/models/bullpup.*",
+  "addons/arena_weapons/assets/models/bullpup_?.*",
+  "_imported/bullpup.glb-*",
+  "_imported/bullpup_?.jpg-*",
+  "_imported/bullpup_?.png-*"
+ ],
+ "weapon-battle_rifle": [
+  "addons/arena_weapons/assets/models/battle_rifle.*",
+  "addons/arena_weapons/assets/models/battle_rifle_?.*",
+  "_imported/battle_rifle.glb-*",
+  "_imported/battle_rifle_?.jpg-*",
+  "_imported/battle_rifle_?.png-*"
+ ],
+ "weapon-burst_rifle": [
+  "addons/arena_weapons/assets/models/burst_rifle.*",
+  "addons/arena_weapons/assets/models/burst_rifle_?.*",
+  "_imported/burst_rifle.glb-*",
+  "_imported/burst_rifle_?.jpg-*",
+  "_imported/burst_rifle_?.png-*"
+ ],
+ "weapon-shotgun": [
+  "addons/arena_weapons/assets/models/pump_shotgun.*",
+  "addons/arena_weapons/assets/models/pump_shotgun_?.*",
+  "_imported/pump_shotgun.glb-*",
+  "_imported/pump_shotgun_?.jpg-*",
+  "_imported/pump_shotgun_?.png-*"
+ ],
+ "weapon-drum_shotgun": [
+  "addons/arena_weapons/assets/models/drum_shotgun.*",
+  "addons/arena_weapons/assets/models/drum_shotgun_?.*",
+  "_imported/drum_shotgun.glb-*",
+  "_imported/drum_shotgun_?.jpg-*",
+  "_imported/drum_shotgun_?.png-*"
+ ],
+ "weapon-marksman": [
+  "addons/arena_weapons/assets/models/marksman.*",
+  "addons/arena_weapons/assets/models/marksman_?.*",
+  "_imported/marksman.glb-*",
+  "_imported/marksman_?.jpg-*",
+  "_imported/marksman_?.png-*"
+ ],
+ "weapon-lmg": [
+  "addons/arena_weapons/assets/models/lmg.*",
+  "addons/arena_weapons/assets/models/lmg_?.*",
+  "_imported/lmg.glb-*",
+  "_imported/lmg_?.jpg-*",
+  "_imported/lmg_?.png-*"
+ ],
+ "weapon-sniper": [
+  "addons/arena_weapons/assets/models/sniper_ph.*",
+  "addons/arena_weapons/assets/models/sniper_ph_?.*",
+  "_imported/sniper_ph.glb-*",
+  "_imported/sniper_ph_?.jpg-*",
+  "_imported/sniper_ph_?.png-*"
+ ],
+ "weapon-minigun": [
+  "addons/arena_weapons/assets/models/minigun.*",
+  "addons/arena_weapons/assets/models/minigun_?.*",
+  "_imported/minigun.glb-*",
+  "_imported/minigun_?.jpg-*",
+  "_imported/minigun_?.png-*"
+ ],
+ "weapon-launcher": [
+  "addons/arena_weapons/assets/models/rocket_launcher.*",
+  "addons/arena_weapons/assets/models/rocket_launcher_?.*",
+  "_imported/rocket_launcher.glb-*",
+  "_imported/rocket_launcher_?.jpg-*",
+  "_imported/rocket_launcher_?.png-*"
+ ],
+ "weapon-quad_launcher": [
+  "addons/arena_weapons/assets/models/quad_rocket_launcher.*",
+  "addons/arena_weapons/assets/models/quad_rocket_launcher_?.*",
+  "_imported/quad_rocket_launcher.glb-*",
+  "_imported/quad_rocket_launcher_?.jpg-*",
+  "_imported/quad_rocket_launcher_?.png-*"
+ ],
+ "weapon-grenade_launcher": [
+  "addons/arena_weapons/assets/models/grenade_launcher.*",
+  "addons/arena_weapons/assets/models/grenade_launcher_?.*",
+  "_imported/grenade_launcher.glb-*",
+  "_imported/grenade_launcher_?.jpg-*",
+  "_imported/grenade_launcher_?.png-*"
+ ],
+ "weapon-beamer": [
+  "addons/arena_weapons/assets/models/plasma_rifle.*",
+  "addons/arena_weapons/assets/models/plasma_rifle_?.*",
+  "_imported/plasma_rifle.glb-*",
+  "_imported/plasma_rifle_?.jpg-*",
+  "_imported/plasma_rifle_?.png-*"
+ ],
+ "weapon-charge_rifle": [
+  "addons/arena_weapons/assets/models/rail_rifle.*",
+  "addons/arena_weapons/assets/models/rail_rifle_?.*",
+  "_imported/rail_rifle.glb-*",
+  "_imported/rail_rifle_?.jpg-*",
+  "_imported/rail_rifle_?.png-*"
+ ],
+ "weapon-frag": [
+  "addons/arena_weapons/assets/models/stick_grenade.*",
+  "_imported/stick_grenade.glb-*"
+ ],
+ "weapon-sticky": [
+  "addons/arena_weapons/assets/models/frag_grenade_alt.*",
+  "addons/arena_weapons/assets/models/frag_grenade_alt_?.*",
+  "_imported/frag_grenade_alt.glb-*",
+  "_imported/frag_grenade_alt_?.jpg-*",
+  "_imported/frag_grenade_alt_?.png-*"
+ ],
+ "weapon-flash": [
+  "addons/arena_weapons/assets/models/flash_grenade.*",
+  "addons/arena_weapons/assets/models/flash_grenade_?.*",
+  "_imported/flash_grenade.glb-*",
+  "_imported/flash_grenade_?.jpg-*",
+  "_imported/flash_grenade_?.png-*"
+ ],
+ "weapon-smoke": [
+  "addons/arena_weapons/assets/models/smoke_grenade.*",
+  "addons/arena_weapons/assets/models/smoke_grenade_?.*",
+  "_imported/smoke_grenade.glb-*",
+  "_imported/smoke_grenade_?.jpg-*",
+  "_imported/smoke_grenade_?.png-*"
+ ],
+ "weapon-incendiary": [
+  "addons/arena_weapons/assets/models/incendiary_grenade.*",
+  "addons/arena_weapons/assets/models/incendiary_grenade_?.*",
+  "_imported/incendiary_grenade.glb-*",
+  "_imported/incendiary_grenade_?.jpg-*",
+  "_imported/incendiary_grenade_?.png-*"
+ ]
+}
