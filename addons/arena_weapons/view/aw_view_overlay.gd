@@ -12,8 +12,8 @@ var _camera: Camera3D
 var _layer_mask: int = 0
 
 ## False on the web. There (Godot 4.7, WebGL2) the SubViewport pass draws the view layer with no directional light and
-## no linear-to-sRGB step, so arms come out flat white and the gun black, and the pass is on most of the time: the drawn
-## gun's box reaches below the floor while standing in the open.
+## no linear-to-sRGB step, so arms come out flat white and the gun black. It would also run nearly all the time: a narrow
+## hands_fov with full hands_depth_comp draws the gun past where the floor meets the bottom of the screen.
 static func supported() -> bool:
 	return not OS.has_feature("web")
 
