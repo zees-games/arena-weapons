@@ -34,6 +34,8 @@ const FALLOFF := {
 var shot_sound: Callable = Callable()
 
 var _layers: AwShotLayers = null
+## True when [member _layers] is [AwFxPool]'s, which probes the room itself.
+var _layers_shared := false
 
 ## What other people's shots may cost (`cl_shotfx_*`); shared by every AwShotFx. Bind it with [method DotWeaponCvarRules.bind_cvars].
 static var rules: AwShotFxRules = AwShotFxRules.new()
@@ -142,14 +144,23 @@ func _report(id: StringName, kind: StringName, at: Vector3) -> void:
 
 ## Builds the layered shot's audio manager, room and player now (what the first layered shot would, about 60 ms on a
 ## GPU box), so a game can do it under its loading cover. True when layered shots are on and ready; safe to call again.
+## Somebody else's gun takes [AwFxPool]'s shared one when a pool is in the tree.
 func prewarm_layers() -> bool:
 	if not layered_shots or not is_inside_tree():
 		return false
-	if _layers != null:
+	if _layers != null and is_instance_valid(_layers):
 		return _layers.is_ready()
+	_layers = null
 	if not AwShotLayers.available():
 		layered_shots = false
 		return false
+	_layers_shared = false
+	if not first_person:
+		var shared := AwFxPool.shared_layers(self, bus)
+		if shared != null:
+			_layers = shared
+			_layers_shared = true
+			return true
 	_layers = AwShotLayers.new()
 	add_child(_layers)
 	set_process(true)

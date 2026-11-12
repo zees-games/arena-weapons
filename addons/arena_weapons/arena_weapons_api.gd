@@ -30,5 +30,7 @@ extends RefCounted
 # 14: AwWeaponGroups (group_of, groups_for, all_groups): the download group "weapon-<id>" of each weapon, as groups.json at the pack root defines them.
 # 15: AwShotFx.prewarm_layers(): build a weapon's layered shot sound (dot-audio layers, enclosure, player) under a
 #     loading cover; the first knife shot built them in the tick, 61 ms on a GPU box.
-const LEVEL := 15
+# 16: AwFxPool.layers_bus and shared_layers(fx, bus): fill() builds one layered shot every remote shooter shares, so
+#     no shooter's first shot builds its own.
+const LEVEL := 16
 const OLDEST := 1

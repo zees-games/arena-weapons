@@ -19,6 +19,11 @@ const RIM_COLOR := Color(0.06, 0.06, 0.07)
 const RIM_SHARE := 0.07
 
 static var _parts: Dictionary = {}
+## Whether [method fit] remembers each model's measured sight line. Measuring walks every triangle in script
+## (16 to 140 ms for a gun), and the line depends only on the model and where it sits under the holder.
+static var line_cache := true
+## model path|forward|weapon-in-holder transform -> [line, built]
+static var _lines: Dictionary = {}
 
 
 ## `{line, aim, sight}` for [param art] on [param weapon] under [param holder] (`sight` a node to add under the holder, or
@@ -27,20 +32,14 @@ static func fit(art: AwWeaponVisual, weapon: Node3D, holder: Node3D, dressed_lin
 	if not (art.iron_sight or art.sight_own) or not art.aim_enabled or art.aim_scoped or weapon == null:
 		return {}
 	var basis := art.orientation().scaled(Vector3.ONE * art.view_scale)
-	# Marks a modeller placed win over anything read off the mesh.
-	var line := IronSight.from_marks(weapon, holder, art.model_forward)
-	if not line.is_empty():
+	var key := _line_key(art, weapon, holder, basis)
+	var found: Array = _lines[key] if key != "" and _lines.has(key) else _measure_line(art, weapon, holder, basis)
+	if key != "":
+		_lines[key] = found
+	var line: Dictionary = (found[0] as Dictionary).duplicate()
+	var built: bool = found[1]
+	if line.get("marked", false):
 		line.merge(dressed_line, true)
-	elif art.sight_own:
-		# The rear point stays where the written hold had it, so the eye keeps its distance from the gun.
-		var written := basis.inverse() * (Vector3(0.0, 0.0, -art.aim_eye_relief) - art.aim_offset)
-		line = OwnSight.measure(weapon, holder, art.model_forward, written.dot(art.model_forward.normalized()), art.model_path)
-	var built := false
-	if line.is_empty():
-		if not art.iron_sight:
-			return {}
-		line = IronSight.measure(weapon, holder, art.model_forward)
-		built = true
 	if line.is_empty():
 		return {}
 	# The eye stands back far enough to keep the gun's back end past the near plane (a clip plane slices).
@@ -56,6 +55,28 @@ static func fit(art: AwWeaponVisual, weapon: Node3D, holder: Node3D, dressed_lin
 	elif line.get("post", false) and dot_degrees > 0.0:
 		sight = _dot(line, art.model_forward, (relief + span) * tan(deg_to_rad(dot_degrees)) / art.view_scale)
 	return {"line": line, "aim": Transform3D(basis, Vector3(0.0, 0.0, -relief) - basis * (line.rear as Vector3)), "sight": sight}
+
+
+## `[line, built]` read off [param weapon]: the marked line, else its own sight, else the measured line for a built ring and post ([] line when none).
+static func _measure_line(art: AwWeaponVisual, weapon: Node3D, holder: Node3D, basis: Basis) -> Array:
+	# Marks a modeller placed win over anything read off the mesh.
+	var line := IronSight.from_marks(weapon, holder, art.model_forward)
+	if line.is_empty() and art.sight_own:
+		# The rear point stays where the written hold had it, so the eye keeps its distance from the gun.
+		var written := basis.inverse() * (Vector3(0.0, 0.0, -art.aim_eye_relief) - art.aim_offset)
+		line = OwnSight.measure(weapon, holder, art.model_forward, written.dot(art.model_forward.normalized()), art.model_path)
+	if line.is_empty() and art.iron_sight:
+		return [IronSight.measure(weapon, holder, art.model_forward), true]
+	return [line, false]
+
+
+## The cache key of [method _measure_line] for this model where it sits under [param holder], or "" when it cannot be cached.
+static func _line_key(art: AwWeaponVisual, weapon: Node3D, holder: Node3D, basis: Basis) -> String:
+	if not line_cache or art.model_path == "" or not weapon.is_inside_tree() or not holder.is_inside_tree():
+		return ""
+	var placed := holder.global_transform.affine_inverse() * weapon.global_transform
+	return "%s|%s|%s|%s|%s|%s|%s|%s" % [art.model_path, art.model_forward, placed, basis, art.aim_eye_relief,
+		art.aim_offset, art.sight_own, art.iron_sight]
 
 
 ## A glowing dot of [param radius] (model metres) just behind the post's tip on [param line], its top on the line.

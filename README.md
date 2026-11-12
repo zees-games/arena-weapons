@@ -46,6 +46,10 @@ Another player's hand used to build its effects on its first shot or charge, ins
 
 The first shot of a gun with a layered sound (the knife among them) built dot-audio's layer manager, room and player inside the tick: 61 ms on a GPU box. `AwShotFx.prewarm_layers()` builds them now; call it on the local hand's shot effects under your loading cover. It answers true when layered shots are on and ready, false when they are off or dot-audio is missing, and is safe to call again. A game that never calls it gets the old first-shot build.
 
+Somebody else's gun shares one layered shot: `AwFxPool.fill` builds it on the pool's `layers_bus` (empty builds none) after the parked effects, and each remote `AwShotFx` takes it (`AwFxPool.shared_layers`) instead of building its own on its first shot. It follows the viewport's camera for the room.
+
+The first equip of a gun in play no longer measures its sight or reads its textures: the sight line is cached per model and placement, and a prewarm on an armless view still reads the gun's texture means the glove fit asks for.
+
 ## Download groups (API level 14)
 
 `groups.json` at the pack root puts each weapon's model, its textures and their imported outputs in one group, `weapon-<id>` (`AwWeaponGroups.group_of`). The knife and pistol, the default loadout, and the shared props stay ungrouped, so a client that asks for no groups still draws them. A web shell sets `DotCloudAddonSet.groups` to `AwWeaponGroups.groups_for(ids)` of the weapons a game's loadout can hand out; with no groups set dot-cloud's default `"*"` fetches every weapon. A deferred group cannot be topped up at runtime (the overlay is built once), so a game must list every weapon it can give a player.

@@ -15,6 +15,7 @@ const CHANNEL := "aw.view"
 @export var arms_ref: DotNodeRef = null
 
 const BeltFeed := preload("aw_belt_feed.gd")
+const ArmsColour := preload("aw_view_arms_colour.gd")
 
 var _belt: Node3D = null
 
@@ -177,6 +178,10 @@ func _reach_for(art: AwWeaponVisual) -> void:
 
 	if _arms != null:
 		_arms.fit_glove_to(_weapon)
+	elif _weapon != null:
+		# An armless view (the loading cover's spare) still reads the gun's texture means, so the
+		# first armed equip in play finds them cached instead of downloading textures (26-64 ms).
+		ArmsColour.surface_albedos(_weapon)
 	_has_well = art.has_magazine() and _weapon != null
 	_well = to_aim * art.magazine_transform().origin
 	# A round fed by hand from somewhere (the top, the muzzle): where its push in starts, and

@@ -495,7 +495,7 @@ func _process(delta: float) -> void:
 	advance(delta)
 	# A shooter with nothing showing sleeps until its next effect: 31 idle bots each ran this every
 	# frame. Its own layered player keeps it awake, since that probe follows the camera.
-	if _layers == null and is_idle():
+	if (_layers == null or _layers_shared) and is_idle():
 		set_process(false)
 
 
@@ -507,7 +507,7 @@ func is_idle() -> bool:
 ## Moves every effect on by [param delta] seconds. [method _process] calls it; a capture that
 ## steps time by hand (the range's contact sheet) calls it instead.
 func advance(delta: float) -> void:
-	if _layers != null:
+	if _layers != null and not _layers_shared and is_instance_valid(_layers):
 		var camera := get_viewport().get_camera_3d() if get_viewport() != null else null
 		if camera != null:
 			_layers.probe(delta, camera.global_position, get_world_3d().direct_space_state)
@@ -785,5 +785,6 @@ func describe() -> Dictionary:
 		"excluded": exclude.size(),
 		"visuals": visuals,
 		"sounds": sounds,
-		"layered": _layers != null and _layers.is_ready(),
+		"layered": _layers != null and is_instance_valid(_layers) and _layers.is_ready(),
+		"layers_shared": _layers_shared,
 	}

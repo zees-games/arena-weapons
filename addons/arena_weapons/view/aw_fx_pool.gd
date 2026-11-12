@@ -12,6 +12,10 @@ const FLASH_VARIANTS := 6
 ## Quads a parked [AwShotFx] holds: a flash, its petals, a tracer and an impact or two.
 @export_range(6, 32) var shot_meshes: int = 12
 
+## The bus of the layered shot every remote shooter shares, which [method fill] builds once the parked effects are.
+## Empty builds none, and each remote shooter then builds its own on its first shot.
+@export var layers_bus: StringName = &"Master"
+
 ## The pool in the tree. Typed loosely: a static of a script's own type can outlive the script.
 static var _current: Node = null
 
@@ -26,6 +30,8 @@ var _charges: Array[Node3D] = []
 var _rings: Dictionary = {}
 var _turn: Dictionary = {}
 var _flash_script: GDScript = null
+## Bus to the shared layered shot (an [AwShotLayers]) on it.
+var _layers: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -66,8 +72,18 @@ static func shared_flash(category: String, def: DotWeaponDef, suppressed: bool) 
 	return pool._next_flash(category, def, suppressed) if pool != null else null
 
 
+## The layered shot the pool shares with remote shooters on [param bus] in [param fx]'s viewport, or null (no pool,
+## another viewport, no dot-audio). Built on the first ask, about 60 ms: one per shooter was that on each one's first shot.
+static func shared_layers(fx: Node, bus: StringName) -> AwShotLayers:
+	var pool := current()
+	if pool == null or fx == null or not fx.is_inside_tree() or fx.get_viewport() != pool.get_viewport():
+		return null
+	return pool._shared_layers(bus)
+
+
 ## Builds parked effects up to [param shots] and [param charges], at least one a call, stopping
-## after [param budget_msec]. True when both are full: call it each frame under the cover until then.
+## after [param budget_msec], then the shared layered shot on [member layers_bus]. True when all are built:
+## call it each frame under the cover until then.
 func fill(shots: int, charges: int, budget_msec: float = 2.0) -> bool:
 	if not is_inside_tree():
 		return false
@@ -79,8 +95,29 @@ func fill(shots: int, charges: int, budget_msec: float = 2.0) -> bool:
 		else:
 			_park_charge()
 		if float(Time.get_ticks_usec() - start) > budget_msec * 1000.0:
-			return _shots.size() >= shots and _charges.size() >= charges
+			return _shots.size() >= shots and _charges.size() >= charges and _layers_built()
+	if not _layers_built():
+		var _built := _shared_layers(layers_bus)
 	return true
+
+
+func _layers_built() -> bool:
+	return layers_bus == &"" or _layers.has(layers_bus)
+
+
+func _shared_layers(bus: StringName) -> AwShotLayers:
+	var held: Variant = _layers.get(bus)
+	if held != null and is_instance_valid(held):
+		var kept: AwShotLayers = held
+		return kept if kept.is_ready() else null
+	if not is_inside_tree() or not AwShotLayers.available():
+		_layers[bus] = null
+		return null
+	var layers := AwShotLayers.new()
+	layers.follow_camera = true
+	add_child(layers)
+	_layers[bus] = layers
+	return layers if layers.setup(bus) else null
 
 
 ## Builds [param each] shared flashes per size the [param categories] draw (default: every class's).

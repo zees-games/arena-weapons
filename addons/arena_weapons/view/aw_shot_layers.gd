@@ -14,6 +14,9 @@ const SHOT_STOCK := ROOT + "core/dot_audio_shot_stock.gd"
 ## Weapon classes with a stock shot; the suppressed class plays the light set, suppressed.
 const STOCK_CLASSES: Array[StringName] = [&"light", &"magnum", &"smg", &"rifle", &"heavy", &"sniper", &"shotgun", &"launcher", &"minigun", &"beam", &"charge", &"swing", &"throw"]
 
+## Steps the room probe itself from the viewport's camera, for one shared by many shooters ([AwFxPool]); off, the owner calls [method probe].
+var follow_camera: bool = false
+
 var player: Node = null
 var enclosure: Node = null
 var manager: Node = null
@@ -83,6 +86,14 @@ func fire(weapon_class: StringName, at: Vector3, listener: Vector3) -> bool:
 	var id: StringName = _stock.call(&"id_of", stock_class)
 	var res: DotResult = player.call(&"fire", id, at, weapon_class == AwWeaponSound.SUPPRESSED)
 	return res.ok and int(res.value_or(0)) > 0
+
+
+func _process(delta: float) -> void:
+	if not follow_camera or not _ready_ok:
+		return
+	var camera := get_viewport().get_camera_3d()
+	if camera != null:
+		probe(delta, camera.global_position, camera.get_world_3d().direct_space_state)
 
 
 ## Measures the room around [param listener] for the tail; call every frame.

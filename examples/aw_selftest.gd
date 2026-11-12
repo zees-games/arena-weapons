@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 348
+const CHECKS := 351
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -552,6 +552,8 @@ func _own_sights() -> void:
 	var built: Array[StringName] = []
 	var blocked: Array[StringName] = []
 	var worst := 0.0
+	var sighted: AwWeaponVisual = null
+	var means_before := AwViewArms._means.size()
 	var rows := AwWeaponArt.weapon_rows("")
 	for role: StringName in rows:
 		var row: Dictionary = rows[role]
@@ -570,8 +572,12 @@ func _own_sights() -> void:
 		if points.is_empty():
 			continue
 		own += 1
+		sighted = art
 		for p: Vector3 in [points.rear, points.front]:
 			worst = maxf(worst, Vector2(p.x, p.y).length())
+	_check("an armless view still leaves the guns' texture means cached for the first armed equip",
+		AwViewArms._means.size() > means_before)
+	_check_sight_cache(view, sighted)
 	view.queue_free()
 	_check("no gun has a sight built over its own (%s)" % str(built), built.is_empty())
 	_check("%d guns aim down a notch, aperture or post of their own" % own, own >= OWN_SIGHTED)
@@ -579,6 +585,21 @@ func _own_sights() -> void:
 	_check("no gun has any of its model inside the see-through cone round the aim line (%s)" % str(blocked), blocked.is_empty())
 	_check_stepped_prewarm()
 	_end()
+
+
+## A gun's sight line measured once is reused: the cached fit puts the sight where a fresh measurement does.
+func _check_sight_cache(view: AwViewModel, art: AwWeaponVisual) -> void:
+	if art == null:
+		_check("a gun with its own sight to fit from the cache", false)
+		return
+	view.equip(art)
+	var cached := str(view.sight_points())
+	AwViewModel.SightFit.line_cache = false
+	view.equip(art)
+	var measured := str(view.sight_points())
+	AwViewModel.SightFit.line_cache = true
+	_check("a gun's sight line from the cache matches a fresh measurement",
+		not AwViewModel.SightFit._lines.is_empty() and cached == measured)
 
 
 ## A weapon prewarmed a stage at a time ends dropped again, in as many calls as it has stages.
@@ -1164,6 +1185,10 @@ func _fx_pool() -> void:
 	_check("an empty pool answers null and counts the miss", AwFxPool.take_shot_fx() == null and pool.missed == 1)
 	hand.add_child(_a)
 	hand.add_child(_b)
+	_a.first_person = false
+	_a.layered_shots = true
+	_check("a remote shooter takes the layered shot the pool built instead of its own",
+		not AwShotLayers.available() or (_a.prewarm_layers() and _a.get("_layers") == AwFxPool.shared_layers(self, pool.layers_bus)))
 	pool.free()
 	_check("with no pool in the tree there is nothing to take",
 		AwFxPool.current() == null and AwFxPool.take_shot_fx() == null and AwFxPool.take_charge_fx() == null)
