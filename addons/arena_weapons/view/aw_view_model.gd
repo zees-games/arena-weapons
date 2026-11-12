@@ -599,6 +599,12 @@ func _aim_target() -> Transform3D:
 
 ## Fits [param art]'s sight on the mesh just built (see aw_sight_fit.gd) and keeps the aim hold that puts it through the eye.
 func _fit_sight(art: AwWeaponVisual) -> void:
+	_fit_sight_line(art)
+	_cut_sight(art)
+
+
+## The first half of [method _fit_sight]: the sight line, the aim hold and the fitted sight. [method prewarm_step] runs the halves in separate frames.
+func _fit_sight_line(art: AwWeaponVisual) -> void:
 	_sight_line = {}
 	var camera := get_parent() as Camera3D
 	var near := (camera.near if camera != null else 0.05) + NEAR_MARGIN
@@ -608,6 +614,10 @@ func _fit_sight(art: AwWeaponVisual) -> void:
 		_sight_line = fitted.line
 		_sight_aim = fitted.aim
 		_sight = fitted.sight
+
+
+## The second half of [method _fit_sight]: the red dot cut for the line, and the sight put in the holder.
+func _cut_sight(art: AwWeaponVisual) -> void:
 	var roots: Array = [_weapon]
 	roots.append_array(_dressed.get("parts", []))
 	var red := SightFit.cut(art, ads_rules, roots, _holder, _aim_target(), _sight_line)
@@ -677,7 +687,8 @@ func _add_built(part: Node3D, at: Transform3D) -> Node3D:
 
 
 ## The stages the tail of [method equip] runs in, after the model is in the holder; [method prewarm_step] runs them one a call.
-const EQUIP_STAGES := 6
+## The belt and the two halves of the sight fit are separate stages: together they were a 50-234 ms frame per weapon at game-arena startup.
+const EQUIP_STAGES := 8
 
 
 func _equip_stage(art: AwWeaponVisual, stage: int) -> void:
@@ -687,30 +698,37 @@ func _equip_stage(art: AwWeaponVisual, stage: int) -> void:
 			_muzzle = _measure_muzzle(art)
 		1:
 			_build_belt(art)
-			_fit_sight(art)
 		2:
+			_fit_sight_line(art)
+		3:
+			_cut_sight(art)
+		4:
 			if art.has_magazine():
 				if art.magazine_path != "":
 					_magazine = _add_part(art.magazine_path, art.magazine_transform())
 				else:
 					_magazine = _add_built(ReloadParts.build(art.magazine_part), art.magazine_transform())
-		3:
+		5:
 			for part in Dress.art_parts(art, _holder):
 				_set_on_top(part)
 				_attachments.append(part)
-		4:
+		6:
 			_reach_for(art)
-		5:
+		7:
 			_carve_magazine(art)
 
 
 var _prewarm_stage := -1
+## Reload parts [method prewarm_step] still has to build and drop, one a call.
+var _parts_left: Array = []
 
 
 ## Starts [method prewarm] over several calls: [method equip]'s head (pose, holder, model load) now, its stages one per [method prewarm_step].
 ## Returns false when there is nothing to step (no art, no model, or the load failed); the weapon is then already as warm as it gets.
 func prewarm_begin(art: AwWeaponVisual) -> bool:
 	_prewarm_stage = -1
+	if not _parts_left.is_empty():
+		_warm_parts()
 	var head := _equip_head(art)
 	if head.ok and head.value_or(null) != null:
 		_prewarm_stage = 0
@@ -721,7 +739,11 @@ func prewarm_begin(art: AwWeaponVisual) -> bool:
 
 
 ## One more stage of the weapon begun by [method prewarm_begin]. True while more remain; after the last the weapon is dropped again, as [method prewarm] leaves it.
+## The first weapon stepped in a process then warms the reload parts, one part a call: all of them at once were a 593 ms frame.
 func prewarm_step() -> bool:
+	if not _parts_left.is_empty():
+		_warm_part(_parts_left.pop_front())
+		return not _parts_left.is_empty()
 	if _prewarm_stage < 0 or _art == null:
 		_prewarm_stage = -1
 		return false
@@ -732,7 +754,10 @@ func prewarm_step() -> bool:
 	_prewarm_stage = -1
 	model_ready.emit(_id, _weapon)
 	clear()
-	_warm_parts()
+	if not _parts_warmed:
+		_parts_warmed = true
+		_parts_left = ReloadParts.part_names()
+		return true
 	return false
 
 
@@ -745,12 +770,20 @@ func prewarm(art: AwWeaponVisual) -> void:
 	_warm_parts()
 
 
+## Every reload part not yet warmed (all of them the first time in a process), now.
 func _warm_parts() -> void:
 	if not _parts_warmed:
 		_parts_warmed = true
-		for node in ReloadParts.build_all():
-			_set_on_top(node)
-			node.free()
+		_parts_left = ReloadParts.part_names()
+	while not _parts_left.is_empty():
+		_warm_part(_parts_left.pop_front())
+
+
+func _warm_part(part: StringName) -> void:
+	var node := ReloadParts.build(part)
+	if node != null:
+		_set_on_top(node)
+		node.free()
 
 
 func describe() -> Dictionary:

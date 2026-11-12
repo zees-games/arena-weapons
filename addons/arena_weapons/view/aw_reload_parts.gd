@@ -27,11 +27,16 @@ const LOOSE := [&"casing", &"round", &"shell", &"grenade", &"grenade_case", &"ro
 ## reload of a session otherwise built and dressed them mid-play (a 150 ms frame on a GPU box).
 static func build_all() -> Array[Node3D]:
 	var out: Array[Node3D] = []
-	for part: StringName in [CELL, AMMO_BOX, BOX_MAGAZINE, DRUM_MAGAZINE] + LOOSE:
+	for part: StringName in part_names():
 		var node := build(part)
 		if node != null:
 			out.append(node)
 	return out
+
+
+## The name of every part [method build_all] builds, in order: [method AwViewModel.prewarm_step] builds them one a frame.
+static func part_names() -> Array:
+	return [CELL, AMMO_BOX, BOX_MAGAZINE, DRUM_MAGAZINE] + LOOSE
 
 
 ## The part named [param part] (tagged with it as the `part` meta), or null for a name this file does not know.
