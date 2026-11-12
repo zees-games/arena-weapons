@@ -152,6 +152,7 @@ func _layered(id: StringName, kind: StringName, at: Vector3) -> bool:
 			return false
 		_layers = AwShotLayers.new()
 		add_child(_layers)
+		set_process(true)
 		if not _layers.setup(bus):
 			layered_shots = false
 			return false

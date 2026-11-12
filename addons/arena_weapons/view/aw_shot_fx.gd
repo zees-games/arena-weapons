@@ -348,6 +348,7 @@ func play_eject(port: Transform3D, id: StringName, speed_scale: float = 1.0) -> 
 	var up := port.basis.y.normalized()
 	var back := port.basis.z.normalized()
 	var speed := randf_range(1.0, 1.5) * speed_scale
+	set_process(true)
 	_shells.append({
 		"node": node,
 		"pos": port.origin,
@@ -492,6 +493,15 @@ func _play_impact_sound(at: Vector3, kind: StringName, collider: Object, shape: 
 
 func _process(delta: float) -> void:
 	advance(delta)
+	# A shooter with nothing showing sleeps until its next effect: 31 idle bots each ran this every
+	# frame. Its own layered player keeps it awake, since that probe follows the camera.
+	if _layers == null and is_idle():
+		set_process(false)
+
+
+## True when no effect, mark or shell is left to move on.
+func is_idle() -> bool:
+	return _live.is_empty() and _marks.is_empty() and _shells.is_empty()
 
 
 ## Moves every effect on by [param delta] seconds. [method _process] calls it; a capture that
@@ -749,6 +759,7 @@ func _mark(at: Vector3, facing: Vector3, hit_scale: float = 1.0) -> void:
 	node.global_transform = Transform3D(spin * Basis(x * size, y * size, facing),
 		at + facing * 0.004)
 	_marks.append({"node": node, "age": 0.0})
+	set_process(true)
 
 
 func _collect_bodies(node: Node, depth: int) -> void:

@@ -50,6 +50,7 @@ func set_charge(fraction: float) -> void:
 		_fizzle = false
 		_build()
 		visible = true
+		set_process(true)
 
 
 ## Everything off, for a respawn or a switch.
@@ -64,6 +65,7 @@ func reset() -> void:
 ## The weapon fired: a collapse already under way is a shot, not a fizzle.
 func note_fired() -> void:
 	_fired_ago = 0.0
+	set_process(true)
 	if _collapse >= 0.0:
 		_fizzle = false
 
@@ -88,6 +90,10 @@ func is_fizzling() -> bool:
 
 func _process(delta: float) -> void:
 	advance(delta)
+	# Hidden and past the fizzle window it has nothing to count: sleep until the next draw or shot.
+	# Every bot holding a charge gun kept one of these ticking.
+	if not visible and _fired_ago > 0.25:
+		set_process(false)
 
 
 func advance(delta: float) -> void:

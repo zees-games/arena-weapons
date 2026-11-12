@@ -189,6 +189,7 @@ func _add(node: Node3D, fx: Dictionary) -> void:
 	fx["node"] = node
 	fx["age"] = 0.0
 	_live.append(fx)
+	set_process(true)
 
 
 func _mesh(mesh: Mesh, material: Material) -> MeshInstance3D:

@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 328
+const CHECKS := 337
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -38,6 +38,7 @@ func _ready() -> void:
 	_charge_fizzle()
 	await _one_arm_set()
 	_charge_fizzle()
+	_idle_sleep()
 	await _finish()
 
 
@@ -1024,6 +1025,49 @@ func _glove_cache() -> void:
 		fresh.size() == 1 and absf(fresh[0].r - 0.8) < 0.02 and not AwViewArms._means.has(tex2.get_instance_id()))
 	AwViewArms.albedo_cache = was
 	mi.free()
+	_end()
+
+
+## Effects with nothing to show stop their per-frame work and pick it up again on the next shot, draw or showing.
+func _idle_sleep() -> void:
+	_begin("idle effects sleep")
+	var holder := Node3D.new()
+	add_child(holder)
+	var wall := StaticBody3D.new()
+	holder.add_child(wall)
+	var shots := AwShotFx.new()
+	shots.sounds = false
+	holder.add_child(shots)
+	shots._process(0.1)
+	_check("a shooter with nothing showing stops processing", not shots.is_processing() and shots.is_idle())
+	shots.play_impact(Vector3(0.0, 0.0, -10.0), Vector3.BACK, wall)
+	_check("an impact wakes it (%d marks, %d live)" % [shots.mark_count(), shots.live_count()],
+		shots.is_processing() and not shots.is_idle())
+	shots._process(AwShotFx.MARK_LIFE + 1.0)
+	_check("once the mark has faded it sleeps again", not shots.is_processing() and shots.is_idle())
+
+	var charge := preload("res://addons/arena_weapons/view/aw_charge_fx.gd").new()
+	holder.add_child(charge)
+	charge._process(0.1)
+	_check("a hidden charge ball stops processing", not charge.is_processing())
+	charge.note_fired()
+	charge._process(0.1)
+	_check("a shot keeps it counting through the fizzle window", charge.is_processing())
+	charge._process(0.2)
+	_check("past the window it sleeps again", not charge.is_processing())
+	charge.set_charge(0.5)
+	_check("a draw wakes it", charge.is_processing() and charge.visible)
+
+	var held := AwWorldModel.new()
+	holder.add_child(held)
+	held.visible = false
+	held._process(0.1)
+	held._process(0.25)
+	_check("a hidden held gun banks its time (%.2f)" % held._hidden_for, is_equal_approx(held._hidden_for, 0.25))
+	held.visible = true
+	held._process(0.1)
+	_check("and spends it when it shows", held._hidden_for < 0.0)
+	holder.free()
 	_end()
 
 

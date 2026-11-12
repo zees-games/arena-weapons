@@ -402,7 +402,24 @@ func _cycle_seconds() -> float:
 
 
 func _process(delta: float) -> void:
+	# Hidden (the local player's own, a switch), one frame lets go of the support hand, then the
+	# time is banked and spent in one step when it shows: every step clamps or converges, and a
+	# hidden gun was still probing walls and asking the body for its sprint every frame.
+	if not visible:
+		if _hidden_for >= 0.0:
+			_hidden_for += delta
+			return
+		_hidden_for = 0.0
+		advance(delta)
+		return
+	if _hidden_for > 0.0:
+		delta += _hidden_for
+	_hidden_for = -1.0
 	advance(delta)
+
+
+## Seconds banked while hidden; below zero while shown.
+var _hidden_for := -1.0
 
 
 ## One frame of the hand, [param delta] seconds long. [method _process] calls it; a tool that
