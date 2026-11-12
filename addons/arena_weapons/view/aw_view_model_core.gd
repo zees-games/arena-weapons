@@ -47,6 +47,7 @@ var _belt: Node3D = null
 @export_group("Wall")
 
 ## Draws the view model again in a pass with no world in it while it is pressed against one, so a wall cannot hide the gun. Costs a second render of the view layer only while active.
+## Never built on the web (see [method AwViewOverlay.supported]): there a wall can still clip the gun.
 @export var wall_overlay: bool = true
 
 @export_group("Light")
@@ -79,7 +80,7 @@ func _ready() -> void:
 		return
 
 	_build_structure()
-	if wall_overlay and view_layer > 0:
+	if wall_overlay and view_layer > 0 and AwViewOverlay.supported():
 		_overlay = AwViewOverlay.new()
 		add_child(_overlay)
 		_overlay.setup(self, view_layer)

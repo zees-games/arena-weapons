@@ -2,13 +2,20 @@ class_name AwViewOverlay
 extends Node
 
 ## Draws the view model's layer a second time, from a camera of its own in a transparent SubViewport, composited under the HUD.
-## That pass has no world in it, so a wall the player stands against cannot hide the gun; only a SubViewport has a depth buffer of its own on every renderer, the web build included.
+## That pass has no world in it, so a wall the player stands against cannot hide the gun; only a SubViewport has a depth buffer of its own on every renderer.
+## Not on the web: see [method supported].
 
 var _canvas: CanvasLayer
 var _rect: TextureRect
 var _viewport: SubViewport
 var _camera: Camera3D
 var _layer_mask: int = 0
+
+## False on the web. There (Godot 4.7, WebGL2) the SubViewport pass draws the view layer with no directional light and
+## no linear-to-sRGB step, so arms come out flat white and the gun black, and the pass is on most of the time: the drawn
+## gun's box reaches below the floor while standing in the open.
+static func supported() -> bool:
+	return not OS.has_feature("web")
 
 ## Builds the nodes under [param host], showing render layer [param layer] (1 to 20).
 func setup(host: Node, layer: int) -> void:
