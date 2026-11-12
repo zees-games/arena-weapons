@@ -30,6 +30,13 @@ const FALLOFF := {
 	&"handling": [2.0, 40.0, 0.04],
 }
 
+## dot-audio's PCM copies (duck-typed by path like [AwShotLayers]): starting an Ogg voice builds its decoder
+## every time, about half a millisecond on the game thread per casing, tail or reload; a decoded copy starts
+## in microseconds. Shared with dot-audio's own voices, so one copy per sound per process.
+const PCM_PATH := "res://addons/dot_audio/sink/dot_audio_pcm.gd"
+static var _pcm: Script = null
+static var _pcm_probed := false
+
 ## Replaces the stock report and tail: `func(id: StringName, kind: StringName, at: Vector3, indoors: bool) -> bool`, e.g. wrapping a DotShotPlayer's `fire`. Return true when it played the shot; false falls back to the stock sound. Unset keeps the stock sound.
 var shot_sound: Callable = Callable()
 
@@ -255,8 +262,9 @@ func _play(stream: AudioStream, at: Vector3, extra_db: float, falloff: StringNam
 
 	heard.emit(stream)
 	voice.bus = bus
-	voice.stream = stream
-	voice.volume_db = volume_db + extra_db
+	var played := _pcm_of(stream)
+	voice.stream = played
+	voice.volume_db = volume_db + extra_db + (float(_pcm.get(&"HEADROOM_DB")) if played != stream else 0.0)
 	var shape: Array = FALLOFF.get(falloff, FALLOFF[&"report"])
 	voice.unit_size = float(shape[0])
 	voice.max_distance = float(shape[1])
@@ -264,3 +272,14 @@ func _play(stream: AudioStream, at: Vector3, extra_db: float, falloff: StringNam
 	voice.pitch_scale = 1.0 + randf_range(-float(shape[2]), float(shape[2]))
 	voice.global_position = at
 	voice.play()
+
+
+## [param stream]'s decoded copy once dot-audio has one, else [param stream] (the first play starts the decode).
+static func _pcm_of(stream: AudioStream) -> AudioStream:
+	if not _pcm_probed:
+		_pcm_probed = true
+		if ResourceLoader.exists(PCM_PATH):
+			_pcm = load(PCM_PATH) as Script
+	if _pcm == null or stream.resource_path.is_empty() or bool(stream.get(&"loop")):
+		return stream
+	return _pcm.call(&"copy_for", stream.resource_path, stream) as AudioStream
