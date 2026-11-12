@@ -32,5 +32,6 @@ extends RefCounted
 #     loading cover; the first knife shot built them in the tick, 61 ms on a GPU box.
 # 16: AwFxPool.layers_bus and shared_layers(fx, bus): fill() builds one layered shot every remote shooter shares, so
 #     no shooter's first shot builds its own.
-const LEVEL := 16
+# 17: AwWeaponRig.would_idle(command): whether simulate_tick(command, tick, null) takes the idle path, so a host can skip its context.
+const LEVEL := 17
 const OLDEST := 1

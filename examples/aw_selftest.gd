@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 351
+const CHECKS := 355
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -40,6 +40,7 @@ func _ready() -> void:
 	await _one_arm_set()
 	_charge_fizzle()
 	_idle_sleep()
+	_would_idle()
 	await _finish()
 
 
@@ -1085,6 +1086,37 @@ func _glove_cache() -> void:
 		fresh.size() == 1 and absf(fresh[0].r - 0.8) < 0.02 and not AwViewArms._means.has(tex2.get_instance_id()))
 	AwViewArms.albedo_cache = was
 	mi.free()
+	_end()
+
+
+## The rig tells a host whether a tick would take the idle path.
+func _would_idle() -> void:
+	_begin("rig would_idle")
+	var rig := AwWeaponRig.new()
+	var cmd := DotWeaponCommand.new()
+	_check("a rig not set up never idles", not rig.would_idle(cmd))
+	rig.free()
+	var r2 := AwWeaponRig.new()
+	var cat := DotWeaponCatalogue.new()
+	for def in AwWeaponPack.weapons(AwWeaponDamage.table(), ""):
+		cat.add(def)
+	r2.catalogue = cat
+	add_child(r2)
+	var ok := r2.setup().ok
+	_check("the rig sets up", ok)
+	var idles := false
+	if ok:
+		r2.give_everything()
+		# A gun whose spread follows the carrier needs a context; the rig's own idle posture stands in for it.
+		for slot in r2.arsenal._slots.keys():
+			r2.arsenal.equip(slot)
+			if r2.would_idle(cmd):
+				idles = true
+				break
+	_check("a set-up rig with nothing pressed idles on a weapon that needs no context", idles)
+	cmd.buttons = DotWeaponCommand.BUTTON_ATTACK
+	_check("a pressed attack does not", ok and idles and not r2.would_idle(cmd))
+	r2.queue_free()
 	_end()
 
 

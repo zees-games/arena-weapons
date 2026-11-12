@@ -317,6 +317,12 @@ func wall_barrel(origin: Vector3, direction: Vector3, art: AwWeaponVisual, speed
 		ads_rules.wall_for(art.id), 1.0, 1.0, speed, aim, mask, true, exclude, strafe)
 
 
+## Whether [method simulate_tick] with this command and no context takes the idle path: nothing pressed,
+## nothing under way. A host asks it to skip building a context it would only throw away.
+func would_idle(command: DotWeaponCommand) -> bool:
+	return _ready_for_use and arsenal != null and arsenal.is_idle_for(command, _previous_command)
+
+
 ## What [method simulate_tick] does when [method DotWeaponArsenal.is_idle_for] holds: with no button
 ## down there is no aim, bash or use, so only the bookkeeping that every tick does is left.
 func _idle_tick(command: DotWeaponCommand, tick: int, prof: bool = false) -> DotWeaponOutcome:
