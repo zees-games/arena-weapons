@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/smoke_grenade_1.jpg-4da6c4ce51705b2f5124771d1
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

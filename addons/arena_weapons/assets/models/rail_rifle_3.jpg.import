@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/rail_rifle_3.jpg-68fafa17c35b5d588cb0b7f31f1f
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

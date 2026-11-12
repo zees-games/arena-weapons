@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/pump_shotgun_1.jpg-c96c3c5b827a4a3d616a43097a
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/smg_0.jpg-51ec1cdde3460faf4b960e7b0a6ec1aa.ct
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/bullpup_0.jpg-6a53e4510651fba97d54475cfeb2f41
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

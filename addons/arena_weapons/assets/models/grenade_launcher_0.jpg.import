@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/grenade_launcher_0.jpg-0d6eea6ec0c488777b7838
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

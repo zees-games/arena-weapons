@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/rocket_launcher_1.jpg-45b67f3663c3404f6ef3979
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

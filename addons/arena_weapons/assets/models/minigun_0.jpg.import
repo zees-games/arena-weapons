@@ -18,7 +18,7 @@ dest_files=["res://.godot/imported/minigun_0.jpg-fa92a0de79d2568fe2a39fc3315ccb2
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
