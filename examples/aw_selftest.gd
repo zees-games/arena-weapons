@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 337
+const CHECKS := 339
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -639,6 +639,9 @@ func _floor_clip() -> void:
 			_check("pitch %d: the gun's lowest vertex is %.2f m from the floor plane, or the wall-free pass draws it (pass %s)" % [pitch, lowest - floor_y, covered], lowest >= floor_y or covered)
 		else:
 			_check("pitch %d: looking level the gun is not pulled back or tipped (wall %.3f)" % [pitch, view.wall_amount()], view.wall_amount() < 0.05)
+	var space := view.get_world_3d().direct_space_state
+	_check("the sphere before the drawn-gun rays misses a floor out of reach", not view._world_near(space, camera.global_position, eye_height * 0.5))
+	_check("and finds it within reach", view._world_near(space, camera.global_position, eye_height + 0.1))
 	view.queue_free()
 	camera.queue_free()
 	floor_body.queue_free()

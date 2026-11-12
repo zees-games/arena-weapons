@@ -47,8 +47,14 @@ func _drawn_gun_touches_world() -> bool:
 	var space := get_world_3d().direct_space_state
 	var eye := camera.global_position
 	var points: Array[Vector3] = [muzzle_transform().origin]
+	var reach := 0.0
 	for corner in 8:
 		points.append(box.get_endpoint(corner))
+	for point in points:
+		reach = maxf(reach, eye.distance_to(point))
+	# In the open nothing is within the gun's reach of the eye: one sphere query answers for the nine rays.
+	if not _world_near(space, eye, reach):
+		return false
 	for point in points:
 		var gap := point - eye
 		var length := gap.length()
@@ -65,6 +71,23 @@ func _drawn_gun_touches_world() -> bool:
 				continue
 			return true
 	return false
+
+var _near_query: PhysicsShapeQueryParameters3D = null
+
+
+## Whether anything the wall probe stops on lies within [param radius] of [param eye]; a ray from the eye no longer
+## than that can hit nothing when this is false.
+func _world_near(space: PhysicsDirectSpaceState3D, eye: Vector3, radius: float) -> bool:
+	if _near_query == null:
+		_near_query = PhysicsShapeQueryParameters3D.new()
+		_near_query.shape = SphereShape3D.new()
+		_near_query.collide_with_areas = false
+	(_near_query.shape as SphereShape3D).radius = maxf(radius, 0.01)
+	_near_query.transform = Transform3D(Basis.IDENTITY, eye)
+	_near_query.collision_mask = wall_mask
+	_near_query.exclude = _wall_exclude()
+	return not space.intersect_shape(_near_query, 1).is_empty()
+
 
 ## Pulls the weapon back and up when its muzzle would be inside a wall. The probe is cast against the un-retracted pose, so the answer does not feed back into itself.
 func _advance_wall(delta: float) -> void:
