@@ -140,22 +140,33 @@ func _report(id: StringName, kind: StringName, at: Vector3) -> void:
 	_play_tail(id, kind, at)
 
 
+## Builds the layered shot's audio manager, room and player now (what the first layered shot would, about 60 ms on a
+## GPU box), so a game can do it under its loading cover. True when layered shots are on and ready; safe to call again.
+func prewarm_layers() -> bool:
+	if not layered_shots or not is_inside_tree():
+		return false
+	if _layers != null:
+		return _layers.is_ready()
+	if not AwShotLayers.available():
+		layered_shots = false
+		return false
+	_layers = AwShotLayers.new()
+	add_child(_layers)
+	set_process(true)
+	if not _layers.setup(bus):
+		layered_shots = false
+		return false
+	return true
+
+
 ## Plays the layered shot for a gun class that has one; false leaves the single sound to the caller.
 func _layered(id: StringName, kind: StringName, at: Vector3) -> bool:
 	if not layered_shots or not is_inside_tree():
 		return false
 	if AwShotLayers.shot_class(AwWeaponSound.class_for(id, kind)) == &"":
 		return false
-	if _layers == null:
-		if not AwShotLayers.available():
-			layered_shots = false
-			return false
-		_layers = AwShotLayers.new()
-		add_child(_layers)
-		set_process(true)
-		if not _layers.setup(bus):
-			layered_shots = false
-			return false
+	if not prewarm_layers():
+		return false
 	var camera := get_viewport().get_camera_3d() if get_viewport() != null else null
 	var listener := camera.global_position if camera != null else at
 	if not _layers.fire(AwWeaponSound.class_for(id, kind), at, listener):

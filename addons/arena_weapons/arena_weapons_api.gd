@@ -28,5 +28,7 @@ extends RefCounted
 # 13: AwModelCache.add_fallback_root / remove_fallback_root / fallback_roots / exists: a build without the addon's models (the web shell) draws them
 #     from a mounted pack laid out like addons/arena_weapons/assets/.
 # 14: AwWeaponGroups (group_of, groups_for, all_groups): the download group "weapon-<id>" of each weapon, as groups.json at the pack root defines them.
-const LEVEL := 14
+# 15: AwShotFx.prewarm_layers(): build a weapon's layered shot sound (dot-audio layers, enclosure, player) under a
+#     loading cover; the first knife shot built them in the tick, 61 ms on a GPU box.
+const LEVEL := 15
 const OLDEST := 1
