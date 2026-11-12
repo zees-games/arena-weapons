@@ -21,6 +21,14 @@ const CASING_GAP_MSEC := 90
 ## taking a voice cut its own report off.
 const IMPACT_GAP_MSEC := 30
 
+## dot-audio's decoded copies: an Ogg voice builds its decoder on every start (about half a millisecond of
+## the frame per impact on staging02); once a short sound is decoded, its PCM copy starts in microseconds.
+## Read by path so the pack runs without dot-audio linked.
+const PCM_SCRIPT := "res://addons/dot_audio/sink/dot_audio_pcm.gd"
+
+## The loaded [constant PCM_SCRIPT], or false when dot-audio is not linked (or too old to share its copies).
+static var _pcm: Variant = null
+
 ## How far each kind of sound carries and how much its pitch wanders: [unit size, max distance, pitch spread].
 ## A report crosses the map, an impact a few rooms, a magazine going in only the next room; one shared
 ## falloff made reloads across the map as loud as shots.
@@ -243,9 +251,15 @@ func _play(stream: AudioStream, at: Vector3, extra_db: float, falloff: StringNam
 		_voices.append(voice)
 
 	heard.emit(stream)
+	var trim_db := 0.0
+	var pcm := _pcm_script()
+	if pcm != null:
+		stream = pcm.copy_for(stream.resource_path, stream)
+		if pcm.is_copy(stream):
+			trim_db = float(pcm.HEADROOM_DB)
 	voice.bus = bus
 	voice.stream = stream
-	voice.volume_db = volume_db + extra_db
+	voice.volume_db = volume_db + extra_db + trim_db
 	var shape: Array = FALLOFF.get(falloff, FALLOFF[&"report"])
 	voice.unit_size = float(shape[0])
 	voice.max_distance = float(shape[1])
@@ -253,3 +267,13 @@ func _play(stream: AudioStream, at: Vector3, extra_db: float, falloff: StringNam
 	voice.pitch_scale = 1.0 + randf_range(-float(shape[2]), float(shape[2]))
 	voice.global_position = at
 	voice.play()
+
+
+static func _pcm_script() -> GDScript:
+	if _pcm == null:
+		_pcm = false
+		if ResourceLoader.exists(PCM_SCRIPT):
+			var script := load(PCM_SCRIPT) as GDScript
+			if script != null and script.get_script_method_list().any(func(m: Dictionary) -> bool: return m["name"] == "copy_for"):
+				_pcm = script
+	return _pcm as GDScript if _pcm is GDScript else null
