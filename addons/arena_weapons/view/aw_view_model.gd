@@ -721,6 +721,11 @@ func _equip_stage(art: AwWeaponVisual, stage: int) -> void:
 var _prewarm_stage := -1
 ## Reload parts [method prewarm_step] still has to build and drop, one a call.
 var _parts_left: Array = []
+## The parts' material kinds go first, one shader compile a call: the cell built and dressed in one call was a
+## 356 ms frame on staging02 (191 ms build, 165 ms dressing), every part after it about 1 ms.
+const WARM_KINDS := [&"kind_plain", &"kind_plain_view", &"kind_glow", &"kind_glow_view"]
+## Held until the parts are warm: the engine drops a shader with its last material, and the cell would compile it again.
+var _kinds_held: Array[Material] = []
 
 
 ## Starts [method prewarm] over several calls: [method equip]'s head (pose, holder, model load) now, its stages one per [method prewarm_step].
@@ -756,7 +761,7 @@ func prewarm_step() -> bool:
 	clear()
 	if not _parts_warmed:
 		_parts_warmed = true
-		_parts_left = ReloadParts.part_names()
+		_parts_left = WARM_KINDS + ReloadParts.part_names()
 		return true
 	return false
 
@@ -774,16 +779,27 @@ func prewarm(art: AwWeaponVisual) -> void:
 func _warm_parts() -> void:
 	if not _parts_warmed:
 		_parts_warmed = true
-		_parts_left = ReloadParts.part_names()
+		_parts_left = WARM_KINDS + ReloadParts.part_names()
 	while not _parts_left.is_empty():
 		_warm_part(_parts_left.pop_front())
 
 
 func _warm_part(part: StringName) -> void:
+	match part:
+		&"kind_plain", &"kind_glow":
+			_kinds_held.append(ReloadParts.material_kind(part == &"kind_glow"))
+			return
+		&"kind_plain_view", &"kind_glow_view":
+			var sample := ReloadParts.sample(_kinds_held.back())
+			_set_on_top(sample)
+			sample.free()
+			return
 	var node := ReloadParts.build(part)
 	if node != null:
 		_set_on_top(node)
 		node.free()
+	if _parts_left.is_empty():
+		_kinds_held.clear()
 
 
 func describe() -> Dictionary:

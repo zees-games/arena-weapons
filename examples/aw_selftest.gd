@@ -625,14 +625,14 @@ func _check_stepped_prewarm() -> void:
 	view.model_ready.connect(func(_id: StringName, _node: Node3D) -> void: ready[0] += 1)
 	var steps := 0
 	var parts_cold := not AwViewModel._parts_warmed
-	var part_steps := AwViewModel.ReloadParts.part_names().size() if parts_cold else 0
+	var part_steps := AwViewModel.WARM_KINDS.size() + AwViewModel.ReloadParts.part_names().size() if parts_cold else 0
 	var began := view.prewarm_begin(art)
 	var weapon_loaded := view.weapon_node() != null
 	while began and view.prewarm_step():
 		steps += 1
 	view.queue_free()
 	_check("stepped prewarm loads the model, then runs %d stages and drops the weapon" % AwViewModel.EQUIP_STAGES, began and weapon_loaded and steps == AwViewModel.EQUIP_STAGES - 1 + part_steps and view.weapon_node() == null)
-	_check("stepped prewarm leaves every reload part warmed (one a step when cold: %d)" % part_steps, AwViewModel._parts_warmed and view._parts_left.is_empty())
+	_check("stepped prewarm leaves every reload part warmed (one a step when cold: %d)" % part_steps, AwViewModel._parts_warmed and view._parts_left.is_empty() and view._kinds_held.is_empty())
 	var warmed := spans.size()
 	var hot := AwViewModel.new()
 	hot.show_arms = false

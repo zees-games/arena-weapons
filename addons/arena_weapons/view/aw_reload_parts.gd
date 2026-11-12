@@ -74,6 +74,22 @@ static func build(part: StringName) -> Node3D:
 	return node
 
 
+## A new material of one of the parts' two kinds, lit ([param glow], the cell's charge) or plain: each kind is
+## its own shader, which [method AwViewModel.prewarm_step] compiles one a call before the parts that use it.
+static func material_kind(glow: bool) -> StandardMaterial3D:
+	if glow:
+		return _material(Color(0.25, 0.95, 1.0), 0.0, 0.3, 1.6)
+	return _material(Color(0.32, 0.34, 0.40), 0.3, 0.5)
+
+
+## A bare cylinder in [param material], for the view model to warm its dressing of that material.
+static func sample(material: Material) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Sample"
+	_cylinder(root, 0.03, 0.03, Vector3.ZERO, material)
+	return root
+
+
 static func _brass() -> StandardMaterial3D:
 	return _material(Color(0.85, 0.62, 0.22), 0.6, 0.35)
 
