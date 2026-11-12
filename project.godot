@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="arena-weapons"
+config/name="fc-weapons"
 config/description="Arena weapon models (CC0) offered by role."
 run/main_scene="res://examples/aw_selftest.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")

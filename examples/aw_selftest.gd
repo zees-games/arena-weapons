@@ -12,7 +12,7 @@ const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
 const OWN_SIGHTED := 9
 
 func _ready() -> void:
-	print("arena-weapons self-test")
+	print("fc-weapons self-test")
 	_models()
 	_download_groups()
 	_spans()
