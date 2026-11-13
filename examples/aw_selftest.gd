@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 355
+const CHECKS := 360
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -19,6 +19,7 @@ func _ready() -> void:
 	_provider()
 	_sound_classes()
 	_defs()
+	_fire_feel()
 	_dress()
 	_own_sights()
 	_scope_hides_gun()
@@ -413,6 +414,49 @@ func _defs() -> void:
 		found += 1 if String(d.id).begins_with("aw_") else 0
 	_check("registered as a catalogue source, every weapon joins the catalogue once", found == defs.size())
 	_check("and the catalogue is the host's plus the pack's", hosted.size() == AwWeaponCatalogue.weapons().size() + defs.size())
+	_end()
+
+
+## Each gun's drawn kick (presentation only) as measured off the pose spring: one shot from rest, 120 frames a second.
+## Returns [peak camera pitch, peak gun pitch, peak push-back, camera pitch left after a second].
+func _kick_trace(params: Dictionary, recoil: Vector2, interval: float) -> Array[float]:
+	var pose := AwWeaponPose.make()
+	pose.tunables.apply_kick(params)
+	pose.fire_interval = interval
+	pose.punch(recoil, true)
+	var out: Array[float] = [0.0, 0.0, 0.0, 0.0]
+	for i in range(120):
+		pose.advance(1.0 / 120.0, Vector2.ZERO, 0.0, true)
+		out[0] = maxf(out[0], pose.view_punch().x)
+		out[1] = maxf(out[1], pose._kick_rotation.x + pose._extra_pitch)
+		out[2] = maxf(out[2], pose._kick + pose._extra_back)
+	out[3] = absf(pose.view_punch().x)
+	return out
+
+
+## The sniper's shot climbs and shoves the gun and turns the camera well past the old default; an automatic's gun climbs
+## more while its camera share stays near the bullets' own climb; every kick settles; the bullets' recoil is untouched.
+func _fire_feel() -> void:
+	_begin("per-weapon fire feel")
+	var defs := AwSpawnProvider.weapon_defs()
+	var shot := func(id: StringName, own: bool) -> Array[float]:
+		var d := _def(defs, id)
+		var b := d.tuning as DotWeaponBallistics
+		var interval := float(d.use_interval_ticks) / float(AwWeaponPack.TICK_RATE)
+		return _kick_trace(d.params if own else {}, Vector2(b.recoil_pitch, b.recoil_yaw), interval)
+	var sniper: Array[float] = shot.call(&"aw_sniper", true)
+	var sniper_old: Array[float] = shot.call(&"aw_sniper", false)
+	var rifle: Array[float] = shot.call(&"aw_rifle", true)
+	var rifle_old: Array[float] = shot.call(&"aw_rifle", false)
+	print("  sniper camera %.2f deg (was %.2f), gun %.2f deg (was %.2f), back %.3f m (was %.3f); rifle camera %.2f (was %.2f), gun %.2f (was %.2f)" % [
+		sniper[0], sniper_old[0], sniper[1], sniper_old[1], sniper[2], sniper_old[2], rifle[0], rifle_old[0], rifle[1], rifle_old[1]])
+	_check("a sniper shot turns the camera at least 4 degrees, 2.5 times the default", sniper[0] >= 4.0 and sniper[0] >= sniper_old[0] * 2.5)
+	_check("a sniper shot climbs the gun at least 12 degrees and shoves it back at least 8 cm", sniper[1] >= 12.0 and sniper[2] >= 0.08)
+	_check("a rifle shot climbs the gun 1.4 times the default, its camera within 0.8 to 1.3 times", rifle[1] >= rifle_old[1] * 1.4 and rifle[0] >= rifle_old[0] * 0.8 and rifle[0] <= rifle_old[0] * 1.3)
+	_check("every kick has settled a second later", sniper[3] < 0.05 and rifle[3] < 0.05)
+	var sim_kept := (_def(defs, &"aw_sniper").tuning as DotWeaponBallistics).recoil_pitch == (AwWeaponPack.sniper().tuning as DotWeaponBallistics).recoil_pitch \
+		and not _def(defs, &"aw_sniper").params.has(&"recoil_pitch")
+	_check("the feel lives in params only: the bullets' recoil is the ballistics' own", sim_kept and (AwWeaponPack.sniper().tuning as DotWeaponBallistics).recoil_pitch == 4.0)
 	_end()
 
 

@@ -58,6 +58,24 @@ const SOUND_CLASSES := {
 	&"beamer": &"beam", &"charge_rifle": &"rail",
 }
 
+## Drawn kick per gun, over the pose's defaults (`view_*` keys of [constant AwWeaponPose.Tunables.KICK_PARAMS]).
+## Presentation only: the bullet's climb is the ballistics' `recoil_*` and is never read from here.
+## Heavy single shots climb high, shove back and turn the camera with a slower settle; automatics climb more on the
+## gun but give the camera a smaller share, because the camera already follows the bullets' own climb.
+const VIEW_FEEL_AUTO := {&"view_kick_pitch": 10.0, &"view_kick_min": 2.5, &"view_camera_share": 0.12}
+const VIEW_FEEL := {
+	&"revolver": {&"view_kick_pitch": 6.0, &"view_kick_knee": 0.35, &"view_kick_back": 0.008, &"view_kick_back_max": 0.06, &"view_kick_response": 16.0},
+	&"derringer": {&"view_kick_pitch": 6.0, &"view_kick_knee": 0.35, &"view_kick_back": 0.008, &"view_kick_back_max": 0.06, &"view_kick_response": 16.0},
+	&"battle_rifle": {&"view_kick_pitch": 5.5, &"view_kick_back_max": 0.055},
+	&"shotgun": {&"view_kick_pitch": 6.0, &"view_kick_knee": 0.3, &"view_kick_back": 0.009, &"view_kick_back_max": 0.08, &"view_kick_response": 15.0, &"view_camera_share": 0.35},
+	&"marksman": {&"view_kick_pitch": 5.5, &"view_kick_knee": 0.3, &"view_kick_back": 0.008, &"view_kick_back_max": 0.06, &"view_kick_response": 16.0},
+	&"sniper": {&"view_kick_pitch": 7.0, &"view_kick_knee": 0.25, &"view_kick_back": 0.007, &"view_kick_back_max": 0.1, &"view_kick_response": 13.0, &"view_kick_min": 6.0, &"view_kick_min_back": 0.02, &"view_camera_share": 0.35},
+	&"charge_rifle": {&"view_kick_pitch": 5.5, &"view_kick_knee": 0.3, &"view_kick_back": 0.008, &"view_kick_back_max": 0.07, &"view_kick_response": 15.0},
+	&"launcher": {&"view_kick_pitch": 5.0, &"view_kick_knee": 0.35, &"view_kick_back": 0.01, &"view_kick_back_max": 0.08, &"view_kick_response": 12.0},
+	&"quad_launcher": {&"view_kick_pitch": 5.0, &"view_kick_knee": 0.35, &"view_kick_back": 0.01, &"view_kick_back_max": 0.08, &"view_kick_response": 12.0},
+	&"grenade_launcher": {&"view_kick_pitch": 5.0, &"view_kick_knee": 0.35, &"view_kick_back": 0.01, &"view_kick_back_max": 0.07, &"view_kick_response": 14.0},
+}
+
 ## Carry weight in kg.
 const WEIGHTS := {
 	&"knife": 0.4, &"pistol": 1.0, &"revolver": 1.2, &"machine_pistol": 1.4, &"derringer": 0.5,
@@ -499,7 +517,10 @@ static func _gun(id: StringName, name: String, slot: int, fire: DotWeaponDef.Fir
 	def.reserve_max = reserve * 2
 	def.reload_ticks = sec_ticks(reload_sec)
 	def.params = {&"bash_damage": 42.0, &"bash_reach": 1.9, &"bash_cooldown_ticks": sec_ticks(0.8)}
-	def.params.merge(_kick_defaults())
+	var kick := _kick_defaults()
+	if not kick.is_empty():
+		kick.merge(VIEW_FEEL.get(id, VIEW_FEEL_AUTO if fire == DotWeaponDef.Fire.AUTO else {}), true)
+	def.params.merge(kick)
 	return def
 
 
