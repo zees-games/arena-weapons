@@ -21,6 +21,15 @@ const CASING_GAP_MSEC := 90
 ## taking a voice cut its own report off.
 const IMPACT_GAP_MSEC := 30
 
+## Where an Ogg voice start decodes on the game thread (web without threads, see [method ogg_starts_slow]),
+## each one costs about a millisecond, and a 32-player fight starts dozens a second. There, impacts from
+## other players' shots are heard only within [constant SLOW_IMPACT_DISTANCE] metres and at most one per
+## [constant SLOW_IMPACT_GAP_MSEC] across all shooters. Native and the local gun are unchanged.
+const SLOW_IMPACT_DISTANCE := 40.0
+const SLOW_IMPACT_GAP_MSEC := 100
+static var _slow_impact_msec: int = -100000
+static var _ogg_slow := -1
+
 ## How far each kind of sound carries and how much its pitch wanders: [unit size, max distance, pitch spread].
 ## A report crosses the map, an impact a few rooms, a magazine going in only the next room; one shared
 ## falloff made reloads across the map as loud as shots.
@@ -243,6 +252,9 @@ func prewarm_voices(count: int = -1) -> void:
 func _play(stream: AudioStream, at: Vector3, extra_db: float, falloff: StringName = &"report") -> void:
 	if not sounds or stream == null or _too_far(at, rules.voice_distance):
 		return
+	# Past its max distance the voice is silent anyway; only worth the check where a start costs.
+	if ogg_starts_slow() and _too_far(at, float((FALLOFF.get(falloff, FALLOFF[&"report"]) as Array)[1])):
+		return
 
 	var voice: AudioStreamPlayer3D = null
 
@@ -275,12 +287,34 @@ func _play(stream: AudioStream, at: Vector3, extra_db: float, falloff: StringNam
 	voice.play()
 
 
+## True when playing an Ogg stream decodes on the game thread: dot-audio is missing or cannot decode to
+## PCM off-thread (single-threaded web). Probed once.
+static func ogg_starts_slow() -> bool:
+	if _ogg_slow < 0:
+		var _probe := _pcm_of(null)
+		_ogg_slow = 1 if _pcm == null or not bool(_pcm.call(&"threaded")) else 0
+	return _ogg_slow == 1
+
+
+## True when a remote impact sound at [param at] should be skipped because Ogg starts are slow here.
+func _skip_slow_impact(at: Vector3) -> bool:
+	if first_person or not ogg_starts_slow():
+		return false
+	if _too_far(at, SLOW_IMPACT_DISTANCE):
+		return true
+	var now := Time.get_ticks_msec()
+	if now - _slow_impact_msec < SLOW_IMPACT_GAP_MSEC:
+		return true
+	_slow_impact_msec = now
+	return false
+
+
 ## [param stream]'s decoded copy once dot-audio has one, else [param stream] (the first play starts the decode).
 static func _pcm_of(stream: AudioStream) -> AudioStream:
 	if not _pcm_probed:
 		_pcm_probed = true
 		if ResourceLoader.exists(PCM_PATH):
 			_pcm = load(PCM_PATH) as Script
-	if _pcm == null or stream.resource_path.is_empty() or bool(stream.get(&"loop")):
+	if _pcm == null or stream == null or stream.resource_path.is_empty() or bool(stream.get(&"loop")):
 		return stream
 	return _pcm.call(&"copy_for", stream.resource_path, stream) as AudioStream

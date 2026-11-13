@@ -488,6 +488,8 @@ static func surface_of(collider: Object, shape: int = -1) -> StringName:
 
 
 func _play_impact_sound(at: Vector3, kind: StringName, collider: Object, shape: int) -> void:
+	if _skip_slow_impact(at):
+		return
 	if kind != IMPACT_BODY:
 		var now := Time.get_ticks_msec()
 		if now - _last_impact_msec < IMPACT_GAP_MSEC:
