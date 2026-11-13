@@ -161,6 +161,55 @@ const CLASS_CATEGORY := {
 	&"battle": "dmr", &"marksman": "dmr", &"lmg": "lmg", &"autoshot": "shotgun", &"grenade": "shotgun", &"rail": "rifle",
 }
 
+## First-person pack flash size on top of the dot-fx category's, for the classes whose category size undersells them
+## (a revolver's "magnum" and the heavy guns' "lmg"/"dmr" are all MEDIUM, a rifle's): a free scale, no other art.
+const PACK_GROW := {
+	AwWeaponSound.MAGNUM: 1.35, AwWeaponSound.HEAVY: 1.35, AwWeaponSound.MINIGUN: 1.4, AwWeaponSound.LAUNCHER: 1.3,
+	&"battle": 1.25, &"marksman": 1.3, &"lmg": 1.3, &"derringer": 1.2,
+}
+
+## The Binbun flash materials a first-person flash was given, by the shared original: see [method _unfade].
+var _unfaded: Dictionary = {}
+
+## Turns the art's proximity fade off on a first-person flash, once, when it is attached. dot-fx fades a first-person
+## flash over [member DotMuzzleFlashConfig.first_person_fade] (0.6 m) in front of the depth behind it, and in first
+## person that depth is the gun's own barrel a few centimetres back: the flash drew at a few percent alpha and only
+## the core quad was seen (renders 2026-11-12). The art's materials are one per scene, shared by every copy, and every
+## first-person copy built later sets the fade on them again, so this flash gets its own copies (one per original,
+## shared by its pool) with the fade off, and keeps them. The copies also draw over the gun ([method over_shader]):
+## with the fade off the flash was still hidden behind the receiver, and only the core quad showed.
+func _unfade(flash: Node) -> void:
+	for node: Node in flash.find_children("*", "GeometryInstance3D", true, false):
+		var geo := node as GeometryInstance3D
+		var mat := geo.material_override as ShaderMaterial
+		if mat == null:
+			continue
+		if not _unfaded.has(mat):
+			var own := mat.duplicate() as ShaderMaterial
+			own.shader = over_shader(mat.shader)
+			# Set again after the shader swap, so no value of the art's is lost with it.
+			for u: Dictionary in mat.shader.get_shader_uniform_list():
+				own.set_shader_parameter(u["name"], mat.get_shader_parameter(u["name"]))
+			own.set_shader_parameter("proximity_fade", false)
+			# Over the core quad and petals (priority 1), so the art's shape reads on top of the glow.
+			own.render_priority = 2
+			_unfaded[mat] = own
+			_unfaded[own] = own
+		geo.material_override = _unfaded[mat]
+
+
+## True when every shader material under a first-person [param flash] draws without the proximity fade and over the
+## gun. For the selftest.
+static func is_unfaded(flash: Node) -> bool:
+	for node: Node in flash.find_children("*", "GeometryInstance3D", true, false):
+		var mat := (node as GeometryInstance3D).material_override as ShaderMaterial
+		if mat == null:
+			continue
+		if bool(mat.get_shader_parameter("proximity_fade")) or mat.shader == null \
+				or not mat.shader.code.contains("depth_test_disabled"):
+			return false
+	return true
+
 ## One pooled flash per size and view, moved to the muzzle for each shot. False only when dot-fx is not linked; size none, quality off and a headless server draw nothing and count as handled.
 func _pack_flash(muzzle: Transform3D, size: float, weapon_class: StringName, id: StringName, first_person: bool) -> bool:
 	if not ResourceLoader.exists(DotWeaponMuzzle.SCRIPT_PATH):
@@ -177,17 +226,23 @@ func _pack_flash(muzzle: Transform3D, size: float, weapon_class: StringName, id:
 			_pack_drew = true
 		return true
 	var key := "%s/%s/%s" % [category, DotWeaponMuzzle.flash_name(def), first_person]
+	var fresh := false
 	if not _pack_flashes.has(key) or (_pack_flashes[key] != null and not is_instance_valid(_pack_flashes[key])):
 		var made := DotWeaponMuzzle.attach(self, category, def, first_person, weapon_class == AwWeaponSound.SUPPRESSED)
 		if made != null:
 			made.top_level = true
 		_pack_flashes[key] = made
+		fresh = true
 	var flash: Node3D = _pack_flashes[key]
 	if flash == null:
 		return true
 	flash.global_transform = muzzle
-	flash.scale = Vector3.ONE * (first_person_flash_scale if first_person else 1.0)
+	var grow: float = float(PACK_GROW.get(weapon_class, 1.0)) if first_person else 1.0
+	flash.scale = Vector3.ONE * (first_person_flash_scale * grow if first_person else 1.0)
 	DotWeaponMuzzle.fire(flash)
+	if fresh and first_person:
+		# After fire: a flash attached without a spare builds its pool inside its first fire.
+		_unfade(flash)
 	_pack_flash_light(muzzle, size, weapon_class, flash)
 	_pack_drew = true
 	return true

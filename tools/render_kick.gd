@@ -2,7 +2,8 @@ extends SceneTree
 ## Contact sheet of one shot's drawn kick per gun: rows are guns, columns frames after the trigger (60 fps), with the
 ## camera turned by view_punch as the game does. Arg 1 out.png, arg 2 "before" (pose defaults), "after" (pack params),
 ## "fx" (after, plus the rig's muzzle flash and spent case) or "tp" (a held gun seen side-on firing, as a watcher sees it).
-## Arg 3 "proc" draws the procedural flash instead of dot-fx's, to compare the two.
+## Arg 3 "proc" draws the procedural flash instead of dot-fx's, to compare the two ("-" keeps dot-fx's). Arg 4, a comma list of
+## gun ids, replaces the default rows (e.g. "lmg,minigun,launcher,battle_rifle" for the big guns).
 ## Run with --fixed-fps 60 (tools/render_kick.sh) so the effects step one 60th a frame.
 const GUNS := [&"sniper", &"shotgun", &"revolver", &"rifle"]
 const FRAMES := [0, 3, 6, 12, 24]
@@ -11,6 +12,7 @@ const FX_FRAMES := [0, 1, 3, 8, 26, 30, 36]
 const W := 480
 const H := 270
 var _proc := false
+var _guns: Array = GUNS
 
 
 func _initialize() -> void:
@@ -19,6 +21,8 @@ func _initialize() -> void:
 	var mode: String = a[1] if a.size() > 1 else "before"
 	var after := mode != "before"
 	_proc = a.size() > 2 and a[2] == "proc"
+	if a.size() > 3 and a[3] != "":
+		_guns = Array(a[3].split(",")).map(func(g: String) -> StringName: return StringName(g))
 	var frames: Array = FX_FRAMES if mode in ["fx", "tp"] else FRAMES
 	root.size = Vector2i(W * 2, H * 2)
 	var env := WorldEnvironment.new()
@@ -32,12 +36,12 @@ func _initialize() -> void:
 	sun.rotation_degrees = Vector3(-50, 30, 0)
 	root.add_child(sun)
 	_scenery()
-	var sheet := Image.create(W * frames.size(), H * GUNS.size(), false, Image.FORMAT_RGB8)
+	var sheet := Image.create(W * frames.size(), H * _guns.size(), false, Image.FORMAT_RGB8)
 	var defs := {}
 	for d in AwWeaponPack.weapons({}, "", false):
 		defs[d.id] = d
-	for row in GUNS.size():
-		var id: StringName = GUNS[row]
+	for row in _guns.size():
+		var id: StringName = _guns[row]
 		var def: DotWeaponDef = defs[id]
 		var cam := Camera3D.new()
 		cam.fov = 80.0
@@ -57,6 +61,18 @@ func _initialize() -> void:
 		view.equip(art)
 		view.set_kick_params(def.params if after else {})
 		view.fire_interval = float(def.use_interval_ticks) / float(AwWeaponPack.TICK_RATE)
+		var fx: AwShotFx = null
+		if mode == "fx":
+			fx = _shot_fx(true)
+			# As the game's load cover does: the gun's first-person flash is built before the first shot.
+			var category: String = AwShotFx.CLASS_CATEGORY.get(AwWeaponSound.class_for(id, DotWeaponOutcome.KIND_SHOT), "rifle")
+			DotWeaponMuzzle.warm(fx, category, def, true)
+			# And, as its load gate does, the effects' shared materials are drawn once, so no shot compiles one.
+			var warmup := DotRenderWarmup.new()
+			warmup.add_items(AwShotFx.warm())
+			cam.add_child(warmup)
+			warmup.start()
+			await warmup.finished
 		for _i in 90:
 			view.advance(1.0 / 60.0)
 			await process_frame
@@ -67,9 +83,7 @@ func _initialize() -> void:
 		shot.recoil = Vector2(b.recoil_pitch, b.recoil_yaw)
 		shot.recoil_signed = true
 		view.on_used(shot)
-		var fx: AwShotFx = null
-		if mode == "fx":
-			fx = _shot_fx(true)
+		if fx != null:
 			fx.first_person_flash_scale = view.flash_scale()
 			fx.play_use(shot, view.muzzle_transform(), id)
 			if view.ejects():

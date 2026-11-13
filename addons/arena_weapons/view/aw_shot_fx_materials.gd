@@ -219,4 +219,45 @@ static func warm() -> Array:
 		_streak_mesh(), _quad_mesh(), _shell_mesh_unit(), _soft_disc(),
 		_tracer_mat(), _beam_mat(), _flash_mat(), _spark_mat(), _puff_mat(), _petal_mat(),
 		_hit_mat(), _mist_mat(), _mark_mat(), _brass_mat(), _hull_mat(),
-	]
+	] + _over_warm()
+
+
+## The pack flash art's shaders (dot-fx, Binbun), which a first-person flash draws with [method over_shader].
+const PACK_FLASH_SHADERS := [
+	"res://addons/dot_fx/art/binbun_muzzle/BinbunVFX/muzzle_flash/shader/base.gdshader",
+	"res://addons/dot_fx/art/binbun_muzzle/BinbunVFX/muzzle_flash/shader/glow.gdshader",
+]
+
+## Each pack flash shader with its depth test off, by the original (and each copy by itself).
+static var _over_shaders: Dictionary = {}
+
+
+## [param shader] drawn over whatever is in front of it, as the core quad is: a first-person flash sits at the
+## muzzle, and seen from the eye the gun's own receiver and the hands are in front of the muzzle, so a depth-tested
+## flash was hidden behind its gun on the revolver and the big guns (renders 2026-11-12). One copy per shader,
+## built under the load gate by [method warm]. Null for null; the shader itself when it names no render mode.
+static func over_shader(shader: Shader) -> Shader:
+	if shader == null:
+		return null
+	if _over_shaders.has(shader):
+		return _over_shaders[shader]
+	var own := shader
+	if shader.code.contains("render_mode "):
+		own = Shader.new()
+		own.code = shader.code.replace("render_mode ", "render_mode depth_test_disabled, ")
+	_over_shaders[shader] = own
+	_over_shaders[own] = own
+	return own
+
+
+## One material per pack flash shader, drawn over the gun, for the load gate to draw once. Empty without dot-fx.
+static func _over_warm() -> Array:
+	var out := []
+	for path: String in PACK_FLASH_SHADERS:
+		if not ResourceLoader.exists(path):
+			continue
+		var mat := ShaderMaterial.new()
+		mat.shader = over_shader(load(path) as Shader)
+		mat.set_shader_parameter("proximity_fade", false)
+		out.append(mat)
+	return out

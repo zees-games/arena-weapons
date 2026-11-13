@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 401
+const CHECKS := 405
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -1026,6 +1026,41 @@ func _shot_fx_limits(holder: Node3D) -> void:
 	_check("a report beyond cl_shotfx_voice_distance makes no voice", int(deaf.describe()["voices"]) == 0)
 	_shot_fx_sky(holder)
 	_shot_fx_rounds(holder)
+	_shot_fx_unfade(holder)
+
+
+## A first-person pack flash draws without the art's proximity fade (it hid the flash against the gun's own barrel),
+## keeps that when another copy of the art sets it again, sizes a revolver's above a rifle's, and allocates nothing more per shot.
+func _shot_fx_unfade(holder: Node3D) -> void:
+	var was := DotMuzzleFlash.force_available
+	DotMuzzleFlash.force_available = true
+	var fx := AwShotFx.new()
+	fx.first_person = true
+	fx.sounds = false
+	holder.add_child(fx)
+	var warmed := AwShotFx.warm().size()
+	var shaders := AwShotFx._over_shaders.size()
+	var muzzle := Transform3D(Basis(), Vector3(0.0, 1.0, -0.5))
+	fx._flash(muzzle, 1.0, AwWeaponSound.MAGNUM, &"revolver", true)
+	var flash: Node3D = null
+	for one: Variant in fx._pack_flashes.values():
+		flash = one
+	var originals: Array = fx._unfaded.keys().filter(func(m: ShaderMaterial) -> bool: return fx._unfaded[m] != m)
+	var faded_elsewhere := originals.any(func(m: ShaderMaterial) -> bool: return bool(m.get_shader_parameter("proximity_fade")))
+	_check("a first-person pack flash draws over its gun, without the proximity fade dot-fx sets on the shared art (%d materials)" % originals.size(),
+		flash != null and not originals.is_empty() and faded_elsewhere and AwShotFx.is_unfaded(flash))
+	var copies := fx._unfaded.size()
+	var nodes := flash.find_children("*", "", true, false).size() if flash != null else -1
+	for _i in 4:
+		fx._flash(muzzle, 1.0, AwWeaponSound.MAGNUM, &"revolver", true)
+	_check("a later first-person shot copies no material and builds no node",
+		fx._unfaded.size() == copies and flash != null and flash.find_children("*", "", true, false).size() == nodes)
+	_check("the load gate's warm list builds the over-the-gun flash shaders, so no shot compiles one (%d shaders, %d warmed)" % [shaders, warmed],
+		shaders >= 4 and AwShotFx._over_shaders.size() == shaders)
+	_check("a revolver's first-person pack flash is drawn larger than its category's (%.2f)" % (flash.scale.x if flash != null else 0.0),
+		flash != null and flash.scale.x > 1.2)
+	fx.queue_free()
+	DotMuzzleFlash.force_available = was
 
 
 ## A shot on the sky draws nothing where it lands, a shot on a wall a mark: sky by group or by hull_kind meta.
