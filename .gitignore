@@ -44,3 +44,5 @@ art-src/reference/
 # Opt-in 2K Poly Haven weapon glbs (tools/bake_polyhaven.py output) and the textures Godot extracts from them.
 /addons/arena_weapons/assets/models/*_2k.glb*
 /addons/arena_weapons/assets/models/*_2k.jpg*
+# stick_grenade.glb is the 1K bake but its images keep Poly Haven's _2k names; its textures ship.
+!/addons/arena_weapons/assets/models/stick_grenade_stick_grenade_*_2k.jpg*
