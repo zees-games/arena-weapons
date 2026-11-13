@@ -243,8 +243,11 @@ func _launcher(eject: int, count: int) -> void:
 
 
 func _tube(count: int, start_share: float) -> void:
-	var per := (1.0 - start_share) / float(count) if start_share > 0.0 else 0.6 / float(count)
-	_add(&"roll", start_share if start_share > 0.0 else 0.14, &"roll", &"under", Vector3(0.0, -0.04, 0.02))
+	if start_share > 0.0:
+		_tube_timed(count, start_share)
+		return
+	var per := 0.6 / float(count)
+	_add(&"roll", 0.14, &"roll", &"under", Vector3(0.0, -0.04, 0.02))
 	for i in count:
 		var share := per * (0.55 if empty and i == count - 1 else 1.0)
 		_add(StringName("fetch_%d" % i), share * 0.5, &"roll", &"pouch" if i == 0 else &"near")
@@ -255,6 +258,35 @@ func _tube(count: int, start_share: float) -> void:
 		_add(&"rest", per * 0.1, &"rest", &"fore")
 	else:
 		_add(&"rest", 0.001, &"rest", &"fore")
+	_tube_props(count)
+
+
+## A tube reload timed by the arsenal ([param start_share] is where its first round lands): the rounds land in step
+## with it, and the gun comes home over a tail inside the reload, since the reload ending ends the motion.
+func _tube_timed(count: int, start_share: float) -> void:
+	start_share = clampf(start_share, 0.0, 1.0)
+	var round_share := (1.0 - start_share) / float(count - 1) if count > 1 else 0.0
+	# Long enough to roll the gun back over a few frames, short of a round time.
+	var tail := 0.35 if count == 1 else clampf(0.6 * round_share, 0.06, 0.3)
+	var squeeze := 1.0 - tail
+	var first := start_share * squeeze
+	_add(&"roll", first * 0.4, &"roll", &"under", Vector3(0.0, -0.04, 0.02))
+	_add(&"fetch_0", first * 0.3, &"roll", &"pouch")
+	_add(&"push_0", first * 0.3, &"roll", &"under", Vector3(0.0, -0.01, -0.03))
+	for i in range(1, count):
+		_add(StringName("fetch_%d" % i), round_share * squeeze * 0.5, &"roll", &"near")
+		_add(StringName("push_%d" % i), round_share * squeeze * 0.5, &"roll", &"under", Vector3(0.0, -0.01, -0.03))
+	if empty:
+		_add(&"pump_back", tail * 0.3, &"cant", &"fore", Vector3(0.0, 0.0, 0.10))
+		_add(&"pump", tail * 0.25, &"cant", &"fore")
+		_add(&"rest", tail * 0.45, &"rest", &"fore")
+	else:
+		_add(&"return", tail * 0.6, &"settle", &"fore")
+		_add(&"rest", tail * 0.4, &"rest", &"fore")
+	_tube_props(count)
+
+
+func _tube_props(count: int) -> void:
 	for i in count:
 		props.append({"part": StringName(str(_spec.get("round", "shell"))), "segments": [[_mid(StringName("fetch_%d" % i)), _t1(StringName("push_%d" % i)), "hand", Vector3.ZERO, 0]]})
 
