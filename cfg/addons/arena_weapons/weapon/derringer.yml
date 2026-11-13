@@ -27,7 +27,7 @@ reload_start_ticks: 22
 auto_reload: true
 weight: 0.5
 crosshair_scale: 0.0
-mounts: []
+mounts: ["side"]
 extra:
   tuning:
     damage: 62.0

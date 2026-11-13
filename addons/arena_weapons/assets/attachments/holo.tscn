@@ -1,0 +1,54 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8706i"]
+albedo_color = Color(0.11, 0.11, 0.12, 1)
+metallic = 0.7
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_boqn4"]
+size = Vector3(0.03, 0.01, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_vbatr"]
+size = Vector3(0.004, 0.034, 0.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_yreul"]
+size = Vector3(0.004, 0.034, 0.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_7mck6"]
+size = Vector3(0.038, 0.004, 0.05)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ht2b5"]
+transparency = 1
+albedo_color = Color(0.35, 0.55, 0.6, 0.18)
+metallic_specular = 1.0
+roughness = 0.05
+
+[sub_resource type="BoxMesh" id="BoxMesh_nq1p0"]
+size = Vector3(0.03, 0.03, 0.002)
+
+[node name="holo" type="Node3D" unique_id=1429866451]
+
+[node name="base" type="MeshInstance3D" parent="." unique_id=241230200]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.005, 0)
+material_override = SubResource("StandardMaterial3D_8706i")
+mesh = SubResource("BoxMesh_boqn4")
+
+[node name="frame_l" type="MeshInstance3D" parent="." unique_id=1030065555]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.017, 0.027, -0.006)
+material_override = SubResource("StandardMaterial3D_8706i")
+mesh = SubResource("BoxMesh_vbatr")
+
+[node name="frame_r" type="MeshInstance3D" parent="." unique_id=1458427150]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.017, 0.027, -0.006)
+material_override = SubResource("StandardMaterial3D_8706i")
+mesh = SubResource("BoxMesh_yreul")
+
+[node name="frame_top" type="MeshInstance3D" parent="." unique_id=1873267173]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.046, -0.006)
+material_override = SubResource("StandardMaterial3D_8706i")
+mesh = SubResource("BoxMesh_7mck6")
+
+[node name="holo_glass" type="MeshInstance3D" parent="." unique_id=83338319]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.027, -0.028)
+material_override = SubResource("StandardMaterial3D_ht2b5")
+mesh = SubResource("BoxMesh_nq1p0")

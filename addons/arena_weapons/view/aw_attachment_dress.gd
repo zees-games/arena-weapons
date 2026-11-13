@@ -25,6 +25,7 @@ static func apply(weapon: Node3D, fitting: DotWeaponFitting, forward: Vector3, b
 	var out := {"parts": [], "hidden": [], "reach": 0.0, "scoped": false, "zoom": 0.0, "line": {}}
 	if weapon == null or fitting == null:
 		return out
+	AwAttachmentSockets.ensure(weapon)
 	var f := forward.normalized()
 	for mount in fitting.mounts():
 		var entry := AwAttachmentArt.of(fitting.attachment_on(mount))
@@ -73,6 +74,7 @@ static func muzzle_reach(art: AwWeaponVisual, fitting: DotWeaponFitting) -> floa
 	var reach := 0.0
 	var measured := false
 	var weapon := AwModelCache.instantiate(art.model_path)
+	AwAttachmentSockets.ensure(weapon)
 	var socket := weapon.find_child(String(AwAttachmentArt.socket_name(DotWeaponAttachment.MOUNT_MUZZLE)), true, false) as Node3D if weapon != null else null
 	var part := AwModelCache.instantiate(path) if socket != null else null
 	if part != null:

@@ -53,3 +53,7 @@ The first equip of a gun in play no longer measures its sight or reads its textu
 ## Download groups (API level 14)
 
 `groups.json` at the pack root puts each weapon's model, its textures and their imported outputs in one group, `weapon-<id>` (`AwWeaponGroups.group_of`). The knife and pistol, the default loadout, and the shared props stay ungrouped, so a client that asks for no groups still draws them. A web shell sets `DotCloudAddonSet.groups` to `AwWeaponGroups.groups_for(ids)` of the weapons a game's loadout can hand out; with no groups set dot-cloud's default `"*"` fetches every weapon. A deferred group cannot be topped up at runtime (the overlay is built once), so a game must list every weapon it can give a player.
+
+## Attachments (API level 19)
+
+Ten attachments, each its own item (`att_<id>`) with its own model (own work, `tools/make_attachments.gd`): red dot, holographic, 3x prism, 6x scope, suppressor, compensator, vertical and angled grips, laser, extended magazine. Each gun's `def.mounts` lists the mounts its model has (`AwAttachmentSockets`, measured by `tools/measure_sockets.gd`); a gun with a built-in sight has no optic mount, a launcher none. The host builds `AwSpawnProvider.attachment_defs()` once (it also draws them), checks a requested fitting with `validate_fitting` on the server, applies it to the gun's def, and replicates it with `encode`/`decode`; `AwSpawnProvider.sound_class_for(def, class)` gives a suppressed gun its quiet report. A fitted optic sets the aimed zoom and sight line in the view model (`AwViewModel.set_fitting`).

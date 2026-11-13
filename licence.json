@@ -54,5 +54,12 @@
         "author": "Ben Jaszczak, Brian Nelson, Kevin Heras, Matthew Nanney (freefirearmsfx.com)",
         "url": "https://opengameart.org/content/the-free-firearm-sound-library",
         "title": "The Free Firearm Sound Library: per-gun reports, cut by tools/make_fire_sounds.py (see CREDITS.md)"
+    },
+    {
+        "paths": ["addons/arena_weapons/assets/attachments/", "tools/make_attachments.gd"],
+        "licence": "CC0-1.0",
+        "author": "TMC",
+        "url": "https://github.com/zees-games/fc-weapons",
+        "title": "Attachment models (own work, primitives built by tools/make_attachments.gd; see CREDITS.md)"
     }
 ]

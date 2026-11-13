@@ -10,6 +10,7 @@
 | `rifle` (replaces Styloo's `ak47`, which is no longer drawn: subdivided once, decimated to 20k triangles, split into body, furniture, magazine and bolt nodes, origin at the grip by `tools/build_own_ak.py`; textured by `tools/tex_pipeline.sh`) | Lamoot | CC0 1.0 (OpenGameArt) | https://opengameart.org/content/high-poly-ak-47 (`highpoly_ak47.blend`, posted 2010-11-14; the page lists CC0 as the only licence) |
 | `frag` (stick grenade) | singaii | CC0 1.0 (Poly Haven) | https://polyhaven.com/a/stick_grenade (maps 1K, mesh decimated, by `tools/bake_polyhaven_small.py`) |
 | `knife` (fish knife; replaces Vinrax's, which stays in the pack unused) | Mateusz Sadek | CC0 1.0 (Poly Haven) | https://polyhaven.com/a/fish_knife (same bake) |
+| `assets/attachments/` (red dot, holographic, 3x prism, 6x scope, suppressor, compensator, vertical and angled grips, laser, extended magazine; primitives built by `tools/make_attachments.gd`) | TMC (own work) | CC0 1.0 | https://github.com/zees-games/fc-weapons |
 
 The page's Asset license statement is CC0 1.0 and says no generative AI was used; the zip carries a Read Me about materials and no licence file, so the page is the record. CC0 asks for no credit; it is given anyway. The paid zip with the blend files and paint layers is not used.
 

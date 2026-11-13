@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_byvjs"]
+albedo_color = Color(0.16, 0.15, 0.13, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="BoxMesh_778s1"]
+size = Vector3(0.03, 0.05, 0.034)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8706i"]
+albedo_color = Color(0.11, 0.11, 0.12, 1)
+metallic = 0.7
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_3rev5"]
+size = Vector3(0.034, 0.006, 0.04)
+
+[node name="extended_mag" type="Node3D" unique_id=788126788]
+
+[node name="extension" type="MeshInstance3D" parent="." unique_id=1894488389]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.025, 0)
+material_override = SubResource("StandardMaterial3D_byvjs")
+mesh = SubResource("BoxMesh_778s1")
+
+[node name="plate" type="MeshInstance3D" parent="." unique_id=618518369]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.053, 0)
+material_override = SubResource("StandardMaterial3D_8706i")
+mesh = SubResource("BoxMesh_3rev5")

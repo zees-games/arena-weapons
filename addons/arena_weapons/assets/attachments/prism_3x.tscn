@@ -1,0 +1,38 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8706i"]
+albedo_color = Color(0.11, 0.11, 0.12, 1)
+metallic = 0.7
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_k4u8h"]
+size = Vector3(0.03, 0.01, 0.06)
+
+[sub_resource type="BoxMesh" id="BoxMesh_p8t7x"]
+size = Vector3(0.04, 0.04, 0.07)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ht2b5"]
+transparency = 1
+albedo_color = Color(0.35, 0.55, 0.6, 0.18)
+metallic_specular = 1.0
+roughness = 0.05
+
+[sub_resource type="BoxMesh" id="BoxMesh_lhxn3"]
+size = Vector3(0.03, 0.026, 0.074)
+
+[node name="prism_3x" type="Node3D" unique_id=445722589]
+
+[node name="base" type="MeshInstance3D" parent="." unique_id=1298836370]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.005, 0)
+material_override = SubResource("StandardMaterial3D_8706i")
+mesh = SubResource("BoxMesh_k4u8h")
+
+[node name="body" type="MeshInstance3D" parent="." unique_id=690207707]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.032, -0.004)
+material_override = SubResource("StandardMaterial3D_8706i")
+mesh = SubResource("BoxMesh_p8t7x")
+
+[node name="prism_3x_glass" type="MeshInstance3D" parent="." unique_id=465607101]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.034, -0.004)
+material_override = SubResource("StandardMaterial3D_ht2b5")
+mesh = SubResource("BoxMesh_lhxn3")

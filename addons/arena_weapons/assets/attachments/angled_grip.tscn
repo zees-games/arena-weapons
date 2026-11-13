@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8706i"]
+albedo_color = Color(0.11, 0.11, 0.12, 1)
+metallic = 0.7
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_any3h"]
+size = Vector3(0.022, 0.012, 0.07)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_byvjs"]
+albedo_color = Color(0.16, 0.15, 0.13, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="BoxMesh_n45ys"]
+size = Vector3(0.02, 0.03, 0.064)
+
+[node name="angled_grip" type="Node3D" unique_id=1823663283]
+
+[node name="clamp" type="MeshInstance3D" parent="." unique_id=1646035054]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.006, 0)
+material_override = SubResource("StandardMaterial3D_8706i")
+mesh = SubResource("BoxMesh_any3h")
+
+[node name="ramp" type="MeshInstance3D" parent="." unique_id=1862520262]
+transform = Transform3D(1, 0, 0, 0, 0.88294756, 0.46947157, 0, -0.46947157, 0.88294756, 0, -0.022, 0.004)
+material_override = SubResource("StandardMaterial3D_byvjs")
+mesh = SubResource("BoxMesh_n45ys")

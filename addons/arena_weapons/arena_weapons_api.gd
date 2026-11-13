@@ -36,5 +36,7 @@ extends RefCounted
 # 18: AwShotLayers.fire(class, at, listener, weapon_id) plays the gun's own layered report (has_gun_sound, gun_of,
 #     plays_gun); AwWorldModel.eject_transform() is where a held gun throws its case; gun_shot(gun) and gun_shot_id(id)
 #     let a host's own shot player register and fire those reports.
-const LEVEL := 18
+# 19: attachments. AwAttachmentPack (catalogue, art_of, register_art, sound_class_for), AwAttachmentSockets (mounts_of, ensure);
+#     each gun's def.mounts lists its mounts; AwSpawnProvider.attachment_defs and sound_class_for.
+const LEVEL := 19
 const OLDEST := 1

@@ -53,6 +53,19 @@ static func spawn_entries() -> Array[Dictionary]:
 	return out
 
 
+## The attachments ([AwAttachmentPack]); also starts drawing them. A server validates fittings with this catalogue.
+static func attachment_defs() -> DotWeaponAttachments:
+	AwAttachmentPack.register_art()
+	return AwAttachmentPack.catalogue()
+
+
+## The sound class a gun fitted as [param def] fires with, from its plain class [param base] (a suppressor quiets it).
+static func sound_class_for(def: DotWeaponDef, base: StringName) -> StringName:
+	return AwAttachmentPack.sound_class_for(def, base)
+
+
 ## Who made the models: rows {id, model, author, licence, url}.
 static func credits() -> Array[Dictionary]:
-	return AwWeaponArt.CREDITS
+	var out: Array[Dictionary] = AwWeaponArt.CREDITS.duplicate()
+	out.append_array(AwAttachmentPack.CREDITS)
+	return out

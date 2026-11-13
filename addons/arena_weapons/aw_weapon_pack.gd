@@ -115,6 +115,8 @@ static func weapons(types: Dictionary = {}, prefix: String = "", profiled: bool 
 		var wall := AwWeaponArt.wall_row(id)
 		if not wall.is_empty():
 			def.params[&"ads"] = wall
+		var art: Dictionary = AwWeaponArt.WEAPONS.get(id, {})
+		def.mounts.assign(AwAttachmentSockets.mounts_of(str(art.get("model", ""))))
 		out.append(def)
 
 	if profiled:
