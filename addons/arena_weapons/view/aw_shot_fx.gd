@@ -320,7 +320,9 @@ func shell_count() -> int:
 ## hand (a velocity, gravity, a tumble): a rigid body per case is a body per shot on a
 ## machine that, on the web, has no threads to spend on it. The pool is [member max_shells]
 ## nodes made on first use and reused oldest first, so a held minigun cannot grow the scene.
-func play_eject(port: Transform3D, id: StringName, speed_scale: float = 1.0) -> void:
+## [param size_scale] is how many times life size the gun is drawn ([method AwViewModel.eject_scale]): the case, its
+## speed and its gravity scale with it, so a first-person case is not a speck beside a gun drawn twice life size.
+func play_eject(port: Transform3D, id: StringName, speed_scale: float = 1.0, size_scale: float = 1.0) -> void:
 	if not visuals or not eject_shells or max_shells <= 0 or not is_inside_tree():
 		return
 
@@ -332,7 +334,8 @@ func play_eject(port: Transform3D, id: StringName, speed_scale: float = 1.0) -> 
 	_schedule_casing(port.origin, float(profile.get("delay", 0.0)))
 
 	var hull: bool = profile.get("hull", false)
-	var length: float = float(profile["case"]) * shell_scale
+	var drawn := clampf(size_scale, 0.25, 4.0)
+	var length: float = float(profile["case"]) * shell_scale * drawn
 	var width: float = length * (0.42 if hull else 0.3)
 
 	var node: MeshInstance3D = null
@@ -353,11 +356,12 @@ func play_eject(port: Transform3D, id: StringName, speed_scale: float = 1.0) -> 
 	var out := port.basis.x.normalized()
 	var up := port.basis.y.normalized()
 	var back := port.basis.z.normalized()
-	var speed := randf_range(1.0, 1.5) * speed_scale
+	var speed := randf_range(1.0, 1.5) * speed_scale * drawn
 	set_process(true)
 	_shells.append({
 		"node": node,
 		"pos": port.origin,
+		"gravity": 9.8 * drawn,
 		"vel": (out * 1.0 + up * randf_range(0.5, 0.9) + back * randf_range(0.0, 0.35)) * speed,
 		"spin": Vector3(randf_range(-18.0, 18.0), randf_range(-18.0, 18.0), randf_range(-18.0, 18.0)),
 		"age": 0.0,
@@ -383,7 +387,7 @@ func _advance_shells(delta: float) -> void:
 			_shell_pool.append(node)
 			continue
 		var vel: Vector3 = shell["vel"]
-		vel.y -= 9.8 * delta
+		vel.y -= float(shell.get("gravity", 9.8)) * delta
 		shell["vel"] = vel
 		shell["pos"] = (shell["pos"] as Vector3) + vel * delta
 		var spun: Basis = (shell["basis"] as Basis) * Basis.from_euler((shell["spin"] as Vector3) * delta)

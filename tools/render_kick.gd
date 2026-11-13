@@ -87,7 +87,7 @@ func _initialize() -> void:
 			fx.first_person_flash_scale = view.flash_scale()
 			fx.play_use(shot, view.muzzle_transform(), id)
 			if view.ejects():
-				fx.play_eject(view.eject_transform(), id, view.eject_speed())
+				fx.play_eject(view.eject_transform(), id, view.eject_speed(), view.eject_scale())
 		var frame := 0
 		var peak := 0.0
 		for col in frames.size():

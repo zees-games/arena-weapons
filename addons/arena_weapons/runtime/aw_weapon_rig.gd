@@ -754,7 +754,8 @@ func _record_use(outcome: DotWeaponOutcome) -> void:
 			_view.note_fired()
 			_fx.play_use(outcome, _view.muzzle_transform(), weapon_id)
 			if outcome.kind == DotWeaponOutcome.KIND_SHOT and _view.has_method(&"ejects") and _view.ejects():
-				_fx.play_eject(_view.eject_transform(), weapon_id, _view.eject_speed() if _view.has_method(&"eject_speed") else 1.0)
+				_fx.play_eject(_view.eject_transform(), weapon_id, _view.eject_speed() if _view.has_method(&"eject_speed") else 1.0,
+						_view.eject_scale() if _view.has_method(&"eject_scale") else 1.0)
 
 		if _world != null:
 			# The world model draws the shot itself only when nothing here did.

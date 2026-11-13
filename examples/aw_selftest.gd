@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 405
+const CHECKS := 406
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -1027,6 +1027,26 @@ func _shot_fx_limits(holder: Node3D) -> void:
 	_shot_fx_sky(holder)
 	_shot_fx_rounds(holder)
 	_shot_fx_unfade(holder)
+	_shot_fx_drawn_case(holder)
+
+
+## A case thrown from a gun drawn twice life size (first person) is twice as long and thrown twice as fast, under twice
+## the gravity, so it keeps its size beside the gun and the same arc.
+func _shot_fx_drawn_case(holder: Node3D) -> void:
+	var fx := AwShotFx.new()
+	fx.first_person = true
+	fx.sounds = false
+	holder.add_child(fx)
+	fx.play_eject(Transform3D.IDENTITY, &"rifle", 1.0, 1.0)
+	fx.play_eject(Transform3D.IDENTITY, &"rifle", 1.0, 2.0)
+	var ok := fx.shell_count() == 2
+	if ok:
+		var life: Dictionary = fx._shells[0]
+		var drawn: Dictionary = fx._shells[1]
+		var ratio: float = (drawn["node"] as Node3D).scale.y / (life["node"] as Node3D).scale.y
+		ok = is_equal_approx(ratio, 2.0) and is_equal_approx(float(drawn["gravity"]), 2.0 * float(life["gravity"]))
+	_check("a case from a gun drawn twice life size is drawn and thrown at twice the scale", ok)
+	fx.free()
 
 
 ## A first-person pack flash draws without the art's proximity fade (it hid the flash against the gun's own barrel),

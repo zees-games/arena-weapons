@@ -220,6 +220,15 @@ func eject_speed() -> float:
 	return _art.eject_speed if _art != null else 1.0
 
 
+## How many times life size the weapon in hand is drawn (the holder's view_scale and the view lens), so a case thrown
+## from it is drawn to the same scale; 1 with no weapon.
+func eject_scale() -> float:
+	if _weapon == null or not _weapon.is_inside_tree():
+		return 1.0
+	var s := _weapon.global_transform.basis.get_scale()
+	return (absf(s.x) + absf(s.y) + absf(s.z)) / 3.0
+
+
 ## The moving belt of a belt-fed gun, or null.
 func belt_feed() -> Node3D:
 	return _belt
