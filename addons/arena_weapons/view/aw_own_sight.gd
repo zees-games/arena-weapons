@@ -13,6 +13,8 @@ const SEES_PAST := 0.15
 const APERTURE_DEPTH := 0.15
 const SWEEP_DEPTH := 0.35
 const STEPS := 700
+## Height rows the sweep's segments are binned into.
+const ROWS := 64
 
 static var _cache: Dictionary = {}
 
@@ -62,9 +64,10 @@ static func _profile(weapon: Node, space: Node3D, f: Vector3) -> Dictionary:
 	var centre := (s_min + s_max) * 0.5
 	var segments := _slice(triangles, f, side, centre)
 	var dy := SWEEP_DEPTH * length / STEPS
+	var rows := _rows(segments, y_max, SWEEP_DEPTH * length)
 	var hits := PackedFloat32Array()
 	for i in STEPS:
-		hits.append(_first_hit(segments, y_max - dy * (i + 0.5)))
+		hits.append(_first_hit(segments, rows, y_max - dy * (i + 0.5)))
 	var top := 0
 	while top < STEPS and hits[top] == INF:
 		top += 1
@@ -126,10 +129,31 @@ static func _slice(triangles: Array[Dictionary], f: Vector3, side: Vector3, s: f
 	return out
 
 
-## The nearest-to-the-back point the slice has at height [param y], or INF.
-static func _first_hit(segments: PackedVector4Array, y: float) -> float:
+## [param segments] binned by the height rows (a sweep of [param depth] under [param y_max], in [constant ROWS]) their heights touch,
+## a row either side wider, in the segments' own order: a height is only tried on its own row's segments, the same test on every
+## segment that can hold it, so the answer is the same. `{rows, y_max, rows_per_m}`.
+static func _rows(segments: PackedVector4Array, y_max: float, depth: float) -> Dictionary:
+	var per_m := ROWS / maxf(depth, 0.000001)
+	var rows: Array[PackedInt32Array] = []
+	rows.resize(ROWS)
+	for i in segments.size():
+		var seg := segments[i]
+		var hi := clampi(floori((y_max - minf(seg.y, seg.w)) * per_m) + 1, 0, ROWS - 1)
+		var lo := clampi(floori((y_max - maxf(seg.y, seg.w)) * per_m) - 1, 0, ROWS - 1)
+		if (y_max - maxf(seg.y, seg.w)) * per_m >= ROWS + 1 or (y_max - minf(seg.y, seg.w)) * per_m < -1.0:
+			continue
+		for r in range(lo, hi + 1):
+			rows[r].append(i)
+	return {"rows": rows, "y_max": y_max, "per_m": per_m}
+
+
+## The nearest-to-the-back point the slice has at height [param y], or INF. [param index] is [method _rows].
+static func _first_hit(segments: PackedVector4Array, index: Dictionary, y: float) -> float:
+	var r := clampi(floori((float(index.y_max) - y) * float(index.per_m)), 0, ROWS - 1)
+	var rows: Array[PackedInt32Array] = index.rows
 	var best := INF
-	for seg in segments:
+	for i: int in rows[r]:
+		var seg := segments[i]
 		if (seg.y - y) * (seg.w - y) > 0.0 or seg.y == seg.w:
 			continue
 		best = minf(best, lerpf(seg.x, seg.z, (y - seg.y) / (seg.w - seg.y)))
