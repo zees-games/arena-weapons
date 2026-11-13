@@ -128,6 +128,13 @@ var _support_local := Vector3.INF
 var _support_sent: bool = false
 var _sprint_was_on: bool = false
 
+## The person's gun-arm carry (dot-player-char API 22's `DotHumanoidFigure.carry`, duck-typed), the weapon id its class
+## was last set for, and whether the character is mid-switch. While there is one it draws the kick, the reload roll
+## and the sprint, so this model adds none of its own.
+var _carry: Object = null
+var _carry_for: StringName = &"-"
+var _switching: bool = false
+
 ## The reload a watcher sees: whether one is on, its blend in and out, time into it and one cycle's length.
 var _reloading: bool = false
 var _reload_blend: float = 0.0
@@ -308,7 +315,11 @@ func on_fired(
 		AwWeaponNet.KIND_THROW:
 			throw()
 		_:
-			_kick = minf(_kick + recoil.x * 0.008 * RECOIL_SHARE, 0.08)
+			var carry := _person_carry()
+			if carry != null:
+				carry.call(&"fired")
+			else:
+				_kick = minf(_kick + recoil.x * 0.008 * RECOIL_SHARE, 0.08)
 
 	if with_effects and effects and is_inside_tree() and not _carrier_draws_its_own():
 		if _charge_fx != null:
@@ -390,8 +401,17 @@ func muzzle_direction() -> Vector3:
 
 ## Whether the character is mid-switch. Hides the model while they are, if asked to.
 func on_switching(switching: bool) -> void:
+	_switching = switching
+	_tell_carry()
 	if hide_while_switching:
 		visible = not switching
+
+
+## Whether the character is aiming down the sights: the person's carry shoulders the gun while it is on.
+func on_aiming(aiming: bool) -> void:
+	var carry := _person_carry()
+	if carry != null:
+		carry.set(&"raised", aiming)
 
 
 ## Whether the character is reloading (the replicated flag): plays the watcher's reload while it is on.
@@ -401,6 +421,7 @@ func on_reloading(reloading: bool) -> void:
 		_reload_period = _cycle_seconds()
 		_detach_magazine()
 	_reloading = reloading
+	_tell_carry()
 
 
 ## How far into the watcher's reload, 0 to 1 per cycle; -1 when none is showing.
@@ -474,7 +495,7 @@ func advance(delta: float) -> void:
 			deg_to_rad(degrees.x), deg_to_rad(degrees.y), deg_to_rad(degrees.z)
 		))
 	_show_in_hand(not (_action_hides and _action >= THROW_RELEASE and _action < THROW_BACK))
-	if _reload_blend > 0.0:
+	if _reload_blend > 0.0 and _carry == null:
 		var share := smoothstep(0.0, 1.0, _reload_blend)
 		moved += RELOAD_DIP * share
 		turn = turn * Basis.from_euler(RELOAD_TURN * share * (PI / 180.0))
@@ -607,7 +628,9 @@ func _follow_person() -> void:
 	var person := _person()
 	if person == null:
 		_sprint = 0.0
+		_carry = null
 		return
+	_tell_carry()
 	_sprint = clampf(float(person.get(&"sprint_blend")), 0.0, 1.0) if person.get(&"sprint_blend") != null else 0.0
 	if not person.has_method(&"set_support_grip"):
 		return
@@ -630,6 +653,59 @@ func _support_world() -> Vector3:
 	var at: Vector3 = AwWeaponPose.sample_keys(RELOAD_SUPPORT_KEYS, reload_fraction())[0]
 	var path := fore.lerp(well, clampf(at.x, 0.0, 1.0)).lerp(belt, clampf(at.y, 0.0, 1.0))
 	return fore.lerp(path, smoothstep(0.0, 1.0, _reload_blend))
+
+
+## The person's carry, if it has one: an object answering `fired` and `set_class` on its `carry` property.
+func _person_carry() -> Object:
+	var person := _person()
+	if person == null:
+		return null
+	var carry: Variant = person.get(&"carry")
+	if carry is Object and (carry as Object).has_method(&"fired") and (carry as Object).has_method(&"set_class"):
+		return carry
+	return null
+
+
+## Gives the person's carry the class of the gun in hand when either changes, and the reload and switch flags.
+func _tell_carry() -> void:
+	var carry := _person_carry()
+	if carry == null:
+		_carry = null
+		return
+	if carry != _carry or _carry_for != _id:
+		_carry = carry
+		_carry_for = _id
+		carry.call(&"set_class", carry_class(_art))
+	carry.set(&"reloading", _reloading)
+	carry.set(&"switching", _switching)
+
+
+## The carry class (dot-player-char's `DotHumanoidCarry.CLASSES`) [param art] is held as: from its pose, and for a
+## long gun from its sound class (the pack's own, else the one a host gave [AwWeaponSound] for a prefixed or another
+## pack's id); null for a knife or a grenade, which the clip's arms hold.
+static func carry_class(art: AwWeaponVisual) -> Variant:
+	if art == null:
+		return null
+	match art.pose:
+		&"pistol":
+			return &"pistol"
+		&"heavy":
+			return &"heavy"
+		&"melee", &"thrown":
+			return null
+	var sound: StringName = AwWeaponPack.SOUND_CLASSES.get(art.id, &"")
+	if sound == &"":
+		sound = AwWeaponSound.class_for(art.id, &"")
+	match sound:
+		&"shotgun", &"autoshot":
+			return &"shotgun"
+		&"sniper", &"marksman", &"rail":
+			return &"sniper"
+		&"smg", &"mpistol":
+			return &"smg"
+		&"minigun", &"launcher", &"grenade":
+			return &"heavy"
+	return &"rifle"
 
 
 func _send_support(_on: bool) -> void:

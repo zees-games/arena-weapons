@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 390
+const CHECKS := 399
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -43,6 +43,7 @@ func _ready() -> void:
 	await _one_arm_set()
 	_charge_fizzle()
 	_idle_sleep()
+	_person_carry()
 	_would_idle()
 	await _finish()
 
@@ -1283,6 +1284,101 @@ func _idle_sleep() -> void:
 	held._process(0.1)
 	_check("and spends it when it shows", held._hidden_for < 0.0)
 	holder.free()
+	_end()
+
+
+## A person's gun-arm carry, as dot-player-char API 22 draws it: what a held gun told it.
+class FakeCarry extends RefCounted:
+	var kinds: Array = []
+	var fires := 0
+	var raised := false
+	var reloading := false
+	var switching := false
+
+	func set_class(kind: Variant) -> void:
+		kinds.append(kind)
+
+	func fired() -> void:
+		fires += 1
+
+
+## A person the held gun finds by its swing and set_hold, carrying [member carry].
+class FakePerson extends Node3D:
+	var carry: Variant = FakeCarry.new()
+
+	func swing(_which: StringName) -> void:
+		pass
+
+	func set_hold(_kind: int) -> void:
+		pass
+
+
+## [param id]'s art as a pack's stand-in builds it: the base gun of its slot, dressed from the pack's own rows.
+func _dressed(id: StringName) -> AwWeaponVisual:
+	var art: AwWeaponVisual
+	match id:
+		&"knife":
+			art = AwWeaponArtTable.knife()
+		&"pistol":
+			art = AwWeaponArtTable.pistol()
+		&"minigun", &"launcher":
+			art = AwWeaponArtTable.launcher()
+		_:
+			art = AwWeaponArtTable.rifle()
+	art.id = id
+	AwArtDress.apply(art, AwWeaponArt.weapon_rows("").get(id, {}))
+	return art
+
+
+## A held gun on a person with a carry hands it the class, the shot, the reload and the switch, and draws no kick
+## or reload dip of its own; on a person without one it still does.
+func _person_carry() -> void:
+	_begin("a held gun hands its kick and reload to the person's carry")
+	var person := FakePerson.new()
+	add_child(person)
+	var held := AwWorldModel.new()
+	person.add_child(held)
+	var carry: FakeCarry = person.carry
+	held.equip(_dressed(&"shotgun"))
+	held.advance(0.02)
+	_check("the shotgun sets the shotgun carry (%s)" % [carry.kinds], carry.kinds == [&"shotgun"])
+	held.advance(0.02)
+	_check("once, not every frame", carry.kinds.size() == 1)
+	held.on_fired(Vector2(1.0, 0.1))
+	_check("a shot is the carry's, with no kick of the model's own (%.3f)" % held._kick, carry.fires == 1 and held._kick == 0.0)
+	held.on_reloading(true)
+	held.advance(0.4)
+	_check("a reload is the carry's, with no dip of the model's own", carry.reloading
+		and held._holder.position.is_equal_approx(held._rest().origin))
+	held.on_reloading(false)
+	held.on_switching(true)
+	held.on_aiming(true)
+	_check("the switch and the aim reach it", carry.switching and carry.raised and not carry.reloading)
+	held.on_switching(false)
+	held.equip(_dressed(&"knife"))
+	held.advance(0.02)
+	_check("a knife clears the class (%s)" % [carry.kinds], carry.kinds.size() == 2 and carry.kinds[1] == null)
+	var classes := {}
+	AwWeaponSound.set_class(&"aw_drum_shotgun", &"autoshot")
+	for id: StringName in [&"pistol", &"sniper", &"marksman", &"smg", &"lmg", &"minigun", &"launcher", &"rifle", &"aw_drum_shotgun"]:
+		classes[id] = AwWorldModel.carry_class(_dressed(id))
+	AwWeaponSound.set_class(&"aw_drum_shotgun", &"")
+	_check("guns read as the carry's classes, a prefixed id by its host's sound class (%s)" % [classes], classes == {
+		&"pistol": &"pistol", &"sniper": &"sniper", &"marksman": &"sniper", &"smg": &"smg", &"lmg": &"rifle",
+		&"minigun": &"heavy", &"launcher": &"heavy", &"rifle": &"rifle", &"aw_drum_shotgun": &"shotgun"})
+	person.free()
+
+	var bare := Node3D.new()
+	add_child(bare)
+	var alone := AwWorldModel.new()
+	bare.add_child(alone)
+	alone.equip(_dressed(&"rifle"))
+	alone.on_fired(Vector2(1.0, 0.1))
+	_check("without a carry a shot still kicks the model (%.3f)" % alone._kick, alone._kick > 0.0)
+	alone.on_reloading(true)
+	alone.advance(0.4)
+	_check("and a reload still dips it", alone._holder.position.y < alone._rest().origin.y - 0.01)
+	bare.free()
 	_end()
 
 
