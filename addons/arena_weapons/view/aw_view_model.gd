@@ -54,6 +54,7 @@ var scope_arms_hide_override: float = -1.0
 
 ## Draws [param art]'s weapon, replacing whatever was in hand; rebuilt, not hidden, as every model in the tree is culled per player.
 func equip(art: AwWeaponVisual) -> DotResult:
+	_forget_mesh_walks()
 	var head := _equip_head(art)
 	if not head.ok or head.value_or(null) == null:
 		return head
@@ -140,6 +141,7 @@ func set_fitting(fitting: DotWeaponFitting) -> void:
 
 func _dress() -> void:
 	_dressed = Dress.apply(_weapon, _fitting, _art.model_forward, _dressed)
+	_forget_mesh_walks()
 	for part: Node3D in _dressed.parts:
 		_set_on_top(part)
 

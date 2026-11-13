@@ -36,7 +36,7 @@ func _drawn_gun_touches_world() -> bool:
 		return false
 	var box := AABB()
 	var first := true
-	for mesh in HandReach.meshes(_animated):
+	for mesh in _drawn_meshes(_animated):
 		if mesh.mesh == null or not mesh.is_visible_in_tree():
 			continue
 		var bounds := mesh.global_transform * mesh.get_aabb()
@@ -73,6 +73,40 @@ func _drawn_gun_touches_world() -> bool:
 	return false
 
 var _near_query: PhysicsShapeQueryParameters3D = null
+
+## Frames a walked mesh list is kept before the tree under it is walked again. Equipping clears it at once; a part
+## added mid-weapon (a fresh magazine) is picked up within this many frames, a freed one is dropped the frame it goes.
+const MESH_WALK_FRAMES := 30
+
+## Root instance id -> [frame walked, meshes]: the wall and near-clip probes walked the whole drawn tree twice a
+## frame, allocating an array per node (about 0.1 ms of the view model's 0.37 ms a frame).
+var _mesh_walks: Dictionary = {}
+
+
+## The meshes under [param root], walked again only every [constant MESH_WALK_FRAMES] frames or when one has been freed.
+func _drawn_meshes(root: Node) -> Array[MeshInstance3D]:
+	var key := root.get_instance_id()
+	var frame := Engine.get_process_frames()
+	var held: Array = _mesh_walks.get(key, [])
+	if not held.is_empty() and frame - int(held[0]) < MESH_WALK_FRAMES:
+		# Untyped loop: a freed mesh in a typed variable is an engine error before the validity check can run.
+		var whole := true
+		for mesh: Variant in held[1]:
+			if not is_instance_valid(mesh) or not (mesh as Node).is_inside_tree():
+				whole = false
+				break
+		if whole:
+			return held[1]
+	var walked := HandReach.meshes(root)
+	if _mesh_walks.size() > 8:
+		_mesh_walks.clear()
+	_mesh_walks[key] = [frame, walked]
+	return walked
+
+
+## Forgets the walked mesh lists, so the next probe walks the drawn tree again (a new weapon, a re-dress).
+func _forget_mesh_walks() -> void:
+	_mesh_walks.clear()
 
 
 ## Whether anything the wall probe stops on lies within [param radius] of [param eye]; a ray from the eye no longer
@@ -150,7 +184,7 @@ func weapon_cut_depth(camera: Camera3D, clear: float) -> float:
 	var view_rect := PackedVector2Array([-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)])
 	var inverse := camera.global_transform.affine_inverse()
 	var worst := 0.0
-	for mesh in HandReach.meshes(_holder):
+	for mesh in _drawn_meshes(_holder):
 		if mesh.mesh == null or not mesh.is_visible_in_tree():
 			continue
 		var to_eye := inverse * mesh.global_transform
