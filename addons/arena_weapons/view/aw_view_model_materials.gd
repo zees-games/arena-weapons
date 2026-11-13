@@ -29,6 +29,14 @@ static var _view_materials: Dictionary = {}
 
 static var _view_sources: Array = []
 
+## Where the wall-free pass cannot run (the web), the gun is drawn again where the world hid it. Set in _ready.
+var _reveal: bool = false
+
+## Each view material made for [member _reveal] -> its no-depth-test copy, which draws only where the stencil says the world hid the gun.
+static var _reveal_passes: Dictionary = {}
+
+static var _reveal_on: bool = false
+
 ## Draws a part so it reads as a view model without breaking its own depth.
 ## Depth testing stays ON: `no_depth_test` stops a wall clipping but lets the arms and gun paint over each other. A sorting offset biases the order instead.
 ## It can still clip a wall the player is pressed against; AwViewOverlay draws the layer again, wall-free, while the wall response is active.
@@ -55,8 +63,8 @@ func _set_on_top(root: Node) -> void:
 ## The view copy of [param source], made once per source and finish and kept for good.
 ## Kept for good: when the last copy dies the engine drops its shader, and recompiling it stalled 60 ms per switch.
 func _view_material(source: Material) -> Material:
-	var key := "%d|%s|%s|%s|%s|%s|%s" % [source.get_instance_id() if source != null else 0, finish_materials,
-		finish_metal, finish_metal_roughness, finish_polymer_roughness, finish_wood_roughness, finish_lift]
+	var key := "%d|%s|%s|%s|%s|%s|%s|%s" % [source.get_instance_id() if source != null else 0, finish_materials,
+		finish_metal, finish_metal_roughness, finish_polymer_roughness, finish_wood_roughness, finish_lift, _reveal]
 	if _view_materials.has(key):
 		return _view_materials[key]
 	var material: Material = (source as StandardMaterial3D).duplicate() \
@@ -68,6 +76,8 @@ func _view_material(source: Material) -> Material:
 		if finish_materials:
 			AwWeaponFinish.apply(base, finish_metal, finish_metal_roughness,
 				finish_polymer_roughness, finish_wood_roughness, finish_lift)
+		if _reveal and base.next_pass == null:
+			_add_reveal_pass(base)
 	_view_materials[key] = material
 	# The source is pinned with its copy: an id of a freed material could be handed to another.
 	_view_sources.append(source)
@@ -76,4 +86,30 @@ func _view_material(source: Material) -> Material:
 ## Every view material made so far, for a loading cover to draw once so their shaders compile
 ## under it.
 static func prepared_materials() -> Array:
-	return _view_materials.values()
+	return _view_materials.values() + _reveal_passes.values()
+
+## Marks the stencil wherever [param base] is seen, after the world, and builds a copy that draws the gun where it is not.
+## Marking the hidden part instead also marks the gun's own back faces. A depth reset cannot work on WebGL2.
+func _add_reveal_pass(base: BaseMaterial3D) -> void:
+	base.render_priority = Material.RENDER_PRIORITY_MAX
+	base.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
+	base.stencil_reference = 1
+	base.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
+	base.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
+	var hidden := base.duplicate() as BaseMaterial3D
+	# Below the first-person flash, which draws over its own gun.
+	hidden.render_priority = 0
+	hidden.no_depth_test = true
+	hidden.stencil_flags = BaseMaterial3D.STENCIL_FLAG_READ
+	hidden.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_NOT_EQUAL
+	_reveal_passes[base] = hidden
+	base.next_pass = hidden if _reveal_on else null
+
+## Turns the hidden-part pass on or off. Only while the drawn gun is in the world, as the wall-free pass:
+## it also draws the gun over the hands.
+static func _set_reveal(on: bool) -> void:
+	if on == _reveal_on:
+		return
+	_reveal_on = on
+	for base: BaseMaterial3D in _reveal_passes:
+		base.next_pass = _reveal_passes[base] if on else null

@@ -48,7 +48,7 @@ var _belt: Node3D = null
 @export_group("Wall")
 
 ## Draws the view model again in a pass with no world in it while it is pressed against one, so a wall cannot hide the gun. Costs a second render of the view layer only while active.
-## Never built on the web (see [method AwViewOverlay.supported]): there a wall can still clip the gun.
+## Never built on the web (see [method AwViewOverlay.supported]): there a stencil pass draws the hidden part instead.
 @export var wall_overlay: bool = true
 
 @export_group("Light")
@@ -85,6 +85,7 @@ func _ready() -> void:
 		_overlay = AwViewOverlay.new()
 		add_child(_overlay)
 		_overlay.setup(self, view_layer)
+	_reveal = wall_overlay and view_layer > 0 and _overlay == null
 
 
 # --- Building ---------------------------------------------------------------

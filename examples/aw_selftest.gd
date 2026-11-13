@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 406
+const CHECKS := 409
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -825,6 +825,38 @@ func _floor_clip() -> void:
 	_check("the sphere before the drawn-gun rays misses a floor out of reach", not view._world_near(space, camera.global_position, eye_height * 0.5))
 	_check("and finds it within reach", view._world_near(space, camera.global_position, eye_height + 0.1))
 	view.queue_free()
+	# The web has no wall-free pass: a stencil copy of each material draws the part the floor hides instead.
+	var web := AwViewModel.new()
+	web.show_arms = false
+	web.hands_fov = 55.0
+	camera.add_child(web)
+	if web._overlay != null:
+		web._overlay.free()
+		web._overlay = null
+	web._reveal = true
+	var web_art := AwWeaponVisual.make(&"rifle")
+	AwArtDress.apply(web_art, AwWeaponArt.weapon_rows("")[&"rifle"])
+	web.equip(web_art)
+	var revealed := {}
+	for pitch: float in [-70.0, 0.0]:
+		camera.rotation_degrees = Vector3(pitch, 0.0, 0.0)
+		for _i in 60:
+			await get_tree().physics_frame
+			web.advance(0.02)
+		var passes := 0
+		var surfaces := 0
+		for mesh in AwViewModel.HandReach.meshes(web._animated):
+			for surface in (mesh.mesh.get_surface_count() if mesh.mesh != null else 0):
+				var material := mesh.get_surface_override_material(surface) as BaseMaterial3D
+				surfaces += 1
+				if material != null and material.next_pass is BaseMaterial3D and (material.next_pass as BaseMaterial3D).no_depth_test \
+						and material.stencil_flags == BaseMaterial3D.STENCIL_FLAG_WRITE:
+					passes += 1
+		revealed[pitch] = [passes, surfaces]
+	_check("web, looking down: every gun surface carries the hidden-part pass (%d of %d)" % revealed[-70.0], revealed[-70.0][1] > 0 and revealed[-70.0][0] == revealed[-70.0][1])
+	_check("web, looking level: the pass is off, so it cannot draw the gun over the hands (%d on)" % revealed[0.0][0], revealed[0.0][0] == 0)
+	_check("the pass's copies are prepared under the loading cover", AwViewModel._reveal_passes.values().all(func(m: Material) -> bool: return m in AwViewModel.prepared_materials()))
+	web.queue_free()
 	camera.queue_free()
 	floor_body.queue_free()
 	_end()

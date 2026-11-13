@@ -263,6 +263,8 @@ func advance(delta: float) -> void:
 	if _overlay != null:
 		# Hysteresis: the pass must not flicker at the edge of contact.
 		_overlay.update(_wall.amount > (0.002 if _overlay.is_active() else 0.02) or _drawn_gun_in_world(delta), get_parent() as Camera3D)
+	elif _reveal:
+		_set_reveal(_wall.amount > (0.002 if _reveal_on else 0.02) or _drawn_gun_in_world(delta))
 	_place_hands()
 	_apply_hands_lens()
 	if _sight != null:
