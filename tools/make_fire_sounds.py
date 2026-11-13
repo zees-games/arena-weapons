@@ -18,11 +18,13 @@ if not os.path.isdir(os.path.join(DOT_AUDIO, "tools")):
 LIB = os.path.join(DOT_AUDIO, "source-candidates", "free-firearm-sound-library", "raw", "Prepared SFX Library")
 OUT = os.path.join(HERE, "..", "addons", "arena_weapons", "assets", "sounds")
 
-# make_shot_layers.py ends in a bare main() call: run everything above it, in its own namespace so its
-# OUT (dot-audio's stock folder) can never be where this writes.
+# Its helpers in their own namespace, so its OUT (dot-audio's stock folder) can never be where this writes; a checkout
+# older than its main guard ends in a bare main() call, cut off here.
 _src = open(os.path.join(DOT_AUDIO, "tools", "make_shot_layers.py")).read()
+if _src.rstrip().endswith("\nmain()"):
+    _src = _src[: _src.rindex("\nmain()")]
 L = {"__name__": "make_shot_layers", "__file__": os.path.join(DOT_AUDIO, "tools", "make_shot_layers.py")}
-exec(compile(_src[: _src.rindex("\nmain()")], "make_shot_layers.py", "exec"), L)
+exec(compile(_src, "make_shot_layers.py", "exec"), L)
 RATE = L["RATE"]
 
 # gun: (library folder, near take, mid-distance take, thump Hz or 0, variant 1 pitch)

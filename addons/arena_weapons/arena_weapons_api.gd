@@ -34,6 +34,7 @@ extends RefCounted
 #     no shooter's first shot builds its own.
 # 17: AwWeaponRig.would_idle(command): whether simulate_tick(command, tick, null) takes the idle path, so a host can skip its context.
 # 18: AwShotLayers.fire(class, at, listener, weapon_id) plays the gun's own layered report (has_gun_sound, gun_of,
-#     plays_gun); AwWorldModel.eject_transform() is where a held gun throws its case.
+#     plays_gun); AwWorldModel.eject_transform() is where a held gun throws its case; gun_shot(gun) and gun_shot_id(id)
+#     let a host's own shot player register and fire those reports.
 const LEVEL := 18
 const OLDEST := 1

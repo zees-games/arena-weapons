@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 370
+const CHECKS := 371
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -498,6 +498,11 @@ func _fire_fx() -> void:
 				registered += 1 if layers.plays_gun(gun) else 0
 		layers.free()
 	_check("the layered player registers each gun's own shot (%d of %d)" % [registered, own], registered == own)
+	var host_def := AwShotLayers.gun_shot(&"sniper")
+	_check("a host's own shot player gets a gun's report under its id (aw_gun_sniper, attack layers)",
+		AwShotLayers.gun_shot_id(&"fc_sniper") == &"aw_gun_sniper" and AwShotLayers.gun_shot_id(&"axe") == &""
+		and AwShotLayers.gun_shot(&"axe") == null and (not AwShotLayers.available()
+		or (host_def != null and host_def.get(&"id") == &"aw_gun_sniper" and not (host_def.get(&"attack") as PackedStringArray).is_empty())))
 	var shells := []
 	for gun: StringName in [&"sniper", &"revolver"]:
 		var held := AwWorldModel.new()

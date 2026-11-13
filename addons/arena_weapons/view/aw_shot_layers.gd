@@ -107,14 +107,15 @@ func setup(send_bus: StringName) -> bool:
 	return true
 
 
-## The stock shot of the gun's class (room tails, suppressed set, gain) with the gun's own layers over it.
-func _register_gun(gun: StringName) -> void:
-	if not has_gun_sound(gun):
-		return
+## [param gun]'s shot definition for a DotShotPlayer: its class's stock (room tails, suppressed set, gain) with the
+## gun's own layers over it, registered as [method gun_shot_id]. Null when the gun has none or dot-audio is missing.
+static func gun_shot(gun: StringName) -> Resource:
+	if not has_gun_sound(gun) or not AwWeaponPack.SOUND_CLASSES.has(gun) or not available():
+		return null
 	var weapon_class: StringName = AwWeaponPack.SOUND_CLASSES[gun]
-	var base: Resource = _stock.call(&"shot", ROOM_FROM.get(weapon_class, shot_class(weapon_class)))
+	var base: Resource = (load(SHOT_STOCK) as GDScript).call(&"shot", ROOM_FROM.get(weapon_class, shot_class(weapon_class)))
 	if base == null:
-		return
+		return null
 	var def := base.duplicate()
 	def.set(&"id", StringName(GUN_PREFIX + String(gun)))
 	for layer in GUN_LAYERS:
@@ -123,6 +124,19 @@ func _register_gun(gun: StringName) -> void:
 			paths.append("%s%s/%s_%d.ogg" % [GUN_SOUNDS, gun, layer, paths.size()])
 		if not paths.is_empty():
 			def.set(layer, paths)
+	return def
+
+
+## The id [method gun_shot] registers [param weapon_id]'s own shot under (a host's prefix stripped), or empty.
+static func gun_shot_id(weapon_id: StringName) -> StringName:
+	var gun := gun_of(weapon_id)
+	return StringName(GUN_PREFIX + String(gun)) if gun != &"" else &""
+
+
+func _register_gun(gun: StringName) -> void:
+	var def := gun_shot(gun)
+	if def == null:
+		return
 	var res: DotResult = player.call(&"register", def)
 	if res.ok:
 		_guns[gun] = true
@@ -143,7 +157,7 @@ func fire(weapon_class: StringName, at: Vector3, listener: Vector3, weapon_id: S
 	if (stock_class == &"" and not own) or not _ready_ok:
 		return false
 	manager.set(&"listener_position", listener)
-	var id: StringName = StringName(GUN_PREFIX + String(gun_of(weapon_id))) if own else _stock.call(&"id_of", stock_class)
+	var id: StringName = gun_shot_id(weapon_id) if own else _stock.call(&"id_of", stock_class)
 	var res: DotResult = player.call(&"fire", id, at, weapon_class == AwWeaponSound.SUPPRESSED)
 	return res.ok and int(res.value_or(0)) > 0
 
