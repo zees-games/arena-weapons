@@ -246,7 +246,7 @@ static func _cut_mesh(mesh: Mesh, to_space: Transform3D, planes: Array, cut: Dic
 		var arrays := mesh.surface_get_arrays(s)
 		var plain: bool = mesh.surface_get_primitive_type(s) != Mesh.PRIMITIVE_TRIANGLES \
 			or arrays[Mesh.ARRAY_BONES] != null or mesh.get_blend_shape_count() > 0
-		var cut_surface: Array = [] if plain else _cut_surface(arrays, to_space, planes)
+		var cut_surface: Array = [] if plain else _cut_surface(arrays, to_space, planes, mesh.get_aabb())
 		if cut_surface.is_empty():
 			result.add_surface_from_arrays(mesh.surface_get_primitive_type(s), arrays)
 		else:
@@ -274,34 +274,80 @@ static func _cut_mesh(mesh: Mesh, to_space: Transform3D, planes: Array, cut: Dic
 
 
 ## `[arrays, removed, points]` for one surface (non-indexed, every attribute interpolated), or `[]` when nothing is inside.
-static func _cut_surface(arrays: Array, to_space: Transform3D, planes: Array) -> Array:
+static func _cut_surface(arrays: Array, to_space: Transform3D, planes: Array, box: AABB = AABB()) -> Array:
+	if box.has_volume() or box.size != Vector3.ZERO:
+		# Surface bounds wholly beyond one plane (with a margin for float noise): nothing inside, skip every vertex.
+		var corners_box: Array[Vector3] = []
+		for c in 8:
+			corners_box.append(to_space * box.get_endpoint(c))
+		for plane: Array in planes:
+			var pn: Vector3 = plane[0]
+			var pd: float = plane[1] + 0.001
+			var all_beyond := true
+			for w in corners_box:
+				if pn.dot(w) <= pd:
+					all_beyond = false
+					break
+			if all_beyond:
+				return []
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
 	var count := index.size() if not index.is_empty() else verts.size()
 	var world := PackedVector3Array()
 	world.resize(verts.size())
+	# Per vertex, the set of planes it lies beyond (bit k): a triangle misses the region when its three vertices share one.
+	var beyond := PackedInt32Array()
+	beyond.resize(verts.size())
+	var normals: Array[Vector3] = []
+	var offsets := PackedFloat64Array()
+	for plane: Array in planes:
+		normals.append(plane[0])
+		offsets.append(plane[1])
+	var plane_count := normals.size()
 	for i in verts.size():
-		world[i] = to_space * verts[i]
+		var w := to_space * verts[i]
+		world[i] = w
+		var bits := 0
+		for k in plane_count:
+			if normals[k].dot(w) > offsets[k]:
+				bits |= 1 << k
+		beyond[i] = bits
 	var corners := PackedInt32Array()
 	var bary: Array[Vector3] = []
 	var removed := 0
 	var points: Array[Vector3] = []
 	var corner := [Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1)]
+	var indexed := not index.is_empty()
 	for i in range(0, count - 2, 3):
-		var ids := PackedInt32Array([index[i], index[i + 1], index[i + 2]] if not index.is_empty() else [i, i + 1, i + 2])
-		var p: Array[Vector3] = [world[ids[0]], world[ids[1]], world[ids[2]]]
-		var outside := _outside_any(p, planes)
+		var i0 := index[i] if indexed else i
+		var i1 := index[i + 1] if indexed else i + 1
+		var i2 := index[i + 2] if indexed else i + 2
+		if beyond[i0] & beyond[i1] & beyond[i2] != 0:
+			corners.append(i0)
+			corners.append(i1)
+			corners.append(i2)
+			corners.append(i0)
+			corners.append(i1)
+			corners.append(i2)
+			corners.append(i0)
+			corners.append(i1)
+			corners.append(i2)
+			bary.append(corner[0])
+			bary.append(corner[1])
+			bary.append(corner[2])
+			continue
+		var ids := PackedInt32Array([i0, i1, i2])
+		var p: Array[Vector3] = [world[i0], world[i1], world[i2]]
 		var pieces: Array = []
 		var poly: Array[Vector3] = [corner[0], corner[1], corner[2]]
-		if not outside:
-			for plane: Array in planes:
-				var split := _split(poly, p, plane[0], plane[1])
-				if not (split[0] as Array).is_empty():
-					pieces.append(split[0])
-				poly = split[1]
-				if poly.is_empty():
-					break
-		if outside or poly.is_empty():
+		for plane: Array in planes:
+			var split := _split(poly, p, plane[0], plane[1])
+			if not (split[0] as Array).is_empty():
+				pieces.append(split[0])
+			poly = split[1]
+			if poly.is_empty():
+				break
+		if poly.is_empty():
 			pieces = [[corner[0], corner[1], corner[2]]]
 		else:
 			removed += 1
