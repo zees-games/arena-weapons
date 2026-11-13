@@ -36,6 +36,11 @@ const MAX_TRACERS_PER_USE := 6
 const REMOTE_PREWARM_LIGHTS := 1
 const REMOTE_PREWARM_MESHES := 6
 
+## Quads built up front for the local gun. A flash draws its core and petals beside the pack's flash
+## (up to five quads), and two flashes of a held gun overlap with its tracer, case and impact quads:
+## dot-fx's default of eight ran out on the first burst and built nodes mid-fire.
+const FIRST_PERSON_PREWARM_MESHES := 16
+
 ## Most marks left on the world at once, per carrier. A mark outlives every other effect, so
 ## it has its own budget: sharing [constant MAX_LIVE] let a held minigun evict its own tracers.
 const MAX_MARKS := 32
@@ -158,7 +163,7 @@ func prewarm_pools() -> void:
 	# the full prewarm was most of what the effects cost before a single shot.
 	if first_person:
 		_lights.prewarm()
-		_meshes.prewarm(_quad_mesh(), _flash_mat())
+		_meshes.prewarm(_quad_mesh(), _flash_mat(), maxi(DotFxLightBudget.config.prewarm_meshes, FIRST_PERSON_PREWARM_MESHES))
 		prewarm_voices()
 	else:
 		_lights.prewarm(mini(rules.remote_lights, REMOTE_PREWARM_LIGHTS))
