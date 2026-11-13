@@ -326,11 +326,10 @@ var _sprint: float = 0.0
 ## from the art, because the resting place is the art's and so is the sight line.
 var aim_shift := Vector3.ZERO
 
-## How much of the kick's turn full aim takes away. The kick still happens (the front sight
-## climbs and settles: a shot has to be seen), but a hip kick at the sight is several degrees,
-## which threw the front sight a ring's width off the crosshair on every shot. The kick's push
-## back is left alone; it does not move the sight on the screen.
-var aim_kick_steadiness: float = 0.6
+## Lens radii a full strafe shifts a scope by, the walk bob's full swing shakes it by, and a degree of climb lifts it by (see [method scope_offset]).
+const SCOPE_STRAFE_REACH := 0.06
+const SCOPE_BOB_REACH := 0.05
+const SCOPE_KICK_PER_DEGREE := 0.025
 
 ## What is left of the sway and bob at full aim, on top of the feel rules' steadiness (1 leaves them).
 var aim_sway_scale: float = 1.0
@@ -540,14 +539,19 @@ func offset() -> Transform3D:
 	# sideways swing (centimetres, at a half metre's range) slid the whole sight picture off the
 	# crosshair, left and right, in a fight: "when aimed in the gun slides to the left or right".
 	var steady_x := steady * (1.0 - _aim * 0.8)
+	# The trail and the bob's rise have their own aimed shares (mp_vm_ads_strafe, mp_vm_ads_bob):
+	# held dead still, aiming on the move read as the gun glued to the screen.
+	var gun_aim := lerpf(1.0, clampf(aim_sway_scale, 0.0, 1.0), _aim)
+	var trail_kept := lerpf(1.0, clampf(rules.ads_strafe, 0.0, 1.0), _aim) * gun_aim
+	var bob_kept := lerpf(1.0, clampf(rules.ads_bob, 0.0, 1.0), _aim) * gun_aim
 	var position := Vector3(
-		(_sway.x * rules.sway + trail) * steady_x,
+		_sway.x * rules.sway * steady_x + trail * trail_kept,
 		_sway.y * rules.sway * steady - _landing * rules.landing,
 		(_kick + _extra_back) * maxf(0.0, rules.kick) + _charge * tunables.charge_pull
 	)
 
 	var bob := _bob_offset() * rules.bob
-	position += Vector3(bob.x * steady_x, bob.y * steady, bob.z * steady)
+	position += Vector3(bob.x * steady_x, bob.y * bob_kept, bob.z * bob_kept)
 	position += aim_shift * _aim
 
 	# Roll is steadied too: at the sight a rolling gun is the sight picture tipping, and it
@@ -579,7 +583,8 @@ func offset() -> Transform3D:
 
 	# The kick turns about the grip, inside everything else: sway and bob carry the
 	# kicking weapon around, rather than the kick being taken about wherever sway left it.
-	var held := (1.0 - _aim * clampf(aim_kick_steadiness, 0.0, 1.0)) * maxf(0.0, rules.kick)
+	# Aimed, most of the turn stays (mp_vm_ads_kick): the front sight climbs and settles on every shot.
+	var held := lerpf(1.0, clampf(rules.ads_kick, 0.0, 1.0), _aim) * maxf(0.0, rules.kick)
 	var kick := Basis.from_euler(Vector3(
 		deg_to_rad((_kick_rotation.x + _extra_pitch) * held),
 		deg_to_rad(_kick_rotation.y * held),
@@ -590,6 +595,24 @@ func offset() -> Transform3D:
 		* Transform3D(Basis.IDENTITY, -pivot)
 
 	return Transform3D(basis, position) * about_grip
+
+
+## Where a scope's lens and reticle sit off the screen's centre, in lens radii (x right, y down):
+## a strafe shifts them against the move, the walk bob and each shot's climb shake them. Scaled by
+## mp_vm_scope_sway and mp_vm_scope_shake; zero at rest.
+func scope_offset() -> Vector2:
+	var carried := maxf(0.1, weight) * maxf(0.0, feel)
+	var x := -_strafe * SCOPE_STRAFE_REACH * carried * maxf(0.0, rules.scope_sway)
+	var shake := maxf(0.0, rules.scope_shake)
+	var y := 0.0
+	if tunables.bob_amount > 0.0:
+		var bob := _bob_offset() / tunables.bob_amount
+		x += bob.x * SCOPE_BOB_REACH * 0.5 * shake * maxf(0.0, rules.bob)
+		y += bob.y * SCOPE_BOB_REACH * shake * maxf(0.0, rules.bob)
+	# The climb lifts the lens: the arms are hidden at the scope, so this is the shot being seen.
+	y -= clampf((_kick_rotation.x + _extra_pitch) * SCOPE_KICK_PER_DEGREE, -0.3, 0.3) * shake * maxf(0.0, rules.kick)
+	var shown := Vector2(clampf(x, -0.3, 0.3), clampf(y, -0.3, 0.3))
+	return shown if shown.is_finite() else Vector2.ZERO
 
 
 ## The deploy fraction, for a caller that wants to hide the model entirely at zero.

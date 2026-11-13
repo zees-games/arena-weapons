@@ -193,6 +193,11 @@ func view_punch() -> Vector2:
 	return _pose.view_punch()
 
 
+## How far a scope's lens and reticle sit off centre this frame, in lens radii (see [method AwWeaponPose.scope_offset]).
+func scope_offset() -> Vector2:
+	return _pose.scope_offset()
+
+
 ## How far through a switch, 1 fully in hand and 0 fully out of frame.
 func on_deploy(fraction: float) -> void:
 	_pose.set_deploy(fraction)

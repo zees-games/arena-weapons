@@ -29,6 +29,11 @@ const CVAR_TILT_SPEED := "mp_vm_strafe_response"
 const CVAR_BOB := "mp_vm_bob"
 const CVAR_LANDING := "mp_vm_landing"
 const CVAR_AIM_STEADY := "mp_vm_aim_steadiness"
+const CVAR_ADS_KICK := "mp_vm_ads_kick"
+const CVAR_ADS_STRAFE := "mp_vm_ads_strafe"
+const CVAR_ADS_BOB := "mp_vm_ads_bob"
+const CVAR_SCOPE_SWAY := "mp_vm_scope_sway"
+const CVAR_SCOPE_SHAKE := "mp_vm_scope_shake"
 const CVAR_KICK := "cl_vm_kick"
 const CVAR_WALL := "cl_vm_wall"
 const CVAR_WALL_TILT := "cl_vm_wall_tilt"
@@ -60,6 +65,21 @@ var landing: float = 1.0
 ## How much of the sway, tilt and bob full aim takes away, 0 to 1. At 1 the sight picture is
 ## dead still; the default leaves a quarter of it, so the weapon is held rather than pinned.
 var aim_steadiness: float = 0.75
+
+## The share of the kick's turn kept at full aim, 0 to 1: the front sight still climbs on every shot.
+var ads_kick: float = 0.8
+
+## The share of the strafe trail kept at full aim, 0 to 1: aimed, a strafe still shifts the gun sideways.
+var ads_strafe: float = 0.4
+
+## The share of the walk bob's rise and fall kept at full aim, 0 to 1: aimed, walking still bobs the gun a little.
+var ads_bob: float = 0.5
+
+## How far a strafe shifts a scope's lens and reticle sideways, a multiplier: 0 holds it still.
+var scope_sway: float = 1.0
+
+## How much walking and each shot's kick shake a scope's lens and reticle, a multiplier: 0 holds it still.
+var scope_shake: float = 1.0
 
 ## The per-shot kick of the weapon and arms, drawn only: 0 off. Never moves the camera or a bullet.
 var kick: float = 1.0
@@ -98,6 +118,16 @@ func cvar_specs() -> Array[Dictionary]:
 			"description": "View model dip on landing, a multiplier: 0 off, 1 default"},
 		{"name": CVAR_AIM_STEADY, "value": str(aim_steadiness), "min": 0.0, "max": 1.0,
 			"description": "How much of the view model's sway, tilt and bob aiming removes: 0 none, 1 all"},
+		{"name": CVAR_ADS_KICK, "value": str(ads_kick), "min": 0.0, "max": 1.0,
+			"description": "Share of the view model's kick kept when fully aimed: 0 none, 1 as at the hip"},
+		{"name": CVAR_ADS_STRAFE, "value": str(ads_strafe), "min": 0.0, "max": 1.0,
+			"description": "Share of the view model's strafe trail kept when fully aimed: 0 none, 1 as at the hip"},
+		{"name": CVAR_ADS_BOB, "value": str(ads_bob), "min": 0.0, "max": 1.0,
+			"description": "Share of the view model's walk bob kept when fully aimed: 0 none, 1 as at the hip"},
+		{"name": CVAR_SCOPE_SWAY, "value": str(scope_sway), "min": 0.0, "max": 3.0,
+			"description": "How far a strafe shifts a scope's picture and reticle, a multiplier: 0 off, 1 default"},
+		{"name": CVAR_SCOPE_SHAKE, "value": str(scope_shake), "min": 0.0, "max": 3.0,
+			"description": "How much walking and shots shake a scope's picture and reticle, a multiplier: 0 off, 1 default"},
 		{"name": CVAR_KICK, "value": str(kick), "min": 0.0, "max": 3.0,
 			"description": "View model kick per shot (weapon and arms), a multiplier: 0 off, 1 default"},
 		{"name": CVAR_WALL, "value": str(wall_retract), "min": 0.0, "max": 3.0,
@@ -175,6 +205,11 @@ func set_cvar(cvar_name: String, value: String) -> bool:
 			CVAR_BOB: bob = number
 			CVAR_LANDING: landing = number
 			CVAR_AIM_STEADY: aim_steadiness = number
+			CVAR_ADS_KICK: ads_kick = number
+			CVAR_ADS_STRAFE: ads_strafe = number
+			CVAR_ADS_BOB: ads_bob = number
+			CVAR_SCOPE_SWAY: scope_sway = number
+			CVAR_SCOPE_SHAKE: scope_shake = number
 			CVAR_KICK: kick = number
 			CVAR_WALL: wall_retract = number
 			CVAR_WALL_TILT: wall_tilt = number
@@ -197,13 +232,14 @@ func _on_replicated_cvar(cvar_name: String, value: String) -> void:
 func describe() -> Dictionary:
 	return {"sway": sway, "strafe_tilt": strafe_tilt, "strafe_yaw": strafe_yaw,
 		"strafe_aimed": strafe_aimed, "strafe_response": strafe_response, "bob": bob, "landing": landing,
-		"aim_steadiness": aim_steadiness, "kick": kick,
+		"aim_steadiness": aim_steadiness, "kick": kick, "ads_kick": ads_kick, "ads_strafe": ads_strafe,
+		"ads_bob": ads_bob, "scope_sway": scope_sway, "scope_shake": scope_shake,
 		"wall_retract": wall_retract, "wall_tilt": wall_tilt, "reload_detail": reload_detail,
 		"reload_drop": reload_drop, "reload_charge": reload_charge}
 
 
 func describe_lines() -> PackedStringArray:
 	return PackedStringArray([
-		"view model feel: sway %.2f, strafe tilt %.2f, bob %.2f, landing %.2f, aim steadiness %.2f, kick %.2f"
-		% [sway, strafe_tilt, bob, landing, aim_steadiness, kick]
+		"view model feel: sway %.2f, strafe tilt %.2f, bob %.2f, landing %.2f, aim steadiness %.2f, kick %.2f, aimed kick %.2f strafe %.2f bob %.2f, scope sway %.2f shake %.2f"
+		% [sway, strafe_tilt, bob, landing, aim_steadiness, kick, ads_kick, ads_strafe, ads_bob, scope_sway, scope_shake]
 	])

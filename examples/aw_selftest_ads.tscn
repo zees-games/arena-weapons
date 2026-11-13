@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://examples/aw_selftest_ads.gd" id="1"]
+
+[node name="AwSelftestAds" type="Node"]
+script = ExtResource("1")

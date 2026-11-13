@@ -38,5 +38,7 @@ extends RefCounted
 #     let a host's own shot player register and fire those reports.
 # 19: attachments. AwAttachmentPack (catalogue, art_of, register_art, sound_class_for), AwAttachmentSockets (mounts_of, ensure);
 #     each gun's def.mounts lists its mounts; AwSpawnProvider.attachment_defs and sound_class_for.
-const LEVEL := 19
+# 20: aimed motion. AwViewFeel mp_vm_ads_kick/_strafe/_bob (shares kept down the sights), mp_vm_scope_sway/_shake;
+#     AwViewModel.scope_offset() and AwScopeOverlay.motion shift a scope's lens with a strafe, a walk and a shot.
+const LEVEL := 20
 const OLDEST := 1

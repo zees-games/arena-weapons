@@ -18,7 +18,7 @@ The models use flat emission-style colour (the pack's own advice: not a metallic
 
 ## Layout
 
-`addons/arena_weapons/`: `aw_weapon_pack.gd` (`AwWeaponPack`, the weapon definitions), `aw_weapon_art.gd` (`AwWeaponArt`, the only file with a model name), `spawn_provider.gd` (`AwSpawnProvider`, the host contract), `assets/models/*.glb`. `tools/bake_models.py` (Blender) makes the models from the source packs' folders, `tools/measure_sights.py` measures the muzzle, sight point and aim hold that go in the table. `examples/aw_selftest.tscn` is the headless suite (`./game.sh test`).
+`addons/arena_weapons/`: `aw_weapon_pack.gd` (`AwWeaponPack`, the weapon definitions), `aw_weapon_art.gd` (`AwWeaponArt`, the only file with a model name), `spawn_provider.gd` (`AwSpawnProvider`, the host contract), `assets/models/*.glb`. `tools/bake_models.py` (Blender) makes the models from the source packs' folders, `tools/measure_sights.py` measures the muzzle, sight point and aim hold that go in the table. `examples/aw_selftest.tscn` is the headless suite (`./game.sh test`); `examples/aw_selftest_ads.tscn` checks the motion down the sights and through a scope.
 
 A build that leaves `addons/arena_weapons/assets/` out (the web shell, to stay small) can draw the models from a mounted pack laid out the same way: `AwModelCache.add_fallback_root("res://dot_cloud/<id>/<version>/addons/arena_weapons/assets")` after the mount, `remove_fallback_root` when leaving. Until then each weapon still fires and is drawn invisible (one WARN per model).
 
