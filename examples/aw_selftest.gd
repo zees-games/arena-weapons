@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 360
+const CHECKS := 364
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -554,7 +554,7 @@ func _scope_modes() -> void:
 		view._process(0.02)
 	_check("lens: the camera keeps the hip field of view", is_equal_approx(view.view_fov_scale(), 1.0))
 	_check("lens: the scope still zooms", view.aim_fov_scale() < 0.9)
-	_check("lens: the gun stays drawn behind the lens", view._animated.visible)
+	_check("lens: the gun is hidden so it does not cover the glass", not view._animated.visible)
 	_check("standing, the picture is solid", view.scope_clear() < 0.01)
 	view.drive(Vector2.ZERO, 6.0, true)
 	view._process(0.02)
@@ -583,6 +583,24 @@ func _scope_modes() -> void:
 	_check("the overlay is headless-safe in lens mode", not overlay.lens_active() and overlay.mode == 1)
 	overlay.follow(view)
 	_check("the overlay takes mode and clear from the view", overlay.mode == AwViewModel.SCOPE_FULL and overlay.clear == 0.0)
+	_check("the sniper row brings its own lens size", is_equal_approx(overlay.lens_circle, float(art.scope_style.get("lens_circle", -1.0))))
+	var share := 0.62
+	var lens_fov := 75.0 * AwScopeOverlay.lens_fov_share(75.0, 0.3, share)
+	_check("the lens magnifies by the zoom over the hip view", absf(tan(deg_to_rad(lens_fov) * 0.5) / (tan(deg_to_rad(37.5)) * share) - 0.3) < 0.001)
+	var camera := Camera3D.new()
+	camera.fov = 75.0
+	add_child(camera)
+	overlay.bind_camera(camera)
+	overlay.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	overlay.size = Vector2(1920.0, 1080.0)
+	overlay.follow(view)
+	_check("a bound lens narrows past the camera's zoom", overlay.lens_zoom < view.aim_fov_scale() * 0.75)
+	var plain := AwWeaponVisual.make(&"rifle")
+	AwArtDress.apply(plain, AwWeaponArt.weapon_rows("")[&"rifle"])
+	view.equip(plain)
+	overlay.follow(view)
+	_check("the next gun does not keep the last gun's lens", is_equal_approx(overlay.lens_circle, 0.46))
+	camera.queue_free()
 	overlay.queue_free()
 	view.queue_free()
 	_end()
