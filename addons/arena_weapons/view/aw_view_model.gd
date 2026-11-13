@@ -83,6 +83,9 @@ func _equip_head(art: AwWeaponVisual) -> DotResult:
 	_pose.feel = maxf(0.0, feel)
 	_pose.tunables.draw_keys = art.draw_keys if not art.draw_keys.is_empty() \
 		else AwWeaponPose.DRAW_KEYS
+	# A weapon with its own draw holsters along it; the shared draw has its own holster.
+	_pose.tunables.holster_keys = art.draw_keys if not art.draw_keys.is_empty() \
+		else AwWeaponPose.HOLSTER_KEYS
 	_pose.tunables.reload_keys = _default_reload_keys()
 	var carry := AwWeaponArtTable.sprint_view(art.pose)
 	_pose.tunables.sprint_offset = art.sprint_offset if art.sprint_offset.is_finite() else carry[0]
@@ -184,6 +187,22 @@ func on_fired(recoil: Vector2 = Vector2(0.5, 0.1)) -> void:
 ## A melee swing with no outcome to hand (a bash, or a remote player's swing): the swing's keys.
 func on_swing() -> void:
 	_pose.swing()
+
+
+## Looks the weapon over (the inspect keys). False when it is not resting in the hand; a shot, an aim, a reload,
+## a sprint, a swing or a switch cancels it.
+func inspect() -> bool:
+	return _pose.inspect()
+
+
+## Eases a playing inspect back into the hand.
+func cancel_inspect() -> void:
+	_pose.cancel_inspect()
+
+
+## How far through an inspect, 0 to 1; 1 when none is playing.
+func inspect_fraction() -> float:
+	return _pose.inspect_fraction()
 
 
 ## How far recoil should turn the camera this frame, in degrees: x pitch up, y yaw.

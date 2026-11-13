@@ -12,6 +12,31 @@ const DRAW_KEYS := [
 	[1.0, Vector3.ZERO, Vector3.ZERO],
 ]
 
+## Into the holster, on the same scale as [constant DRAW_KEYS] (0 holstered, 1 in hand) and played from 1 down to 0.
+## Its own keys, because the draw played backwards started with the draw's settle: the first third of a holster
+## barely moved and the rest went in what was left, a single frame on the knife's 0.1 s holster. These leave the
+## hand at once and run near evenly to the bottom (no frame over 1.4 even shares from 3 to 24 frames).
+const HOLSTER_KEYS := [
+	[0.0, Vector3(0.03, -0.30, 0.06), Vector3(-35.0, -12.0, 50.0)],
+	[0.3, Vector3(0.0225, -0.225, 0.045), Vector3(-26.25, -9.0, 37.5)],
+	[0.7, Vector3(0.0105, -0.105, 0.021), Vector3(-12.25, -4.2, 17.5)],
+	[0.9, Vector3(0.003, -0.03, 0.006), Vector3(-3.5, -1.2, 5.0)],
+	[1.0, Vector3.ZERO, Vector3.ZERO],
+]
+
+## Looking the gun over: lifted and turned so its left side and the top come to the eye (0.16-0.42), across to
+## show the right side (0.56-0.86), back into the hand. Never toward the eye (z stays at or ahead of the hold),
+## so a long gun's stock keeps its distance from the near plane. Over [member AwWeaponPose.Tunables.inspect_seconds].
+const INSPECT_KEYS := [
+	[0.0, Vector3.ZERO, Vector3.ZERO],
+	[0.16, Vector3(-0.03, 0.03, -0.02), Vector3(6.0, 14.0, -30.0)],
+	[0.42, Vector3(-0.04, 0.036, -0.03), Vector3(8.0, 18.0, -44.0)],
+	[0.56, Vector3(-0.015, 0.02, -0.03), Vector3(3.0, 4.0, -8.0)],
+	[0.72, Vector3(0.015, 0.012, -0.02), Vector3(-3.0, -9.0, 28.0)],
+	[0.86, Vector3(0.016, 0.006, -0.012), Vector3(-2.0, -8.0, 25.0)],
+	[1.0, Vector3.ZERO, Vector3.ZERO],
+]
+
 ## A melee swing: back and up right (0-0.18), cut down and left across the screen (0.18-0.5), held, brought back.
 ## Keys, because a melee weapon has no recoil spring to show a strike.
 const SWING_KEYS := [
@@ -35,7 +60,6 @@ const THROW_KEYS := [
 ]
 
 ## A long gun is lifted and rolled so the well is in sight as the magazine drops, then jolts as it seats and racks.
-## Lifted because at the hip the well is below the screen and the reload plays out of frame.
 ## Lifted, because at the hip the well is below the bottom of the screen and the reload plays out of frame.
 const RELOAD_KEYS_RIFLE := [
 	[0.0, Vector3.ZERO, Vector3.ZERO],

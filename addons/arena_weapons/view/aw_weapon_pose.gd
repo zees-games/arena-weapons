@@ -126,9 +126,21 @@ class Tunables extends RefCounted:
 	var camera_share: float = 0.3
 
 	## The draw, as keys from fully holstered (0) to in hand (1). See [method sample_keys].
-	## The holster plays the same keys backwards. Replaced per weapon by the view model from
-	## [member AwWeaponVisual.draw_keys].
+	## Replaced per weapon by the view model from [member AwWeaponVisual.draw_keys].
 	var draw_keys: Array = AwWeaponPose.DRAW_KEYS
+
+	## The holster, on the draw's scale and played from 1 down to 0 (see [method AwWeaponPose.set_deploy]).
+	## Its own keys: the draw backwards begins with the draw's settle and barely moves for a third of the holster.
+	var holster_keys: Array = AwWeaponPose.HOLSTER_KEYS
+
+	## Looking the weapon over, as keys over [member inspect_seconds]. Empty is none.
+	var inspect_keys: Array = AwWeaponPose.INSPECT_KEYS
+
+	## How long an inspect takes, in seconds.
+	var inspect_seconds: float = 2.6
+
+	## Seconds a cancelled inspect takes to ease back into the hand, so a shot or an aim never snaps it.
+	var inspect_cancel_seconds: float = 0.2
 
 	## The reload, as keys over its fraction, 0 to 1. Empty is no reload motion.
 	var reload_keys: Array = AwWeaponPose.RELOAD_KEYS_RIFLE
@@ -302,6 +314,16 @@ var _rng := RandomNumberGenerator.new()
 ## 0 fully holstered, 1 fully deployed.
 var _deploy: float = 1.0
 
+## Whether the deploy is going down along [member Tunables.holster_keys] rather than up along the draw's.
+## Chosen only at the two ends (leaving 1 holsters, leaving 0 draws), so a switch turned back half-way
+## carries on along the curve it was on instead of jumping to the other.
+var _holstering: bool = false
+
+## How far through an inspect, 0 to 1 (1 is none playing), and how much of it is still shown: 1 while it
+## plays, easing to 0 after [method cancel_inspect].
+var _inspect: float = 1.0
+var _inspect_weight: float = 0.0
+
 ## How far through a reload, 0 to 1. 0 and 1 are both at rest.
 var _reload: float = 0.0
 
@@ -379,6 +401,7 @@ func advance(
 	_advance_landing(step)
 	if _action < 1.0:
 		_action = minf(1.0, _action + step / maxf(0.05, _action_seconds))
+	_advance_inspect(step)
 
 
 ## Adds recoil. [param recoil] is the pitch and yaw in degrees a behaviour asked for.
@@ -400,6 +423,7 @@ func advance(
 func punch(recoil: Vector2, signed_yaw: bool = false) -> void:
 	if not is_finite(recoil.x) or not is_finite(recoil.y):
 		return
+	cancel_inspect()
 
 	var scale := maxf(0.0, feel)
 	var climb := kick_degrees(recoil.x) * scale
@@ -441,6 +465,55 @@ func action_fraction() -> float:
 	return _action
 
 
+## Starts looking the weapon over ([member Tunables.inspect_keys]). Refused (false) while it is not
+## resting in the hand: mid-switch, reloading, aiming, sprinting, swinging, or inspecting or easing out of one.
+func inspect() -> bool:
+	# Not while one is still easing out either: starting again from 0 there would jump.
+	if tunables.inspect_keys.size() < 2 or not _at_rest_for_inspect() or _inspect < 1.0:
+		return false
+	_inspect = 0.0
+	_inspect_weight = 1.0
+	return true
+
+
+## Stops an inspect: it eases back into the hand over [member Tunables.inspect_cancel_seconds].
+## A shot, an aim, a reload, a sprint, a swing or a switch call it (see [method advance]).
+func cancel_inspect() -> void:
+	if _inspect < 1.0:
+		_inspect = maxf(_inspect, 0.0)
+		_inspect_weight = minf(_inspect_weight, 0.999)
+
+
+## Whether an inspect is playing (not cancelled and not finished).
+func inspecting() -> bool:
+	return _inspect < 1.0 and _inspect_weight >= 1.0
+
+
+## How far through the inspect, 0 to 1; 1 when none is playing or easing out.
+func inspect_fraction() -> float:
+	return _inspect
+
+
+func _at_rest_for_inspect() -> bool:
+	return _deploy >= 1.0 and _reload <= 0.0 and _aim <= 0.0 and _sprint <= 0.05 and _action >= 1.0
+
+
+func _advance_inspect(step: float) -> void:
+	if _inspect >= 1.0:
+		return
+	if _inspect_weight >= 1.0 and not _at_rest_for_inspect():
+		cancel_inspect()
+	if _inspect_weight >= 1.0:
+		_inspect = minf(1.0, _inspect + step / maxf(0.1, tunables.inspect_seconds))
+	else:
+		# Easing out holds the place it was cancelled at and fades it, rather than playing on.
+		_inspect_weight = maxf(0.0, _inspect_weight - step / maxf(0.01, tunables.inspect_cancel_seconds))
+		if _inspect_weight <= 0.0:
+			_inspect = 1.0
+	if _inspect >= 1.0:
+		_inspect_weight = 0.0
+
+
 func _start_action(keys: Array, seconds: float) -> void:
 	if keys.size() < 2:
 		return
@@ -474,8 +547,18 @@ func land(impact: float) -> void:
 
 
 ## Where the switch is: 1 fully in hand, 0 fully out of frame.
+## Leaving 1 plays [member Tunables.holster_keys], leaving 0 plays the draw's.
 func set_deploy(fraction: float) -> void:
-	_deploy = clampf(fraction, 0.0, 1.0) if is_finite(fraction) else _deploy
+	if not is_finite(fraction):
+		return
+	var next := clampf(fraction, 0.0, 1.0)
+	if next < _deploy and _deploy >= 1.0:
+		_holstering = true
+	elif next > _deploy and _deploy <= 0.0:
+		_holstering = false
+	_deploy = next
+	if _deploy < 1.0:
+		cancel_inspect()
 
 
 ## How far into aiming, 0 to 1. The view model eases it; the pose only applies it.
@@ -519,6 +602,8 @@ func reset() -> void:
 	_landing = 0.0
 	_aim = 0.0
 	_action = 1.0
+	_inspect = 1.0
+	_inspect_weight = 0.0
 
 
 # --- The result -------------------------------------------------------------
@@ -567,16 +652,21 @@ func offset() -> Transform3D:
 	# The authored half: the draw and the reload, both turned about the grip like the kick.
 	# A rotation about this transform's origin is a rotation about the camera, which swings
 	# the whole gun across the screen rather than turning it in the hand.
-	var drawn := sample_keys(tunables.draw_keys, _deploy) if holstered > 0.0 else [Vector3.ZERO, Vector3.ZERO]
+	var deploy_keys: Array = tunables.holster_keys if _holstering and tunables.holster_keys.size() >= 2 \
+		else tunables.draw_keys
+	var drawn := sample_keys(deploy_keys, _deploy) if holstered > 0.0 else [Vector3.ZERO, Vector3.ZERO]
 	var reloaded := sample_keys(tunables.reload_keys, _reload) if _reload > 0.0 else [Vector3.ZERO, Vector3.ZERO]
 	var swung := sample_keys(_action_keys, _action) if _action < 1.0 else [Vector3.ZERO, Vector3.ZERO]
+	var looked := sample_keys(tunables.inspect_keys, _inspect) if _inspect < 1.0 else [Vector3.ZERO, Vector3.ZERO]
+	var shown := clampf(_inspect_weight, 0.0, 1.0)
+	shown = shown * shown * (3.0 - 2.0 * shown)
 	var acted: Vector3 = (drawn[1] as Vector3) + (reloaded[1] as Vector3) + (swung[1] as Vector3) \
-		+ tunables.sprint_rotation * _sprint
+		+ (looked[1] as Vector3) * shown + tunables.sprint_rotation * _sprint
 	# A strafe right drags the muzzle left (positive yaw, about the grip).
 	acted.y += _strafe * tunables.strafe_yaw * carried * _strafe_rule(&"tilt", rules.strafe_tilt) * _strafe_rule(&"yaw", rules.strafe_yaw) * strafe_hold
 	acted.z += sin(_bob_distance * tunables.bob_per_metre * PI) * tunables.sprint_bob_roll * _sprint * _bob_amount
 	position += (drawn[0] as Vector3) + (reloaded[0] as Vector3) + (swung[0] as Vector3) \
-		+ tunables.sprint_offset * _sprint
+		+ (looked[0] as Vector3) * shown + tunables.sprint_offset * _sprint
 	var hand := Basis.from_euler(Vector3(
 		deg_to_rad(acted.x), deg_to_rad(acted.y), deg_to_rad(acted.z)
 	))
@@ -805,6 +895,8 @@ func describe() -> Dictionary:
 		"charge": _charge,
 		"landing": _landing,
 		"action": _action,
+		"inspect": _inspect,
+		"holstering": _holstering,
 		"weight": weight,
 		"feel": feel,
 	}

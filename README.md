@@ -57,3 +57,7 @@ The first equip of a gun in play no longer measures its sight or reads its textu
 ## Attachments (API level 19)
 
 Ten attachments, each its own item (`att_<id>`) with its own model (own work, `tools/make_attachments.gd`): red dot, holographic, 3x prism, 6x scope, suppressor, compensator, vertical and angled grips, laser, extended magazine. Each gun's `def.mounts` lists the mounts its model has (`AwAttachmentSockets`, measured by `tools/measure_sockets.gd`); a gun with a built-in sight has no optic mount, a launcher none. The host builds `AwSpawnProvider.attachment_defs()` once (it also draws them), checks a requested fitting with `validate_fitting` on the server, applies it to the gun's def, and replicates it with `encode`/`decode`; `AwSpawnProvider.sound_class_for(def, class)` gives a suppressed gun its quiet report. A fitted optic sets the aimed zoom and sight line in the view model (`AwViewModel.set_fitting`).
+
+## Inspect and holster (API level 21)
+
+`AwViewModel.inspect()` plays a 2.6 s look-over of the gun in hand (`AwWeaponPose` inspect keys, `inspect_fraction()` 0 to 1); fire, aim, reload, a recoil kick or a switch cut it short in 0.2 s (`cancel_inspect()`). It moves the view only; the rig, the shot and the net never see it. The holster has its own keys (`HOLSTER_KEYS`), a slightly front-loaded drop instead of the draw played backwards, so a 0.1 s holster does not carry its whole move in one frame.

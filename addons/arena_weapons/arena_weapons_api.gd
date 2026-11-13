@@ -40,5 +40,7 @@ extends RefCounted
 #     each gun's def.mounts lists its mounts; AwSpawnProvider.attachment_defs and sound_class_for.
 # 20: aimed motion. AwViewFeel mp_vm_ads_kick/_strafe/_bob (shares kept down the sights), mp_vm_scope_sway/_shake;
 #     AwViewModel.scope_offset() and AwScopeOverlay.motion shift a scope's lens with a strafe, a walk and a shot.
-const LEVEL := 20
+# 21: inspect. AwViewModel.inspect() / cancel_inspect() / inspect_fraction() (AwWeaponPose.inspect and the inspect keys);
+#     the holster has its own keys (AwWeaponPose.HOLSTER_KEYS, Tunables.holster_keys).
+const LEVEL := 21
 const OLDEST := 1

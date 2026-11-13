@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 409
+const CHECKS := 418
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -45,6 +45,7 @@ func _ready() -> void:
 	_idle_sleep()
 	_person_carry()
 	_would_idle()
+	_holster_and_inspect()
 	await _finish()
 
 
@@ -1650,3 +1651,88 @@ func _finish() -> void:
 	print("RESULT: %s" % ("PASS" if passed else "FAIL"))
 	await get_tree().create_timer(0.2).timeout
 	get_tree().quit(0 if passed else 1)
+
+
+## How far a frame of the pose moved a 1.2 m gun held at the grip: the largest of grip, muzzle and stock travel.
+func _pose_step(a: Transform3D, b: Transform3D) -> float:
+	var most := 0.0
+	for at: Vector3 in [Vector3.ZERO, Vector3(0.0, 0.0, -0.8), Vector3(0.0, 0.0, 0.4)]:
+		most = maxf(most, (a * at).distance_to(b * at))
+	return most
+
+
+## The holster has its own keys and spreads evenly over any frame count; inspect plays, returns to rest, and a shot cancels it smoothly.
+func _holster_and_inspect() -> void:
+	_begin("holster and inspect")
+	var worst_share := 0.0
+	var least_first := INF
+	for frames: int in [3, 4, 6, 12, 24]:
+		var down := AwWeaponPose.make()
+		var steps: Array[float] = []
+		var was := down.offset()
+		for i in range(1, frames + 1):
+			down.set_deploy(1.0 - float(i) / frames)
+			var now := down.offset()
+			steps.append(_pose_step(was, now))
+			was = now
+		var even := 0.0
+		for v in steps:
+			even += v
+		even /= frames
+		least_first = minf(least_first, steps[0] / even)
+		worst_share = maxf(worst_share, steps.max() / even)
+	_check("a holster's first frame leaves the hand (at least 0.4 of an even share, 3 to 24 frames): %.2f" % least_first,
+		least_first >= 0.4)
+	_check("no holster frame carries more than 1.5 even shares (3 to 24 frames): %.2f" % worst_share, worst_share <= 1.5)
+
+	var turn := AwWeaponPose.make()
+	turn.set_deploy(0.6)
+	var before := turn.offset()
+	turn.set_deploy(0.62)
+	_check("a holster turned back keeps its curve (no jump)", _pose_step(before, turn.offset()) < 0.02)
+	turn.set_deploy(0.0)
+	turn.set_deploy(0.3)
+	var drawing := turn.offset()
+	var draw_only := AwWeaponPose.make()
+	draw_only._holstering = false
+	draw_only._deploy = 0.3
+	_check("a draw from the bottom plays the draw's keys", _pose_step(drawing, draw_only.offset()) < 0.0001)
+
+	var pose := AwWeaponPose.make()
+	var rest := pose.offset()
+	pose.set_aim(0.5)
+	_check("inspect is refused while aiming", not pose.inspect())
+	pose.set_aim(0.0)
+	_check("inspect starts at rest", pose.inspect())
+	var step := 1.0 / 60.0
+	var biggest := 0.0
+	var forward := -INF
+	var last := pose.offset()
+	var ticks := 0
+	while pose.inspect_fraction() < 1.0 and ticks < 600:
+		pose.advance(step, Vector2.ZERO, 0.0, true)
+		var now := pose.offset()
+		biggest = maxf(biggest, _pose_step(last, now))
+		forward = maxf(forward, (now * Vector3(0.0, 0.0, 0.4)).z - 0.4)
+		last = now
+		ticks += 1
+	_check("inspect ends in %.1f s and comes back to rest" % (ticks * step),
+		ticks < 600 and _pose_step(rest, pose.offset()) < 0.0001)
+	_check("inspect never moves 1.5 cm in a 60 Hz frame (%.4f m) nor brings the stock toward the eye (%.4f m)" % [
+		biggest, forward], biggest < 0.015 and forward <= 0.002)
+
+	pose.inspect()
+	for i in 60:
+		pose.advance(step, Vector2.ZERO, 0.0, true)
+	var held := pose.offset()
+	pose.punch(Vector2(0.0, 0.0))
+	biggest = 0.0
+	last = held
+	for i in 13:
+		pose.advance(step, Vector2.ZERO, 0.0, true)
+		var now := pose.offset()
+		biggest = maxf(biggest, _pose_step(last, now))
+		last = now
+	_check("a shot cancels inspect, easing back within 0.2 s (largest frame %.4f m)" % biggest,
+		pose.inspect_fraction() >= 1.0 and _pose_step(rest, pose.offset()) < 0.0001 and biggest < 0.045)
+	_end()
