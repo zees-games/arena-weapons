@@ -117,7 +117,8 @@ static func meshes(node: Node) -> Array[MeshInstance3D]:
 
 static func spans_for(art: AwWeaponVisual, weapon: Node3D, holder: Node3D, forward: Vector3) -> Array:
 	# Not the art's instance id: `HipHold.sized` makes a new art per equip, and that id is reused.
-	var key := "%s|%s|%s|%s|%s" % [art.id, art.model_path, holder.transform, forward, art.fore_along]
+	# The holder's scale and origin are the art's fit; its rotation is idle sway that differs a hair between the prewarm's spare view and the real one, which made the real view miss and re-walk the mesh (~70 ms on the first equip after a map change). Rotation is left out of the key.
+	var key := "%s|%s|%s|%s|%s|%s" % [art.id, art.model_path, (holder.transform.basis.get_scale() * 1000.0).round(), (holder.transform.origin * 1000.0).round(), forward, art.fore_along]
 	if not _span_cache.has(key):
 		_span_cache[key] = IronSight.spans(IronSight.faces_of(weapon, holder), forward, [art.fore_along, 0.30])
 	return _span_cache[key]
