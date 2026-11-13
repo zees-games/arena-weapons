@@ -24,6 +24,16 @@ const FLASH := {
 	AwWeaponSound.SHOTGUN: {"size": 1.6, "light": 1.5, "petals": 4, "length": 0.9, "case": 0.055, "hull": true, "delay": 0.4},
 	AwWeaponSound.MINIGUN: {"size": 1.1, "light": 0.9, "petals": 3, "length": 1.2, "case": 0.038},
 	AwWeaponSound.LAUNCHER: {"size": 2.0, "light": 1.8, "petals": 4, "length": 1.4},
+	# The pack's finer sound classes (AwWeaponPack.SOUND_CLASSES): without a row they drew a rifle's flash and threw no case.
+	&"mpistol": {"size": 0.7, "light": 0.7, "petals": 2, "length": 0.8, "case": 0.024},
+	&"derringer": {"size": 0.9, "light": 0.9, "petals": 3, "length": 0.7},
+	&"carbine": {"size": 0.9, "light": 0.9, "petals": 2, "length": 0.9, "case": 0.039},
+	&"battle": {"size": 1.2, "light": 1.2, "petals": 3, "length": 1.1, "case": 0.051},
+	&"marksman": {"size": 1.3, "light": 1.3, "petals": 2, "length": 1.5, "case": 0.051},
+	&"lmg": {"size": 1.2, "light": 1.1, "petals": 3, "length": 1.1, "case": 0.045},
+	&"autoshot": {"size": 1.5, "light": 1.4, "petals": 4, "length": 0.9, "case": 0.055, "hull": true},
+	&"grenade": {"size": 1.6, "light": 1.5, "petals": 4, "length": 1.0},
+	&"rail": {"size": 1.1, "light": 1.2, "petals": 2, "length": 1.6},
 }
 
 @export_group("Muzzle flash")
@@ -54,6 +64,9 @@ var _live: Array[Dictionary] = []
 ## Pooled dot-fx flashes by `category/size name/first person`.
 var _pack_flashes: Dictionary = {}
 
+## The last [method _pack_flash] put a flash on screen (and its light), so the core is drawn without a second light.
+var _pack_drew := false
+
 ## Reused flash lights and quads (dot-fx), so a shot builds and frees no node.
 var _lights: DotFxLightPool = null
 var _meshes: DotFxMeshPool = null
@@ -68,8 +81,10 @@ func _lights_live() -> int:
 
 func _flash(muzzle: Transform3D, size: float, weapon_class: StringName = AwWeaponSound.RIFLE,
 		id: StringName = &"", first_person: bool = false) -> void:
-	if binbun_flash and _pack_flash(muzzle, size, weapon_class, id, first_person):
+	_pack_drew = false
+	if binbun_flash and _pack_flash(muzzle, size, weapon_class, id, first_person) and not _pack_drew:
 		return
+	# A pack flash drawn still gets the core and petals below: alone it was lost on a pale barrel (renders 2026-11).
 	var profile: Dictionary = FLASH.get(weapon_class, FLASH[AwWeaponSound.RIFLE])
 	size *= float(profile["size"]) * flash_scale
 	if size <= 0.0:
@@ -79,10 +94,10 @@ func _flash(muzzle: Transform3D, size: float, weapon_class: StringName = AwWeapo
 	var forward := -muzzle.basis.z.normalized()
 	node.global_position = muzzle.origin
 	node.rotate_object_local(Vector3.FORWARD, randf() * TAU)
-	# Twelve centimetres, half a metre from the eye in first person: about a seventh of the screen.
-	# Twice the first seven was a pale square over the gun; seven alone was the play test's
-	# "almost no muzzle flash", a white dot lost against a pale barrel.
-	var across := 0.12 * size * randf_range(0.85, 1.15)
+	# Fifteen centimetres, half a metre from the eye in first person: about a seventh of the screen.
+	# Twice the first seven was a pale square over the gun; seven, and later twelve, were
+	# still "almost no muzzle flash" in play tests and renders.
+	var across := 0.15 * size * randf_range(0.85, 1.15)
 	node.scale = Vector3.ONE * across
 
 	# Crossed petals along the barrel's line, so the flash has a direction and a shape and
@@ -103,7 +118,7 @@ func _flash(muzzle: Transform3D, size: float, weapon_class: StringName = AwWeapo
 		petals.append(petal)
 
 	var fx := {"kind": &"flash", "life": 0.06, "size": across}
-	var light := _flash_light(muzzle, size, profile, node)
+	var light: OmniLight3D = null if _pack_drew else _flash_light(muzzle, size, profile, node)
 	if light != null:
 		fx["light"] = light
 		fx["energy"] = light.light_energy
@@ -142,7 +157,8 @@ const CLASS_CATEGORY := {
 	AwWeaponSound.LIGHT: "pistol", AwWeaponSound.MAGNUM: "magnum", AwWeaponSound.SMG: "smg",
 	AwWeaponSound.RIFLE: "rifle", AwWeaponSound.HEAVY: "dmr", AwWeaponSound.SNIPER: "sniper",
 	AwWeaponSound.SHOTGUN: "shotgun", AwWeaponSound.MINIGUN: "lmg", AwWeaponSound.LAUNCHER: "shotgun",
-	AwWeaponSound.CHARGE: "rifle",
+	AwWeaponSound.CHARGE: "rifle", &"mpistol": "smg", &"derringer": "revolver", &"carbine": "carbine",
+	&"battle": "dmr", &"marksman": "dmr", &"lmg": "lmg", &"autoshot": "shotgun", &"grenade": "shotgun", &"rail": "rifle",
 }
 
 ## One pooled flash per size and view, moved to the muzzle for each shot. False only when dot-fx is not linked; size none, quality off and a headless server draw nothing and count as handled.
@@ -158,6 +174,7 @@ func _pack_flash(muzzle: Transform3D, size: float, weapon_class: StringName, id:
 			shared.global_transform = muzzle
 			DotWeaponMuzzle.fire(shared)
 			_pack_flash_light(muzzle, size, weapon_class, shared)
+			_pack_drew = true
 		return true
 	var key := "%s/%s/%s" % [category, DotWeaponMuzzle.flash_name(def), first_person]
 	if not _pack_flashes.has(key) or (_pack_flashes[key] != null and not is_instance_valid(_pack_flashes[key])):
@@ -172,6 +189,7 @@ func _pack_flash(muzzle: Transform3D, size: float, weapon_class: StringName, id:
 	flash.scale = Vector3.ONE * (first_person_flash_scale if first_person else 1.0)
 	DotWeaponMuzzle.fire(flash)
 	_pack_flash_light(muzzle, size, weapon_class, flash)
+	_pack_drew = true
 	return true
 
 ## Effects this shooter may keep alive at once.

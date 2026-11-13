@@ -33,5 +33,7 @@ extends RefCounted
 # 16: AwFxPool.layers_bus and shared_layers(fx, bus): fill() builds one layered shot every remote shooter shares, so
 #     no shooter's first shot builds its own.
 # 17: AwWeaponRig.would_idle(command): whether simulate_tick(command, tick, null) takes the idle path, so a host can skip its context.
-const LEVEL := 17
+# 18: AwShotLayers.fire(class, at, listener, weapon_id) plays the gun's own layered report (has_gun_sound, gun_of,
+#     plays_gun); AwWorldModel.eject_transform() is where a held gun throws its case.
+const LEVEL := 18
 const OLDEST := 1

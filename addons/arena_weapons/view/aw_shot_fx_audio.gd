@@ -181,13 +181,14 @@ func prewarm_layers() -> bool:
 func _layered(id: StringName, kind: StringName, at: Vector3) -> bool:
 	if not layered_shots or not is_inside_tree():
 		return false
-	if AwShotLayers.shot_class(AwWeaponSound.class_for(id, kind)) == &"":
+	var own := kind == DotWeaponOutcome.KIND_SHOT and AwShotLayers.has_gun_sound(id)
+	if AwShotLayers.shot_class(AwWeaponSound.class_for(id, kind)) == &"" and not own:
 		return false
 	if not prewarm_layers():
 		return false
 	var camera := get_viewport().get_camera_3d() if get_viewport() != null else null
 	var listener := camera.global_position if camera != null else at
-	if not _layers.fire(AwWeaponSound.class_for(id, kind), at, listener):
+	if not _layers.fire(AwWeaponSound.class_for(id, kind), at, listener, id if own else &""):
 		return false
 	heard.emit(AwWeaponSound.stream_for(id, kind))
 	return true

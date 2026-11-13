@@ -92,6 +92,16 @@ static func bounds_in(space: Node3D, node: Node) -> AABB:
 	return out
 
 
+## [param art]'s ejection port in [param weapon]'s own space: the receiver's right side, by the art's `eject_port` fractions of the
+## mesh bounds (default 45% from stock to muzzle). Shared by the first-person rig and the held third-person gun.
+static func eject_local(weapon: Node3D, art: AwWeaponVisual) -> Vector3:
+	var box := bounds_in(weapon, weapon)
+	if box.size == Vector3.ZERO:
+		return Vector3.ZERO
+	var f := art.eject_port if art != null and art.eject_port != Vector3.ZERO else Vector3(0.9, 0.72, 0.55)
+	return Vector3(box.end.x * f.x, box.position.y + box.size.y * f.y, box.position.z + box.size.z * f.z)
+
+
 ## Every mesh under [param node].
 static func meshes(node: Node) -> Array[MeshInstance3D]:
 	var out: Array[MeshInstance3D] = []

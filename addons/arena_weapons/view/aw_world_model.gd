@@ -100,6 +100,9 @@ var _fit_code: int = -1
 var attachments: DotWeaponAttachments = null
 var _art: AwWeaponVisual = null
 var _id: StringName = &""
+const HandReach := preload("aw_hand_reach.gd")
+## The ejection port in the model's space, measured on the first shot after an equip (INF until then).
+var _eject_local: Vector3 = Vector3.INF
 const ChargeFx := preload("aw_charge_fx.gd")
 var _charge_fx: Node3D = null
 var _last_charge := 0.0
@@ -189,6 +192,7 @@ func equip(art: AwWeaponVisual) -> DotResult:
 	_id = art.id
 	_holder.transform = _rest()
 	_support_local = Vector3.INF
+	_eject_local = Vector3.INF
 
 	if not art.has_model():
 		return DotResult.success(null)
@@ -310,6 +314,8 @@ func on_fired(
 		if _charge_fx != null:
 			_charge_fx.note_fired()
 		_shot_fx().play_remote(kind, muzzle_transform(), muzzle_direction(), _id, _last_charge)
+		if kind == AwWeaponNet.KIND_SHOT and _art != null and _art.ejects and _weapon != null:
+			_shot_fx().play_eject(eject_transform(), _id, _art.eject_speed)
 
 
 ## Plays [constant SWING_KEYS] from the top: what [method on_fired] does with a swing. A swing
@@ -362,6 +368,16 @@ func _start_action(keys: Array, seconds: float, hides: bool) -> void:
 	# The kick a swing used to be is not added to the cut: a knife pushed back along its own
 	# blade as it strikes reads as the hand flinching.
 	_kick = 0.0
+
+
+## Where the spent case leaves this gun in the world: the same port the first-person rig throws from. Effects only.
+func eject_transform() -> Transform3D:
+	if _weapon == null:
+		return global_transform
+	if not _eject_local.is_finite():
+		_eject_local = HandReach.eject_local(_weapon, _art)
+	var world := _weapon.global_transform
+	return Transform3D(world.basis.orthonormalized(), world * _eject_local)
 
 
 ## Which way the barrel points in the world: the art's forward through the model's basis.

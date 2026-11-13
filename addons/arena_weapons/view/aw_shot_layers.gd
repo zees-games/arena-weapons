@@ -14,6 +14,15 @@ const SHOT_STOCK := ROOT + "core/dot_audio_shot_stock.gd"
 ## Weapon classes with a stock shot; the suppressed class plays the light set, suppressed.
 const STOCK_CLASSES: Array[StringName] = [&"light", &"magnum", &"smg", &"rifle", &"heavy", &"sniper", &"shotgun", &"launcher", &"minigun", &"beam", &"charge", &"swing", &"throw"]
 
+## Each gun's own layers (tools/make_fire_sounds.py): attack, body, open-air tail and far, two variants each.
+const GUN_SOUNDS := "res://addons/arena_weapons/assets/sounds/"
+const GUN_LAYERS: Array[StringName] = [&"attack", &"body", &"tail_outdoor", &"far"]
+const GUN_PREFIX := "aw_gun_"
+
+## Whose stock room tails and suppressed set a gun class without a stock shot borrows.
+const ROOM_FROM := {&"mpistol": &"smg", &"derringer": &"light", &"carbine": &"rifle", &"battle": &"heavy",
+	&"marksman": &"heavy", &"lmg": &"rifle", &"autoshot": &"shotgun", &"grenade": &"launcher", &"rail": &"charge"}
+
 ## Steps the room probe itself from the viewport's camera, for one shared by many shooters ([AwFxPool]); off, the owner calls [method probe].
 var follow_camera: bool = false
 
@@ -23,6 +32,8 @@ var manager: Node = null
 
 var _stock: GDScript = null
 var _ready_ok := false
+## Gun names (unprefixed) whose own shot registered.
+var _guns: Dictionary = {}
 
 
 ## True when dot-audio's shot player and stock are linked in this project.
@@ -38,6 +49,23 @@ static func shot_class(weapon_class: StringName) -> StringName:
 	if weapon_class == AwWeaponSound.SUPPRESSED:
 		return &"light"
 	return weapon_class if STOCK_CLASSES.has(weapon_class) else &""
+
+
+## The pack gun [param weapon_id] names, a host's prefix stripped (the longest name it ends in), or empty.
+static func gun_of(weapon_id: StringName) -> StringName:
+	if AwWeaponPack.SOUND_CLASSES.has(weapon_id):
+		return weapon_id
+	var best := &""
+	for gun: StringName in AwWeaponPack.SOUND_CLASSES:
+		if String(weapon_id).ends_with("_" + String(gun)) and String(gun).length() > String(best).length():
+			best = gun
+	return best
+
+
+## True when [param weapon_id]'s gun ships its own layered shot.
+static func has_gun_sound(weapon_id: StringName) -> bool:
+	var gun := gun_of(weapon_id)
+	return gun != &"" and ResourceLoader.exists(GUN_SOUNDS + String(gun) + "/attack_0.ogg")
 
 
 func is_ready() -> bool:
@@ -73,17 +101,49 @@ func setup(send_bus: StringName) -> bool:
 		if not res.ok:
 			DotLog.warn(CHANNEL, "a stock shot did not register", {"class": weapon_class, "cause": str(res)})
 			return false
+	for gun: StringName in AwWeaponPack.SOUND_CLASSES:
+		_register_gun(gun)
 	_ready_ok = true
 	return true
 
 
-## Plays a shot of [param weapon_class] at [param at], heard from [param listener]; false when it could not, and the caller plays its single sound.
-func fire(weapon_class: StringName, at: Vector3, listener: Vector3) -> bool:
+## The stock shot of the gun's class (room tails, suppressed set, gain) with the gun's own layers over it.
+func _register_gun(gun: StringName) -> void:
+	if not has_gun_sound(gun):
+		return
+	var weapon_class: StringName = AwWeaponPack.SOUND_CLASSES[gun]
+	var base: Resource = _stock.call(&"shot", ROOM_FROM.get(weapon_class, shot_class(weapon_class)))
+	if base == null:
+		return
+	var def := base.duplicate()
+	def.set(&"id", StringName(GUN_PREFIX + String(gun)))
+	for layer in GUN_LAYERS:
+		var paths := PackedStringArray()
+		while ResourceLoader.exists("%s%s/%s_%d.ogg" % [GUN_SOUNDS, gun, layer, paths.size()]):
+			paths.append("%s%s/%s_%d.ogg" % [GUN_SOUNDS, gun, layer, paths.size()])
+		if not paths.is_empty():
+			def.set(layer, paths)
+	var res: DotResult = player.call(&"register", def)
+	if res.ok:
+		_guns[gun] = true
+	else:
+		DotLog.warn(CHANNEL, "a gun's own shot did not register", {"gun": gun, "cause": str(res)})
+
+
+## True when [param weapon_id]'s own shot is registered here.
+func plays_gun(weapon_id: StringName) -> bool:
+	return _guns.has(gun_of(weapon_id))
+
+
+## Plays a shot of [param weapon_class] at [param at], heard from [param listener]: [param weapon_id]'s own when it has
+## one, else the class's stock. False when it could not, and the caller plays its single sound.
+func fire(weapon_class: StringName, at: Vector3, listener: Vector3, weapon_id: StringName = &"") -> bool:
 	var stock_class := shot_class(weapon_class)
-	if stock_class == &"" or not _ready_ok:
+	var own := plays_gun(weapon_id)
+	if (stock_class == &"" and not own) or not _ready_ok:
 		return false
 	manager.set(&"listener_position", listener)
-	var id: StringName = _stock.call(&"id_of", stock_class)
+	var id: StringName = StringName(GUN_PREFIX + String(gun_of(weapon_id))) if own else _stock.call(&"id_of", stock_class)
 	var res: DotResult = player.call(&"fire", id, at, weapon_class == AwWeaponSound.SUPPRESSED)
 	return res.ok and int(res.value_or(0)) > 0
 

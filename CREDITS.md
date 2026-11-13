@@ -19,10 +19,11 @@ Polyy's packs carry a CC0 1.0 LICENSE.txt in the zip and say the models were gen
 
 ## Sounds
 
-The pack ships no audio; its guns play the family's stock weapon sounds from dot-audio, which cites each file. The recordings that give the guns their own reports are credited here too, because CC-BY asks for it:
+Each gun's own layered report (attack, body, outdoor tail, distant; two takes each) is in `assets/sounds/<gun>/`, cut by `tools/make_fire_sounds.py` from one recording per gun of the CC0 library below, plus a generated low thump on the heavy guns. Other sounds come from dot-audio's stock, which cites each file; the recordings below are credited here too, because CC-BY asks for it:
 
 | What | Author | Licence | Where |
 | --- | --- | --- | --- |
+| `assets/sounds/` per-gun reports (sniper: Tikka; marksman: Arisaka; battle_rifle: 1917; rifle: AK-47; bullpup: AR-15; carbine: Savage 10 .300 BLK; burst_rifle: SKS; lmg: Mosin Nagant; shotgun: Nova; drum_shotgun: Mossberg; pistol: PPQ; machine_pistol: Bersa; derringer: Single Six; revolver: 642; smg: M45; minigun: PPSh) | Ben Jaszczak, Brian Nelson, Kevin Heras, Matthew Nanney (The Free Firearm Sound Library) | CC0 1.0 | https://opengameart.org/content/the-free-firearm-sound-library |
 | `lmg` report | KuraiWolf (layered with Tabasco) | CC-BY 4.0 | https://opengameart.org/content/light-machine-gun |
 | `battle_rifle`, `burst_rifle`, `marksman` reports and the sniper bolt | Tabasco (bundled text by Vincent Sevedge) | CC-BY 3.0 | https://opengameart.org/content/gunshot-sounds |
 | `carbine`, `derringer`, `machine_pistol`, `drum_shotgun` reports | Michel Baradari (apollo-music.de) | CC-BY 3.0 | http://apollo-music.de (hosted on opengameart.org) |

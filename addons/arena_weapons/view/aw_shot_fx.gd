@@ -99,8 +99,8 @@ var rail_charge := 0.0
 ## Eject spent cases from the gun's port. Presentation only: no physics body; the landing is a stock sound.
 @export var eject_shells: bool = true
 
-## Multiplier on a case's size (the base is drawn for a view model, which is smaller than life).
-@export_range(0.2, 4.0, 0.05) var shell_scale: float = 1.0
+## Multiplier on a case's size. Above 1 because a true-size case was a speck nobody saw (renders 2026-11).
+@export_range(0.2, 4.0, 0.05) var shell_scale: float = 1.5
 
 ## Most cases in the air at once, per carrier; the pool is this big and no bigger, and the
 ## oldest is reused. Each is one draw call.
@@ -320,7 +320,8 @@ func play_eject(port: Transform3D, id: StringName, speed_scale: float = 1.0) -> 
 		return
 
 	var profile: Dictionary = FLASH.get(AwWeaponSound.class_for(id, DotWeaponOutcome.KIND_SHOT), {})
-	if not profile.has("case") or not port.origin.is_finite():
+	# Somebody else's case is a few centimetres of brass: past the flash light's reach nobody sees it.
+	if not profile.has("case") or not port.origin.is_finite() or _too_far(port.origin, rules.light_distance):
 		return
 
 	_schedule_casing(port.origin, float(profile.get("delay", 0.0)))

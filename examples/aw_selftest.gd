@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 364
+const CHECKS := 370
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -21,6 +21,7 @@ func _ready() -> void:
 	_defs()
 	_fire_feel()
 	_dress()
+	await _fire_fx()
 	_own_sights()
 	_scope_hides_gun()
 	_scope_modes()
@@ -457,6 +458,60 @@ func _fire_feel() -> void:
 	var sim_kept := (_def(defs, &"aw_sniper").tuning as DotWeaponBallistics).recoil_pitch == (AwWeaponPack.sniper().tuning as DotWeaponBallistics).recoil_pitch \
 		and not _def(defs, &"aw_sniper").params.has(&"recoil_pitch")
 	_check("the feel lives in params only: the bullets' recoil is the ballistics' own", sim_kept and (AwWeaponPack.sniper().tuning as DotWeaponBallistics).recoil_pitch == 4.0)
+	_end()
+
+
+## Every class but the beam (a flashless stream) has a flash, dressed guns throw cases (a held one too), and each gun but the launchers and energy guns has its own report.
+func _fire_fx() -> void:
+	_begin("muzzle flash, cases and per-gun reports")
+	var no_flash: Array[String] = []
+	for gun: StringName in AwWeaponPack.SOUND_CLASSES:
+		if gun != &"beamer" and not AwShotFx.FLASH.has(AwWeaponPack.SOUND_CLASSES[gun]):
+			no_flash.append(String(gun))
+	_check("every gun's class has a flash row: %s" % ", ".join(no_flash), no_flash.is_empty())
+	var rows := AwWeaponArt.weapon_rows("")
+	var eject_bad: Array[String] = []
+	for gun: StringName in AwWeaponPack.SOUND_CLASSES:
+		var art := AwWeaponVisual.make(gun)
+		AwArtDress.apply(art, rows[gun])
+		if art.ejects != bool((rows[gun] as Dictionary).get("ejects", true)):
+			eject_bad.append(String(gun))
+	_check("dressing keeps each row's ejects (default on): %s" % ", ".join(eject_bad),
+		eject_bad.is_empty() and rows[&"revolver"].get("ejects", true) == false)
+	var silent: Array[String] = []
+	var own := 0
+	for gun: StringName in AwWeaponPack.SOUND_CLASSES:
+		if AwShotLayers.has_gun_sound(gun):
+			own += 1
+		elif not gun in [&"launcher", &"quad_launcher", &"grenade_launcher", &"beamer", &"charge_rifle"]:
+			silent.append(String(gun))
+	_check("every gun but the launchers and energy guns has its own report: %s" % ", ".join(silent), silent.is_empty() and own > 0)
+	_check("a host's prefix still finds the gun", AwShotLayers.gun_of(&"fc_burst_rifle") == &"burst_rifle"
+		and AwShotLayers.gun_of(&"fc_rifle") == &"rifle" and AwShotLayers.gun_of(&"axe") == &"")
+	var registered := own
+	if AwShotLayers.available():
+		var layers := AwShotLayers.new()
+		add_child(layers)
+		registered = 0
+		if layers.setup(&"Master"):
+			for gun: StringName in AwWeaponPack.SOUND_CLASSES:
+				registered += 1 if layers.plays_gun(gun) else 0
+		layers.free()
+	_check("the layered player registers each gun's own shot (%d of %d)" % [registered, own], registered == own)
+	var shells := []
+	for gun: StringName in [&"sniper", &"revolver"]:
+		var held := AwWorldModel.new()
+		held.sounds = false
+		held.effects = true
+		add_child(held)
+		var art := AwWeaponVisual.make(gun)
+		AwArtDress.apply(art, rows[gun])
+		held.equip(art)
+		await get_tree().process_frame
+		held.on_fired(Vector2(0.5, 0.1), AwWeaponNet.KIND_SHOT, true)
+		shells.append(held._shot_fx().shell_count())
+		held.free()
+	_check("a held gun seen firing throws a case, a revolver none (%s)" % str(shells), shells == [1, 0])
 	_end()
 
 

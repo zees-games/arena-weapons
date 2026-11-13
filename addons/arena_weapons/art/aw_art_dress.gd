@@ -37,7 +37,7 @@ static func apply(art: AwWeaponVisual, row: Dictionary) -> void:
 	art.muzzle_distance = float(row.get("muzzle", 0.0))
 	art.muzzle_offset = Vector3.ZERO
 	_sockets(art, row)
-	art.ejects = false
+	art.ejects = bool(row.get("ejects", true))  # a break action or a revolver row keeps its cases (`ejects: false`)
 	# The model's own sight is aimed down, nothing built over it; the built ring and post only when the row asks
 	# (`iron: true`) or the model has neither a sight nor a written `aim`.
 	art.sight_own = true

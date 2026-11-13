@@ -250,14 +250,8 @@ func eject_transform() -> Transform3D:
 	if _weapon == null:
 		return global_transform
 
-	var box := HandReach.bounds_in(_weapon, _weapon)
-	if box.size == Vector3.ZERO:
-		return _weapon.global_transform
-
-	var f := _art.eject_port if _art != null and _art.eject_port != Vector3.ZERO else Vector3(0.9, 0.72, 0.55)
-	var local := Vector3(box.end.x * f.x, box.position.y + box.size.y * f.y, box.position.z + box.size.z * f.z)
 	var world := _weapon.global_transform
-	return Transform3D(world.basis.orthonormalized(), world * local)
+	return Transform3D(world.basis.orthonormalized(), world * HandReach.eject_local(_weapon, _art))
 
 
 # --- Being told what happened -----------------------------------------------
