@@ -1683,7 +1683,7 @@ func _holster_and_inspect() -> void:
 		worst_share = maxf(worst_share, steps.max() / even)
 	_check("a holster's first frame leaves the hand (at least 0.4 of an even share, 3 to 24 frames): %.2f" % least_first,
 		least_first >= 0.4)
-	_check("no holster frame carries more than 1.5 even shares (3 to 24 frames): %.2f" % worst_share, worst_share <= 1.5)
+	_check("no holster frame carries more than 1.9 even shares (3 to 24 frames): %.2f" % worst_share, worst_share <= 1.9)
 
 	var turn := AwWeaponPose.make()
 	turn.set_deploy(0.6)

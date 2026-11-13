@@ -15,12 +15,14 @@ const DRAW_KEYS := [
 ## Into the holster, on the same scale as [constant DRAW_KEYS] (0 holstered, 1 in hand) and played from 1 down to 0.
 ## Its own keys, because the draw played backwards started with the draw's settle: the first third of a holster
 ## barely moved and the rest went in what was left, a single frame on the knife's 0.1 s holster. These leave the
-## hand at once and run near evenly to the bottom (no frame over 1.4 even shares from 3 to 24 frames).
+## hand at once and front-load the drop a little (no frame over 1.8 even shares from 3 to 24 frames), so a 3-frame
+## holster whose frames catch one tick, then three, still moves in steps within about 2x of each other.
 const HOLSTER_KEYS := [
 	[0.0, Vector3(0.03, -0.30, 0.06), Vector3(-35.0, -12.0, 50.0)],
-	[0.3, Vector3(0.0225, -0.225, 0.045), Vector3(-26.25, -9.0, 37.5)],
-	[0.7, Vector3(0.0105, -0.105, 0.021), Vector3(-12.25, -4.2, 17.5)],
-	[0.9, Vector3(0.003, -0.03, 0.006), Vector3(-3.5, -1.2, 5.0)],
+	[0.3, Vector3(0.024, -0.24, 0.048), Vector3(-28.0, -9.6, 40.0)],
+	[0.6, Vector3(0.018, -0.18, 0.036), Vector3(-21.0, -7.2, 30.0)],
+	[0.85, Vector3(0.0075, -0.075, 0.015), Vector3(-8.75, -3.0, 12.5)],
+	[0.95, Vector3(0.0024, -0.024, 0.0048), Vector3(-2.8, -0.96, 4.0)],
 	[1.0, Vector3.ZERO, Vector3.ZERO],
 ]
 
