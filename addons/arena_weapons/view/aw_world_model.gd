@@ -131,6 +131,9 @@ var _sprint_was_on: bool = false
 ## The person's gun-arm carry (dot-player-char API 22's `DotHumanoidFigure.carry`, duck-typed), the weapon id its class
 ## was last set for, and whether the character is mid-switch. While there is one it draws the kick, the reload roll
 ## and the sprint, so this model adds none of its own.
+## Whether a held gun hands its kick, reload and swap to the person's carry (off: the model's own kick and reload
+## dip, the clip's arms). On by default; a bench turns it off to price the carry.
+static var person_carry := true
 var _carry: Object = null
 var _carry_for: StringName = &"-"
 var _switching: bool = false
@@ -655,10 +658,11 @@ func _support_world() -> Vector3:
 	return fore.lerp(path, smoothstep(0.0, 1.0, _reload_blend))
 
 
-## The person's carry, if it has one: an object answering `fired` and `set_class` on its `carry` property.
-func _person_carry() -> Object:
+## The person's carry, if it has one and [member person_carry] is on (or [param any]): an object answering `fired`
+## and `set_class` on its `carry` property.
+func _person_carry(any: bool = false) -> Object:
 	var person := _person()
-	if person == null:
+	if person == null or not (person_carry or any):
 		return null
 	var carry: Variant = person.get(&"carry")
 	if carry is Object and (carry as Object).has_method(&"fired") and (carry as Object).has_method(&"set_class"):
@@ -668,7 +672,12 @@ func _person_carry() -> Object:
 
 ## Gives the person's carry the class of the gun in hand when either changes, and the reload and switch flags.
 func _tell_carry() -> void:
-	var carry := _person_carry()
+	var carry := _person_carry(true)
+	if carry != null and not person_carry:
+		if _carry_for != &"off":
+			carry.call(&"set_class", null)
+			_carry_for = &"off"
+		carry = null
 	if carry == null:
 		_carry = null
 		return

@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 399
+const CHECKS := 401
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -1366,6 +1366,18 @@ func _person_carry() -> void:
 	_check("guns read as the carry's classes, a prefixed id by its host's sound class (%s)" % [classes], classes == {
 		&"pistol": &"pistol", &"sniper": &"sniper", &"marksman": &"sniper", &"smg": &"smg", &"lmg": &"rifle",
 		&"minigun": &"heavy", &"launcher": &"heavy", &"rifle": &"rifle", &"aw_drum_shotgun": &"shotgun"})
+	held.equip(_dressed(&"rifle"))
+	held.advance(0.02)
+	AwWorldModel.person_carry = false
+	held.advance(0.02)
+	held.on_fired(Vector2(1.0, 0.1))
+	var off_kinds := carry.kinds.duplicate()
+	held.advance(0.02)
+	AwWorldModel.person_carry = true
+	_check("switched off, the carry is cleared once and the model kicks again (%s)" % [off_kinds],
+		off_kinds == [&"shotgun", null, &"rifle", null] and carry.kinds.size() == 4 and carry.fires == 1 and held._kick > 0.0)
+	held.advance(0.02)
+	_check("switched back on, the class returns (%s)" % [carry.kinds], carry.kinds.size() == 5 and carry.kinds[4] == &"rifle")
 	person.free()
 
 	var bare := Node3D.new()
