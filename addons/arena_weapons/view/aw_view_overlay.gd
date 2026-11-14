@@ -50,7 +50,8 @@ func is_active() -> bool:
 func update(active: bool, source: Camera3D) -> void:
 	if _canvas == null:
 		return
-	if not active or source == null or not source.is_inside_tree():
+	# Only from the camera on screen: from any other it draws the view layer (the shown gun) small, somewhere in the world.
+	if not active or source == null or not source.is_inside_tree() or not source.current:
 		_canvas.visible = false
 		return
 	var vp := source.get_viewport()

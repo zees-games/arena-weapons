@@ -5,7 +5,7 @@ extends "aw_selftest_grenades.gd"
 ## What it cannot see is how they look: tools/screenshot.sh in game-arena renders the hands.
 
 const IronSight := preload("res://addons/dot_weapon/view/dot_weapon_iron_sight.gd")
-const CHECKS := 419
+const CHECKS := 425
 ## Guns whose model shows its own notch, aperture or post (the rest aim at their row's written aim).
 const ReloadSequence := preload("../addons/arena_weapons/view/aw_reload_sequence.gd")
 const ReloadCues := preload("../addons/arena_weapons/view/aw_reload_cues.gd")
@@ -783,6 +783,7 @@ func _floor_clip() -> void:
 	var camera := Camera3D.new()
 	camera.fov = 100.0
 	add_child(camera)
+	camera.current = true
 	var floor_body := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -828,6 +829,7 @@ func _floor_clip() -> void:
 	var space := view.get_world_3d().direct_space_state
 	_check("the sphere before the drawn-gun rays misses a floor out of reach", not view._world_near(space, camera.global_position, eye_height * 0.5))
 	_check("and finds it within reach", view._world_near(space, camera.global_position, eye_height + 0.1))
+	await _overlay_follows_view(view, camera)
 	view.queue_free()
 	# The web has no wall-free pass: a stencil copy of each material draws the part the floor hides instead.
 	var web := AwViewModel.new()
@@ -864,6 +866,49 @@ func _floor_clip() -> void:
 	camera.queue_free()
 	floor_body.queue_free()
 	_end()
+
+
+## The wall-free pass's layer and camera are not hidden or stopped with the view model, and its camera shares the world: left on
+## by a view model that is hidden, stopped, parked away from its camera or reset, it drew the shown gun small from where it
+## last stood (Fatal Contact: a dark copy of the player's gun in the world per parked killcam hand, four in the owner's video).
+func _overlay_follows_view(view: AwViewModel, camera: Camera3D) -> void:
+	var overlay := view._overlay
+	if overlay == null:
+		_check("the view model built its wall-free pass", false)
+		return
+	camera.rotation_degrees = Vector3(-89.0, 0.0, 0.0)
+	overlay.update(true, camera)
+	_check("the pass is on while the gun is in the floor", overlay.is_active())
+	view.visible = false
+	_check("hiding the view model turns the pass off", not overlay.is_active())
+	view.visible = true
+	overlay.update(true, camera)
+	view.process_mode = Node.PROCESS_MODE_DISABLED
+	_check("stopping the view model turns the pass off", not overlay.is_active())
+	view.process_mode = Node.PROCESS_MODE_INHERIT
+	overlay.update(true, camera)
+	view.on_reset()
+	_check("a reset turns the pass off", not overlay.is_active())
+	# Parked as a killcam keeps its spare hands: under a layer, not a camera, then back under a camera, many times.
+	var park := CanvasLayer.new()
+	add_child(park)
+	var shown := 0
+	for _i in 8:
+		overlay.update(true, camera)
+		view.reparent(park, false)
+		view.advance(0.02)
+		shown += 1 if overlay.is_active() else 0
+		view.reparent(camera, false)
+	_check("parked away from a camera, eight times over, the pass is never left on (%d)" % shown, shown == 0)
+	park.queue_free()
+	var other := Camera3D.new()
+	add_child(other)
+	other.current = true
+	overlay.update(true, camera)
+	_check("the pass never draws from a camera that is not on screen", not overlay.is_active())
+	other.queue_free()
+	camera.current = true
+	await get_tree().process_frame
 
 
 ## A wall shoved against the muzzle retracts the gun toward the eye; no drawn mesh may then be cut by the camera near plane inside the view

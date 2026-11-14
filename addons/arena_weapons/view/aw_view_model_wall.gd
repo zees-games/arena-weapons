@@ -18,6 +18,24 @@ const CLIP_HOLD := 0.25
 
 var _clip_left: float = 0.0
 
+
+## The wall-free pass goes off the moment this view model stops being drawn or run. Its CanvasLayer ignores a hidden
+## Node3D parent and a stopped process, and its camera shares the world: left on, it went on drawing the whole view
+## layer (the player's own gun) from where it last stood, a small dark copy of the gun hanging in the world for every
+## parked killcam hand and hidden spare (owner video: four, switching and reloading with the player's).
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_VISIBILITY_CHANGED, NOTIFICATION_DISABLED, NOTIFICATION_PAUSED, NOTIFICATION_EXIT_TREE, NOTIFICATION_PARENTED, NOTIFICATION_UNPARENTED:
+			if not _drawn_live():
+				_clip_left = 0.0
+				if _overlay != null:
+					_overlay.update(false, null)
+
+
+## Drawn and run, under a camera: the only state in which the wall-free pass may be on.
+func _drawn_live() -> bool:
+	return is_inside_tree() and is_visible_in_tree() and can_process() and get_parent() is Camera3D
+
 ## Whether the gun as it is drawn reaches into the world, held for [constant CLIP_HOLD] after the last contact.
 ## The lens draws the gun larger and farther from the eye than its real size, and [method _advance_wall] probes the real size, so looking steeply down puts the drawn barrel through a floor the probe never reaches (and a wall or crate likewise).
 ## The wall-free pass hides that, so it must run whenever the drawn gun is in the world, not only while the wall response is pulling the gun back.

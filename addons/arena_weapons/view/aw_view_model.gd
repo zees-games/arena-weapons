@@ -259,6 +259,10 @@ func on_reset() -> void:
 	_wall_excluded.clear()
 	_look_seen = false
 	_aim_fraction = 0.0
+	_clip_left = 0.0
+	# The next frame turns it back on if the gun is still in the world; a parked view model has no next frame.
+	if _overlay != null:
+		_overlay.update(false, null)
 	if _charge_fx != null:
 		_charge_fx.reset()
 
